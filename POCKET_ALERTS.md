@@ -97,13 +97,14 @@ walks the whole table so no event can be dropped by accident.
 | Waiter accepts / sends an order | - | **ring** | **ring** | **ring** |
 | Waiter or cashier accepts a QR order | ring | **ring** | **ring** | **ring** |
 | Items added to an already accepted bill | **ring** | **ring** | - | - |
-| Cashier taps PRINTED & SEND (additions) | ring | - | **ring** (new items only) | **ring** (new items only) |
-| Kitchen/barista starts an item | ring | - | - | - |
-| Kitchen/barista finishes an item | **ring** | - | - | - |
-| Last item finished (whole order ready) | **ring "ORDER READY TO SERVE"** | - | - | - |
-| Cashier removes an item from a bill | **ring** | - | **ring** (if theirs) | **ring** (if theirs) |
+| Cashier taps PRINTED & SEND (additions) | silent | - | **ring** (new items only) | **ring** (new items only) |
+| Bill printed / kitchen accepted (first print) | silent | - | - | - |
+| Kitchen/barista starts an item | silent | - | - | - |
+| Kitchen/barista finishes an item | **ring, owner only** | - | - | - |
+| Last item finished (whole order ready) | **ring "ORDER READY TO SERVE", owner only** | - | - | - |
+| Cashier removes an item from a bill | silent | - | **ring** (if theirs and started) | **ring** (if theirs and started) |
 | Quantity corrected on a bill | ring | - | **ring** (if theirs) | **ring** (if theirs) |
-| Guest asks for the bill | **ring** | **ring** | - | - |
+| Guest asks for the bill | **ring, owner only** | **ring** | - | - |
 | Guest is ready to pay | silent | silent | - | - |
 | Payment completed | silent | silent | - | - |
 | Bill settled / paid | silent | silent | - | - |
@@ -129,16 +130,28 @@ at the counter or at the table when those happen, and a phone that rings for
 everything is a phone people stop listening to. The cards still update the
 moment it happens.
 
+The same goes for four ex-alerts the owner cut (Sept 2026): the crew STARTING
+a dish, the bill being PRINTED, the order moving to "preparing", and an item
+being REMOVED from a bill. None of them rings the waiter any more - her screen
+still updates instantly, she just has nowhere to walk for any of them, so they
+are silent. Removing a dish the crew already started still rings that station
+("do not prepare"); removing one they never started rings nobody at all.
+
 A **cancelled** order rings the kitchen and the barista only: they are the ones
 who may have a pan on the fire, and stopping them saves food. The waiter and
 the cashier see the cancellation on their screen (the waiter gets a quiet line
 at the top of hers) without any sound.
 
-Two rules keep this from becoming noise:
+Three rules keep this from becoming noise:
 
 - **You never ring yourself.** The role that performed the action is removed
   from the recipients, so the cashier printing a bill does not make her own
   tablet scream, and a waiter keying items never alarms her own phone.
+- **Only the owning waiter rings.** "Food ready" and "bill requested" go to
+  the waiter who accepted/sent that table - not the whole team. A QR order
+  nobody accepted yet still rings every waiter, because any of them can walk
+  over. Safety net: if the owner's phone has no live subscription, the whole
+  waiter team is rung instead, so food never goes cold unnoticed.
 - **A cancelled order is the loudest thing in the system.** It rings the
   kitchen and the barista with an urgent alert that stays on their lock
   screen until tapped, because food already on the fire has to stop.

@@ -186,7 +186,7 @@ function pass(name, cond) {
   pass("accepting an order wakes kitchen + barista + cashier together", /case "confirmed"/.test(alertsMatrix) && /roles: STATION_ROLES/.test(alertsMatrix));
   pass("✓ PRINTED & SEND wakes the crew for food ADDED later", /body\.status === "printed" \|\| \(body\.status === "preparing"/.test(tickets) && /fana-station-/.test(tickets));
   pass("only stations with newly released items are pinged", /prevStamp === null \|\| !r\.createdAt \|\| new Date\(r\.createdAt\)\.getTime\(\) > prevStamp/.test(tickets));
-  pass("bill request → waiter + cashier", /fana-bill-/.test(tableStatus) && /\["waiter", "cashier"\]/.test(tableStatus));
+  pass("bill request → the OWNING waiter + every cashier", /fana-bill-/.test(tableStatus) && /sendPushToNamedStaff\("waiter"/.test(tableStatus) && /sendPushToRoles\(\["cashier"\]/.test(tableStatus));
 
   /* ── 6b. EVERY customer top-up rings the waiter, not just the first order ──
    * A guest adding dishes to an existing bill (pending, confirmed, printed)
@@ -293,7 +293,12 @@ function pass(name, cond) {
 {
   pass("the WHOLE menu card adds the food (image/text/anywhere)", /role="button"/.test(waiter) && /Add • tap anywhere/.test(waiter));
   pass("cart count badge shows on the card", /inCart\.quantity/.test(waiter));
-  pass("print-queue waiter bill is read-only (confirm → send → clear only)", /printQueueMode && activeTicket\.status !== "ready_for_payment"/.test(waiter));
+  // (Owner, Sept 2026: the bill is NOT read-only any more — a wrong dish, a
+  // wrong qty or a forgotten note is fixed on the bill itself, so the waiter
+  // never has to cancel-and-start-again at the cashier. Dishes the crew
+  // already started stay cashier-only, so the kitchen is never edited blind.)
+  pass("waiter bill fixes not-started items in place (note/qty/remove)", /Edit • note \/ qty \/ remove/.test(waiter) && /saveEditedItem/.test(waiter) && /removeTicketItem/.test(waiter));
+  pass("started dishes stay cashier-only on the waiter bill", /Kitchen started this, ask the cashier/.test(waiter));
 }
 
 if (failures.length > 0) {

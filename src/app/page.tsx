@@ -14,6 +14,7 @@ import FaqSection from "@/components/FaqSection";
 import CtaBanner from "@/components/CtaBanner";
 import LanguageToggle from "@/components/LanguageToggle";
 import Footer from "@/components/Footer";
+import StaffAuthModal from "@/components/StaffAuthModal";
 
 import { MenuItem, Category, SiteSettings, Review, GalleryItem } from "@/types";
 import { DEFAULT_SETTINGS, DEFAULT_CATEGORIES, DEFAULT_MENU_ITEMS, DEFAULT_REVIEWS, DEFAULT_GALLERY } from "@/lib/initial-data";
@@ -25,6 +26,7 @@ export default function HomePage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [staffModalOpen, setStaffModalOpen] = useState(false);
 
   const loadSiteData = async () => {
     try {
@@ -79,8 +81,8 @@ export default function HomePage() {
       .catch(() => {});
   }, []);
 
-  const goToAdmin = () => {
-    window.location.href = "/admin";
+  const openStaffPortal = () => {
+    setStaffModalOpen(true);
   };
 
   const scrollToMenu = () => {
@@ -95,7 +97,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-[#FAF6F0] text-[#2C1B17] font-sans selection:bg-[#C9A227] selection:text-[#2C1B17]">
-      <Navbar settings={settings} onOpenAdmin={goToAdmin} isAdminLoggedIn={isAdminLoggedIn} />
+      <Navbar settings={settings} onOpenAdmin={openStaffPortal} isAdminLoggedIn={isAdminLoggedIn} />
       <LanguageToggle />
 
       <main>
@@ -121,7 +123,8 @@ export default function HomePage() {
         <CtaBanner settings={settings} onOpenMenu={scrollToMenu} />
       </main>
 
-      <Footer settings={settings} onOpenAdmin={goToAdmin} isAdminLoggedIn={isAdminLoggedIn} />
+      <Footer settings={settings} onOpenAdmin={openStaffPortal} isAdminLoggedIn={isAdminLoggedIn} />
+      <StaffAuthModal isOpen={staffModalOpen} onClose={() => setStaffModalOpen(false)} />
     </div>
   );
 }

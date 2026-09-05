@@ -30,6 +30,7 @@ import {
   billRequestAlerts,
   stationProgressAlerts,
   ticketStatusAlerts,
+  ticketOwner,
   withoutActor,
   type RoleAlert,
 } from "../src/lib/alerts";
@@ -71,7 +72,14 @@ const urgentFor = (alerts: RoleAlert[], role: string) =>
     pass(`status "${status}" rings NOBODY (money/closing steps are silent)`, ticketStatusAlerts(status, TICKET).length === 0);
   }
 
-  for (const status of statuses.filter((x) => !silentStatuses.includes(x))) {
+  // Also SILENT (owner's decision, Sept 2026): "bill printed" and "kitchen
+  // accepted" are information, not a call to act — the waiter has nowhere to
+  // walk for either, so ringing her is pure noise. Screens still update.
+  for (const status of ["printed", "preparing"]) {
+    pass(`status "${status}" rings NOBODY (owner: noise, screens still update)`, ticketStatusAlerts(status, TICKET).length === 0);
+  }
+
+  for (const status of statuses.filter((x) => ![...silentStatuses, "printed", "preparing"].includes(x))) {
     const alerts = ticketStatusAlerts(status, TICKET);
     pass(`status "${status}" rings at least one role`, alerts.length > 0 && rolesOf(alerts).length > 0);
     pass(`status "${status}" names the table in every alert`, alerts.every((a) => a.body.includes(TICKET.tableName)));
@@ -80,7 +88,6 @@ const urgentFor = (alerts: RoleAlert[], role: string) =>
 
   pass("confirmed puts the bill in the cashier's print queue, urgently", urgentFor(ticketStatusAlerts("confirmed", TICKET), "cashier"));
   pass("confirmed also tells the waiter it went through", hasRole(ticketStatusAlerts("confirmed", TICKET), "waiter"));
-  pass("printed tells the waiter the crew can cook", hasRole(ticketStatusAlerts("printed", TICKET), "waiter"));
   // The screens still show all of these; they simply make no sound.
   pass("no money step wakes a phone", silentStatuses.every((st) => ticketStatusAlerts(st, TICKET).length === 0));
 
@@ -110,7 +117,7 @@ const urgentFor = (alerts: RoleAlert[], role: string) =>
   pass("the LAST finished dish says the whole order is ready", allReady.some((a) => /ORDER READY/i.test(a.title)));
 
   const started = stationProgressAlerts("accepted", { ...base, wholeOrderReady: false });
-  pass("the crew starting work informs the waiter quietly", hasRole(started, "waiter") && started.every((a) => !a.urgent));
+  pass("the crew starting work rings NOBODY (owner: noise — only DONE rings)", started.length === 0);
 
   pass("an unknown station action rings nobody", stationProgressAlerts("pending", { ...base, wholeOrderReady: false }).length === 0);
 }
@@ -118,7 +125,7 @@ const urgentFor = (alerts: RoleAlert[], role: string) =>
 /* ── 3. Items removed or corrected on a live bill ─────────────────────────── */
 {
   const removedKitchen = itemRemovedAlerts({ ...TICKET, itemName: "Tibs", station: "kitchen" });
-  pass("a removed item rings the waiter (she must tell the guest)", urgentFor(removedKitchen, "waiter"));
+  pass("a removed item does NOT ring the waiter (owner: noise)", !hasRole(removedKitchen, "waiter"));
   pass("a removed item rings the station that was cooking it", urgentFor(removedKitchen, "kitchen"));
   pass("a removed item never rings the wrong station", !hasRole(removedKitchen, "barista"));
 
@@ -126,7 +133,7 @@ const urgentFor = (alerts: RoleAlert[], role: string) =>
   pass("a removed drink rings the barista", hasRole(removedBarista, "barista") && !hasRole(removedBarista, "kitchen"));
 
   const removedNoStation = itemRemovedAlerts({ ...TICKET, itemName: "Water", station: "" });
-  pass("an item with no station still rings the waiter", hasRole(removedNoStation, "waiter") && removedNoStation.length === 1);
+  pass("an item with no station rings nobody (screens update silently)", removedNoStation.length === 0);
 
   const qty = itemQuantityAlerts({ ...TICKET, itemName: "Tibs", station: "kitchen", fromQuantity: 2, toQuantity: 4 });
   pass("a quantity change tells both waiter and station", hasRole(qty, "waiter") && hasRole(qty, "kitchen"));
@@ -138,6 +145,14 @@ const urgentFor = (alerts: RoleAlert[], role: string) =>
   const bill = billRequestAlerts(TICKET);
   pass("a bill request rings waiter and cashier urgently",
     urgentFor(bill, "waiter") && urgentFor(bill, "cashier"));
+}
+
+/* ── 4a. Food-ready and bill-request ring ONE waiter, not the team ────────── */
+{
+  pass("accepted QR order is owned by the accepting waiter", ticketOwner("Sara", "Customer (QR)") === "Sara");
+  pass("waiter-sent bill is owned by its sender", ticketOwner(null, "Sara") === "Sara");
+  pass("unaccepted QR order has no owner (rings every waiter)", ticketOwner(null, "Customer (QR)") === null);
+  pass("empty names have no owner (rings every waiter)", ticketOwner(null, null) === null && ticketOwner("", "") === null);
 }
 
 /* ── 4b. EVERY event rings EXACTLY ONCE (no re-rings while unanswered) ────── */
@@ -187,7 +202,10 @@ const urgentFor = (alerts: RoleAlert[], role: string) =>
   pass("the ticket route knows WHO acted (to skip their own phone)", /readStaffSession\(\)/.test(ticketsRoute) && /actor\?\.role/.test(ticketsRoute));
   pass("station progress pushes the waiter", /stationProgressAlerts\(/.test(stationRoute) && /sendPushToRoles/.test(stationRoute));
   pass("station route computes whether the WHOLE order is ready", /wholeOrderReady/.test(stationRoute));
-  pass("item removal pushes waiter + station", /itemRemovedAlerts\(/.test(itemsRoute));
+  pass("station progress rings only the OWNING waiter", /ticketOwner\(/.test(stationRoute) && /sendPushToNamedStaff/.test(stationRoute));
+  pass("bill requests ring only the OWNING waiter (+ all cashiers)", /ticketOwner\(/.test(tableStatus) && /sendPushToNamedStaff/.test(tableStatus));
+  pass("item removal pushes the station (waiter stays silent)", /itemRemovedAlerts\(/.test(itemsRoute));
+  pass("removing a not-yet-started item rings nobody", /wasPending/.test(itemsRoute));
   pass("quantity edits push waiter + station", /itemQuantityAlerts\(/.test(itemsRoute));
   {
     // The guest burst is the ONE alarm left in the system: its four quick
@@ -222,7 +240,11 @@ const urgentFor = (alerts: RoleAlert[], role: string) =>
   pass("waiter screen alarms when food is READY", /readyRef/.test(waiter) && /ready to serve/i.test(waiter));
   pass("waiter screen alarms when the guest asks for the bill", /billAskedRef/.test(waiter));
   pass("waiter screen announces status moves made by others", /statusMoveLabel/.test(waiter) && /ORDER CANCELLED/.test(waiter));
+  pass("waiter screen stays silent for printed/preparing moves", !/printed: `/.test(waiter) && !/preparing: `/.test(waiter));
+  pass("waiter screen rings ready/bill only for her OWN tables", /ringsMe\(t\)/.test(waiter) && /ticketOwner/.test(waiter));
   pass("waiter never alarms herself for her own taps", /ownStatusRef/.test(waiter) && /noteOwnStatus\(/.test(waiter));
+  pass("waiter can edit a sent item (note/qty/remove) before the crew starts it",
+    /startEditItem/.test(waiter) && /saveEditedItem/.test(waiter) && /removeTicketItem/.test(waiter) && /itemEditable/.test(waiter));
   pass("station screen alarms when a line is removed or changed", /itemSigRef/.test(station) && /was REMOVED/.test(station));
   pass("station screen alarms when the whole order disappears", /stop preparing/.test(station));
   pass("cashier reacts to bill requests (no status change involved)", /receiptRequestedAt \? 1 : 0/.test(cashier));

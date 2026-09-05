@@ -1,7 +1,7 @@
 import webpush from "web-push";
 import { db } from "@/db";
 import { siteSettings, pushSubscriptions } from "@/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 /**
  * WEB PUSH ("pocket mode") — Group 10.
@@ -100,20 +100,14 @@ export interface PushPayload {
 /** The 3 second alarm burst used for anything a GUEST just did. */
 export const CUSTOMER_ALERT_RING = { urgent: true as const, repeat: 3, gapMs: 1100, kind: "customer" as const };
 
-/**
- * Fire-and-forget push to every device subscribed under the given roles.
- * NEVER throws and never blocks the caller — a push outage must not slow down
- * or fail an order. Dead endpoints (410/404) are pruned automatically.
- */
-export async function sendPushToRoles(roles: string[], payload: PushPayload): Promise<void> {
-  if (roles.length === 0) return;
+type PushSub = typeof pushSubscriptions.$inferSelect;
+
+/** Deliver one payload to an already-fetched subscription list. */
+async function deliverToSubs(subs: PushSub[], payload: PushPayload): Promise<void> {
   try {
     const keys = await getVapidKeys();
     if (!keys) return;
     webpush.setVapidDetails("mailto:owner@fanacafe.example", keys.publicKey, keys.privateKey);
-
-    const subs = await db.select().from(pushSubscriptions).where(inArray(pushSubscriptions.role, roles));
-    if (subs.length === 0) return;
 
     await Promise.all(
       subs.map(async (sub) => {
@@ -158,5 +152,51 @@ export async function sendPushToRoles(roles: string[], payload: PushPayload): Pr
     );
   } catch {
     // push must never take the order flow down with it
+  }
+}
+
+/**
+ * Fire-and-forget push to every device subscribed under the given roles.
+ * NEVER throws and never blocks the caller — a push outage must not slow down
+ * or fail an order. Dead endpoints (410/404) are pruned automatically.
+ */
+export async function sendPushToRoles(roles: string[], payload: PushPayload): Promise<void> {
+  if (roles.length === 0) return;
+  try {
+    const subs = await db.select().from(pushSubscriptions).where(inArray(pushSubscriptions.role, roles));
+    if (subs.length === 0) return;
+    await deliverToSubs(subs, payload);
+  } catch {
+    // push must never take the order flow down with it
+  }
+}
+
+/**
+ * Push to ONE named staff member — the waiter who owns the table.
+ *
+ * Subscriptions already store the staff name (taken from the session at
+ * subscribe time), so "food ready" and "bill requested" ring only her phone
+ * instead of every waiter's (owner's decision, Sept 2026).
+ *
+ * SAFE FALLBACK: when the name is unknown, or that waiter has no live
+ * subscription (new phone, alerts never armed), the whole ROLE is rung
+ * instead. A missed "food ready" is worse than an extra ring.
+ */
+export async function sendPushToNamedStaff(
+  role: string,
+  staffName: string | null | undefined,
+  payload: PushPayload
+): Promise<void> {
+  const name = (staffName || "").trim();
+  if (!name) return sendPushToRoles([role], payload);
+  try {
+    const matches = await db
+      .select()
+      .from(pushSubscriptions)
+      .where(and(eq(pushSubscriptions.role, role), eq(pushSubscriptions.name, name)));
+    if (matches.length === 0) return sendPushToRoles([role], payload);
+    await deliverToSubs(matches, payload);
+  } catch {
+    await sendPushToRoles([role], payload).catch(() => {});
   }
 }

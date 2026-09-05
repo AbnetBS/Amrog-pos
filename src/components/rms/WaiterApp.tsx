@@ -13,6 +13,7 @@ import { usePocketAlerts } from "@/lib/use-pocket-alerts";
 import { formatClock, formatDateTime, waitingLabel } from "@/lib/order-lines";
 import { compressImage, optimizeImageUrl, FALLBACK_FOOD_IMAGE } from "@/lib/image-utils";
 import { effectivePrice } from "@/lib/price";
+import { ticketOwner } from "@/lib/alerts";
 import { unlockAudio, playAlarm, playDing } from "@/lib/sound";
 import { enablePocketAlerts, pushSupported } from "@/lib/push-client";
 import { triggerDesktopNotification } from "@/lib/notifications";
@@ -56,6 +57,14 @@ export default function WaiterApp() {
   const [search, setSearch] = useState("");
   const [sending, setSending] = useState(false);
   const [toast, setToast] = useState("");
+
+  // ── BILL EDITOR (owner, Sept 2026): a wrong dish, a wrong qty or a forgotten
+  // note is fixed right on the bill — no walk to the cashier, no
+  // cancel-and-start-again. Only dishes the crew has NOT started yet.
+  const [editingItemId, setEditingItemId] = useState<number | null>(null);
+  const [editQty, setEditQty] = useState(1);
+  const [editNotes, setEditNotes] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
 
   // ── IDEMPOTENCY (Group 1): one key per order submission, reused on retries so a
   //    double-tap / WiFi retry can NEVER duplicate items on the table bill.
@@ -113,9 +122,11 @@ export default function WaiterApp() {
   // keying items herself must NOT ring her own phone — the next refresh
   // consumes this credit once, so only units BEYOND her own send alarm her.
   const ownAddRef = useRef<{ ticketId: number; units: number } | null>(null);
-  // EVERY ROLE EVENT RINGS: besides new orders and guest top-ups, the waiter
-  // must hear food going READY, an order being cancelled or confirmed, and a
-  // guest asking for the bill. Each of these needs its own memory of the last
+  // ROLE EVENTS THAT RING: besides new orders and guest top-ups, the waiter
+  // hears food going READY on her own tables, a guest asking for the bill on
+  // her own tables, and a short ding when somebody else confirms an order.
+  // A cancellation is shown silently; printed/preparing/started/removed never
+  // ring at all (owner: noise). Each of these needs its own memory of the last
   // refresh, otherwise the same event would ring forever (or never).
   /** Ticket id -> last seen status. */
   const statusRef = useRef<Map<number, string>>(new Map());
@@ -261,13 +272,24 @@ export default function WaiterApp() {
     // The money/closing steps (ready to pay, paid, settled, table cleared) are
     // deliberately NOT here: they never ring and never notify. Their cards
     // still update on screen; they simply do not wake a phone in a pocket.
+    // "printed" and "preparing" are NOT here either (owner: noise — the waiter
+    // has nowhere to walk for either, so they update the screen silently).
     const map: Record<string, string> = {
       confirmed: `✓ ${tableName}: order confirmed`,
-      printed: `🖨 ${tableName}: bill printed, crew is cooking`,
-      preparing: `👨‍🍳 ${tableName}: kitchen started`,
       cancelled: `⛔ ${tableName}: ORDER CANCELLED, do not serve`,
     };
     return map[status] || "";
+  };
+
+  /**
+   * OWNER-ONLY alarms (owner's decision, Sept 2026): "food ready" and "bill
+   * requested" ring just the waiter who accepted/sent the table — never the
+   * whole team. Tickets nobody owns yet (a QR order nobody accepted) still
+   * ring every waiter on duty, because any of them can walk over.
+   */
+  const ringsMe = (t: Ticket): boolean => {
+    const owner = ticketOwner(t.confirmedBy, t.createdBy);
+    return !owner || owner === staffName;
   };
 
   /** Jump straight to a table's bill (used by the full-screen guest alert). */
@@ -352,13 +374,14 @@ export default function WaiterApp() {
       const statusMoves: Array<{ ticket: Ticket; from: string; to: string }> = [];
       const billAsks: Ticket[] = [];
       for (const t of all) {
-        // Food finished by the kitchen/barista.
+        // Food finished by the kitchen/barista — but only MY tables ring me.
+        const mine = ringsMe(t);
         for (const i of t.items || []) {
           if (i.removed) continue;
           const done = i.stationStatus === "done";
           if (done && !readyRef.current.has(i.id)) {
             readyRef.current.add(i.id);
-            if (alertsInitRef.current) readyItems.push({ ticket: t, name: i.name, quantity: i.quantity });
+            if (alertsInitRef.current && mine) readyItems.push({ ticket: t, name: i.name, quantity: i.quantity });
           }
           if (!done) readyRef.current.delete(i.id); // sent back to the pan
         }
@@ -371,11 +394,12 @@ export default function WaiterApp() {
         } else if (alertsInitRef.current && prevStatus !== undefined && prevStatus !== t.status) {
           statusMoves.push({ ticket: t, from: prevStatus, to: t.status });
         }
-        // Guest tapped "bring the bill" on their own phone.
+        // Guest tapped "bring the bill" on their own phone — only MY tables
+        // ring me (another waiter's guest is her walk, not mine).
         if (t.receiptRequestedAt) {
           if (!billAskedRef.current.has(t.id)) {
             billAskedRef.current.add(t.id);
-            if (alertsInitRef.current) billAsks.push(t);
+            if (alertsInitRef.current && mine) billAsks.push(t);
           }
         } else {
           billAskedRef.current.delete(t.id);
@@ -645,13 +669,67 @@ export default function WaiterApp() {
     }
   };
 
-  const updateItemQty = async (item: TicketItem, qty: number) => {
-    await fetch("/api/tickets/items", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ itemId: item.id, quantity: qty }),
-    });
-    refreshTicket();
+  /** Only dishes the crew has NOT started yet can be fixed by the waiter. */
+  const itemEditable = (item: TicketItem): boolean =>
+    !item.removed && (!item.stationStatus || item.stationStatus === "pending");
+
+  /** Bills at/after the payment stage belong to the cashier, not the editor. */
+  const billEditable =
+    !!activeTicket && ["pending_waiter", "confirmed", "printed", "preparing"].includes(activeTicket.status);
+
+  const startEditItem = (item: TicketItem) => {
+    setEditingItemId(item.id);
+    setEditQty(item.quantity);
+    setEditNotes(item.notes || "");
+  };
+
+  /** Units I changed myself must not ring my own phone as a "guest addition". */
+  const creditOwnUnits = (ticketId: number, units: number) => {
+    if (units <= 0) return;
+    ownAddRef.current = {
+      ticketId,
+      units: (ownAddRef.current?.ticketId === ticketId ? ownAddRef.current.units : 0) + units,
+    };
+  };
+
+  const saveEditedItem = async (item: TicketItem) => {
+    const qty = Math.max(1, Math.min(100, Math.floor(Number(editQty) || 1)));
+    setEditSaving(true);
+    try {
+      const r = await fetch("/api/tickets/items", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId: item.id, quantity: qty, notes: editNotes.slice(0, 500) }),
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        showToast(d?.error || "Could not update item");
+        return;
+      }
+      if (activeTicket && qty > item.quantity) creditOwnUnits(activeTicket.id, qty - item.quantity);
+      setEditingItemId(null);
+      showToast("✓ Item updated");
+      await refreshTicket();
+      loadTables();
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const removeTicketItem = async (item: TicketItem) => {
+    const okToRemove = confirm(
+      `Remove "${item.name}" x${item.quantity} from the bill?\n\nThe kitchen has not started it yet, so nothing is wasted.`
+    );
+    if (!okToRemove) return;
+    const r = await fetch(`/api/tickets/items?id=${item.id}`, { method: "DELETE" });
+    if (r.ok) {
+      setEditingItemId(null);
+      showToast("✓ Item removed from the bill");
+      await refreshTicket();
+      loadTables();
+    } else {
+      showToast("Could not remove item");
+    }
   };
 
   const requestPayment = async () => {
@@ -1143,21 +1221,72 @@ export default function WaiterApp() {
                   <span className="font-extrabold text-[#C9A227] shrink-0">{i.price * i.quantity} ETB</span>
                 </div>
                 {i.notes && <p className="text-[11px] text-amber-300 italic">📝 {i.notes}</p>}
-                {/* Group 9: in print-queue mode the waiter's job is confirm →
-                    send → clear; quantity corrections belong to the cashier's
-                    ✗ Problem path, so the edit controls are full-mode only. */}
-                {!printQueueMode && activeTicket.status !== "ready_for_payment" && (
-                  <div className="flex items-center gap-2 pt-1">
-                    <button onClick={() => updateItemQty(i, Math.max(1, i.quantity - 1))} className="w-6 h-6 bg-white/10 rounded-md flex items-center justify-center"><Minus className="w-3 h-3" /></button>
-                    <span className="text-xs font-bold w-4 text-center">{i.quantity}</span>
-                    <button onClick={() => updateItemQty(i, i.quantity + 1)} className="w-6 h-6 bg-[#C9A227] text-black rounded-md flex items-center justify-center"><Plus className="w-3 h-3" /></button>
-                  </div>
-                )}
-                {printQueueMode && (
-                  <p className="text-[11px] font-bold text-stone-400">× {i.quantity} • tell the cashier about changes</p>
+                {/* BILL EDITOR: a wrong dish, a wrong qty or a forgotten note is
+                    fixed HERE — no walk to the cashier, no cancel-and-start-again.
+                    Only dishes the crew has not started yet; once they are in the
+                    pan, changes go through the cashier. */}
+                <p className="text-[11px] font-bold text-stone-400">× {i.quantity}</p>
+                {billEditable && itemEditable(i) ? (
+                  editingItemId === i.id ? (
+                    <div className="bg-black/30 border border-[#C9A227]/50 rounded-xl p-2.5 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold text-stone-300 flex-1">Qty</span>
+                        <button onClick={() => setEditQty(Math.max(1, editQty - 1))} className="w-7 h-7 bg-white/10 rounded-lg flex items-center justify-center"><Minus className="w-3.5 h-3.5" /></button>
+                        <span className="text-sm font-extrabold text-[#C9A227] w-6 text-center">{editQty}</span>
+                        <button onClick={() => setEditQty(Math.min(100, editQty + 1))} className="w-7 h-7 bg-[#C9A227] text-black rounded-lg flex items-center justify-center"><Plus className="w-3.5 h-3.5" /></button>
+                      </div>
+                      <input
+                        value={editNotes}
+                        onChange={(e) => setEditNotes(e.target.value)}
+                        placeholder="Note: No Sugar, Extra Mayo, Less Spicy..."
+                        className="w-full bg-black/40 border border-stone-700 rounded-lg px-2 py-2 text-xs text-stone-200"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => saveEditedItem(i)}
+                          disabled={editSaving}
+                          className="flex-1 bg-emerald-600 text-white text-xs font-extrabold py-2 rounded-lg disabled:opacity-40"
+                        >
+                          {editSaving ? "Saving..." : "✓ Save"}
+                        </button>
+                        <button
+                          onClick={() => removeTicketItem(i)}
+                          disabled={editSaving}
+                          className="flex-1 bg-rose-700/80 text-white text-xs font-extrabold py-2 rounded-lg disabled:opacity-40"
+                        >
+                          ✗ Remove
+                        </button>
+                        <button
+                          onClick={() => setEditingItemId(null)}
+                          disabled={editSaving}
+                          className="px-3 bg-white/10 text-stone-300 text-xs font-bold py-2 rounded-lg"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => startEditItem(i)}
+                      className="text-[11px] font-extrabold text-[#C9A227] bg-[#C9A227]/10 border border-[#C9A227]/40 px-3 py-1.5 rounded-lg"
+                    >
+                      ✎ Edit • note / qty / remove
+                    </button>
+                  )
+                ) : (
+                  <p className="text-[11px] text-amber-300/80">
+                    {itemEditable(i)
+                      ? "Bill is at the payment stage, ask the cashier for changes"
+                      : "👨‍🍳 Kitchen started this, ask the cashier for changes"}
+                  </p>
                 )}
               </div>
             ))}
+            {billItems.length === 0 && (
+              <p className="p-4 text-xs text-stone-400 text-center">
+                All items were removed. If the guests are leaving, ask the cashier to cancel this bill.
+              </p>
+            )}
           </div>
 
           <div className="bg-[#2C1B17] rounded-2xl border border-[#C9A227]/40 p-4 flex items-center justify-between">

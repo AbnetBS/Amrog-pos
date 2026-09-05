@@ -4,8 +4,8 @@ import { ticketItems, tickets } from "@/db/schema";
 import { and, eq, notInArray, asc, inArray } from "drizzle-orm";
 import { requireStaffOrAdmin, readStaffSession, readAdminSession } from "@/lib/session";
 import { publish, CHANNELS } from "@/lib/realtime";
-import { sendPushToRoles } from "@/lib/push";
-import { stationProgressAlerts } from "@/lib/alerts";
+import { sendPushToNamedStaff, sendPushToRoles } from "@/lib/push";
+import { stationProgressAlerts, ticketOwner } from "@/lib/alerts";
 
 type Station = "barista" | "kitchen";
 
@@ -186,7 +186,13 @@ export async function PUT(request: Request) {
     try {
       const item = existing[0];
       const ticketRows = await db
-        .select({ id: tickets.id, tableName: tickets.tableName, totalAmount: tickets.totalAmount })
+        .select({
+          id: tickets.id,
+          tableName: tickets.tableName,
+          totalAmount: tickets.totalAmount,
+          confirmedBy: tickets.confirmedBy,
+          createdBy: tickets.createdBy,
+        })
         .from(tickets)
         .where(eq(tickets.id, item.ticketId))
         .limit(1);
@@ -208,14 +214,23 @@ export async function PUT(request: Request) {
           quantity: item.quantity,
           wholeOrderReady,
         });
+        // OWNER-ONLY (owner's decision, Sept 2026): "food ready" rings the
+        // waiter who accepted/sent this table — not every waiter on duty. An
+        // unowned ticket (QR order nobody accepted) still rings all waiters.
+        const owner = ticketOwner(ticketRows[0].confirmedBy, ticketRows[0].createdBy);
         for (const alert of alerts) {
-          void sendPushToRoles(alert.roles, {
+          const payload = {
             title: alert.title,
             body: alert.body,
             tag: alert.tag,
             urgent: alert.urgent,
             repeat: alert.repeat,
-          }).catch(() => {});
+          };
+          if (owner && alert.roles.length === 1 && alert.roles[0] === "waiter") {
+            void sendPushToNamedStaff("waiter", owner, payload).catch(() => {});
+          } else {
+            void sendPushToRoles(alert.roles, payload).catch(() => {});
+          }
         }
       }
     } catch {

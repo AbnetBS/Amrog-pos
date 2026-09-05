@@ -5,8 +5,15 @@
  * notification and an alarm". Before, only a handful of moments pushed a phone
  * (a new QR order, a print, a bill request). Everything else changed silently,
  * so a waiter whose phone was in her pocket, or who was using another app,
- * simply never learned that her food was ready, that an order was cancelled,
- * or that the cashier removed an item from her table's bill.
+ * simply never learned that her food was ready or that the guest asked for the
+ * bill.
+ *
+ * NOTE (owner, Sept 2026): the matrix was then TRIMMED. The waiter does NOT
+ * need an alarm for "kitchen started", "bill printed", "preparing" or "item
+ * removed" — those are noise, and noise trains staff to ignore the alerts
+ * that matter. They update the screens instantly; they just never wake a phone.
+ * Food READY and the guest's bill request still ring — and only the waiter who
+ * owns the table (see `ticketOwner`), never the whole team.
  *
  * Every event now lands here, in ONE pure table, so:
  *   • no route can forget an event (a regression test walks this matrix),
@@ -111,28 +118,12 @@ export function ticketStatusAlerts(status: string, t: TicketAlertInfo): RoleAler
       ];
 
     case "printed":
-      return [
-        {
-          roles: ["waiter"],
-          title: "🖨 Bill printed",
-          body: `${table} • the EFD receipt is out`,
-          tag: `fana-printed-${t.id}`,
-          urgent: false,
-          repeat: 0,
-        },
-      ];
-
     case "preparing":
-      return [
-        {
-          roles: ["waiter"],
-          title: "👨‍🍳 Kitchen accepted",
-          body: `${table} • the order is being prepared`,
-          tag: `fana-preparing-${t.id}`,
-          urgent: false,
-          repeat: 0,
-        },
-      ];
+      // SILENT (owner's decision, Sept 2026): "bill printed" and "kitchen
+      // accepted" used to ring the waiter, but she does not need to walk
+      // anywhere for either — they are information, not a call to act. The
+      // cards still update the moment it happens; they just never wake a phone.
+      return [];
 
     // ── THE MONEY AND CLOSING STEPS ARE SILENT (owner's decision) ──
     // "Guest is ready to pay", "payment completed", "bill settled" and "table
@@ -182,7 +173,6 @@ export interface StationProgressInfo extends TicketAlertInfo {
  * food went cold on the pass because nobody told them it was ready.
  */
 export function stationProgressAlerts(stationStatus: string, info: StationProgressInfo): RoleAlert[] {
-  const crew = info.station === "barista" ? "Barista" : "Kitchen";
   if (stationStatus === "done") {
     return [
       {
@@ -197,18 +187,10 @@ export function stationProgressAlerts(stationStatus: string, info: StationProgre
       },
     ];
   }
-  if (stationStatus === "accepted") {
-    return [
-      {
-        roles: ["waiter"],
-        title: `👨‍🍳 ${crew} started`,
-        body: `${info.tableName} • ${info.itemName} x${info.quantity} is being prepared`,
-        tag: `fana-started-${info.id}-${info.itemName}`,
-        urgent: false,
-        repeat: 0,
-      },
-    ];
-  }
+  // "accepted" (the crew STARTED a dish) is SILENT (owner's decision, Sept
+  // 2026): the waiter cannot serve food that is still in the pan, so ringing
+  // her for it is pure noise. Only "done" wakes her — that is the moment she
+  // must walk to the pass.
   return [];
 }
 
@@ -221,30 +203,27 @@ export interface ItemChangeInfo extends TicketAlertInfo {
   toQuantity?: number;
 }
 
-/** An item was removed from a live bill (out of stock, guest changed mind). */
+/**
+ * An item was removed from a live bill (out of stock, guest changed mind).
+ *
+ * Only the station that owns the line is rung ("do not prepare") — they may
+ * have it in the pan. The WAITER is deliberately NOT rung (owner's decision,
+ * Sept 2026): she either removed it herself (the bill editor) or stands next
+ * to the cashier who did, and her screen updates instantly either way.
+ */
 export function itemRemovedAlerts(info: ItemChangeInfo): RoleAlert[] {
   const stationRoles = stationRoleFor(info.station);
-  const alerts: RoleAlert[] = [
+  if (stationRoles.length === 0) return [];
+  return [
     {
-      roles: ["waiter"],
-      title: "✗ Item removed",
-      body: `${info.tableName} • ${info.itemName} is off the bill, tell the guest`,
-      tag: `fana-item-removed-${info.id}-${info.itemName}`,
-      urgent: true,
-      repeat: 0,
-    },
-  ];
-  if (stationRoles.length > 0) {
-    alerts.push({
       roles: stationRoles,
       title: "✗ Do not prepare",
       body: `${info.tableName} • ${info.itemName} was removed from the order`,
       tag: `fana-item-removed-s-${info.id}-${info.itemName}`,
       urgent: true,
       repeat: 0,
-    });
-  }
-  return alerts;
+    },
+  ];
 }
 
 /** A quantity was corrected on a live bill. */
@@ -304,4 +283,22 @@ export function withoutActor(alerts: RoleAlert[], actorRole?: string | null): Ro
   return alerts
     .map((a) => ({ ...a, roles: a.roles.filter((r) => r !== actorRole) }))
     .filter((a) => a.roles.length > 0);
+}
+
+/**
+ * WHO owns this ticket? The waiter who ACCEPTED it, otherwise the waiter who
+ * SENT it. Food-ready and bill-request alarms go to this waiter ONLY — the
+ * rest of the team must not ring for somebody else's table (owner's decision,
+ * Sept 2026).
+ *
+ * Returns null when nobody owns it yet: a QR order nobody accepted
+ * (createdBy is "Customer (QR)"). Those still ring EVERY waiter, because any
+ * of them can walk over and accept.
+ */
+export function ticketOwner(confirmedBy?: string | null, createdBy?: string | null): string | null {
+  const name = (confirmedBy || createdBy || "").trim();
+  if (!name) return null;
+  if (/^customer/i.test(name)) return null; // "Customer (QR)" — nobody's table yet
+  if (/^waiter$/i.test(name)) return null; // legacy fallback value, not a person
+  return name;
 }
