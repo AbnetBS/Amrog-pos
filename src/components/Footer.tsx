@@ -127,7 +127,7 @@ export default function Footer({ settings, onOpenAdmin, isAdminLoggedIn }: Foote
               ) : (
                 <>
                   <Lock className="w-4 h-4 text-[#C9A227]" />
-                  <span>Admin Password Access</span>
+                  <span>Staff & Owner Portal</span>
                 </>
               )}
             </button>

@@ -126,11 +126,14 @@ export async function DELETE(request: Request) {
 
     await recomputeTotal(rows[0].ticketId);
 
-    // Removing a dish is exactly the kind of change that used to reach nobody:
-    // the guest still expects it, and the crew may already be cooking it.
+    // Removing a dish the crew ALREADY STARTED must stop them ("do not
+    // prepare"). But a dish still PENDING was never in the pan — nobody needs
+    // an alarm for it, the screens just update (this is also what keeps the
+    // waiter's own bill-editor removals silent for the kitchen).
+    const wasPending = !rows[0].stationStatus || rows[0].stationStatus === "pending";
     try {
       const ticket = await ticketOf(rows[0].ticketId);
-      if (ticket) {
+      if (ticket && !wasPending) {
         ring(
           itemRemovedAlerts({
             id: ticket.id,

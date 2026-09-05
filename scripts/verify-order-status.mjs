@@ -52,7 +52,14 @@ const i18n = read("src/lib/i18n.ts");
   // Every single ticket query in this file must be scoped to the requested table.
   const ticketScopes = [...status.matchAll(/\.from\(tickets\)[\s\S]{0,220}?\.where\(([\s\S]{0,120}?)\)/g)].map((m) => m[1]);
   pass("every ticket query is scoped to the requested table", ticketScopes.length >= 3 && ticketScopes.every((w) => w.includes("tickets.tableId, tableId")));
-  pass("the payload leaks no staff names or receipt photos", !/createdBy|waiterName|staffName|receiptImage|pinHash/.test(status));
+  // The guest-visible payload is the TableStatusPayload interface + buildPayload:
+  // THAT region must never mention staff names or receipt photos. (The POST
+  // handler legitimately reads the ticket OWNER server-side to route the push
+  // to one waiter — that value is never serialized into any response.)
+  const payloadStart = status.indexOf("interface TableStatusPayload");
+  const payloadEnd = status.indexOf("export async function GET");
+  const payloadSrc = payloadStart >= 0 && payloadEnd > payloadStart ? status.slice(payloadStart, payloadEnd) : status;
+  pass("the payload leaks no staff names or receipt photos", !/createdBy|confirmedBy|waiterName|staffName|receiptImage|pinHash/.test(payloadSrc));
   pass("recently-paid bills stay visible for the thank-you/review window", /RECENTLY_CLOSED_GRACE_MS/.test(status) && /30 \* 60 \* 1000/.test(status));
   pass("the payload carries the customer phase + per-station progress", /phase: customerOrderPhase\(ticket, lines\)/.test(status) && /kitchen: stationProgress\(lines, "kitchen"\)/.test(status) && /barista: stationProgress\(lines, "barista"\)/.test(status));
   pass("duplicate lines are collapsed before they reach the guest", /groupOrderLines\(lines/.test(status));

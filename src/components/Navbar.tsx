@@ -109,7 +109,7 @@ export default function Navbar({ settings, onOpenAdmin, isAdminLoggedIn }: Navba
                   ? "bg-emerald-600 text-white shadow-md hover:bg-emerald-500 px-3"
                   : "text-amber-200/80 hover:text-amber-300 hover:bg-white/10"
               }`}
-              title={isAdminLoggedIn ? "Open Admin Dashboard" : "Admin Login"}
+              title={isAdminLoggedIn ? "Open Admin Dashboard" : "Staff & Owner Portal"}
             >
               {isAdminLoggedIn ? (
                 <>

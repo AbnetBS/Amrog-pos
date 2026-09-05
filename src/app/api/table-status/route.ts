@@ -5,7 +5,8 @@ import { ensureTablesExist } from "@/db/migrate";
 import { and, asc, desc, eq, inArray, isNull, notInArray } from "drizzle-orm";
 import { checkRateLimit, checkSharedIpRateLimit, getClientIp, VENUE_POLICIES } from "@/lib/rate-limit";
 import { publish, CHANNELS } from "@/lib/realtime";
-import { sendPushToRoles, CUSTOMER_ALERT_RING } from "@/lib/push";
+import { sendPushToNamedStaff, sendPushToRoles, CUSTOMER_ALERT_RING } from "@/lib/push";
+import { ticketOwner } from "@/lib/alerts";
 import {
   customerOrderPhase,
   groupOrderLines,
@@ -217,7 +218,13 @@ export async function POST(request: Request) {
     await ensureTablesExist();
 
     const open = await db
-      .select({ id: tickets.id, tableName: tickets.tableName, receiptRequestedAt: tickets.receiptRequestedAt })
+      .select({
+        id: tickets.id,
+        tableName: tickets.tableName,
+        receiptRequestedAt: tickets.receiptRequestedAt,
+        confirmedBy: tickets.confirmedBy,
+        createdBy: tickets.createdBy,
+      })
       .from(tickets)
       .where(and(eq(tickets.tableId, tableId), notInArray(tickets.status, ["paid", "cancelled", "closed"])))
       .orderBy(desc(tickets.updatedAt))
@@ -241,7 +248,11 @@ export async function POST(request: Request) {
 
       // GROUP 10 (pocket mode): the guest asked for the bill — ring the waiter
       // AND the cashier (she prints the final EFD receipt). Fire-and-forget.
-      void sendPushToRoles(["waiter", "cashier"], {
+      // OWNER-ONLY (owner's decision, Sept 2026): the waiter half rings just
+      // the waiter who accepted/sent this table, not the whole team. The
+      // cashier half still rings every cashier on duty.
+      const owner = ticketOwner(open[0].confirmedBy, open[0].createdBy);
+      const billPayload = {
         title: "🧾 Bill requested",
         body: `${open[0].tableName} • the guest asked for the bill`,
         tag: `fana-bill-${open[0].id}`,
@@ -250,7 +261,13 @@ export async function POST(request: Request) {
         // busy room, from a pocket, with the phone locked.
         ...CUSTOMER_ALERT_RING,
         ticketId: open[0].id,
-      }).catch(() => {});
+      };
+      if (owner) {
+        void sendPushToNamedStaff("waiter", owner, billPayload).catch(() => {});
+      } else {
+        void sendPushToRoles(["waiter"], billPayload).catch(() => {});
+      }
+      void sendPushToRoles(["cashier"], billPayload).catch(() => {});
     }
 
     return NextResponse.json(await buildPayload(tableId), { headers: NO_STORE });
