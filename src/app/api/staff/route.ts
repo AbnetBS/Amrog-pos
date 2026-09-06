@@ -5,6 +5,7 @@ import { ensureTablesExist } from "@/db/migrate";
 import { eq, asc } from "drizzle-orm";
 import { hashSecret } from "@/lib/auth";
 import { requireAdmin } from "@/lib/session";
+import { STAFF_ROLES } from "@/lib/stations";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
       .insert(staffUsers)
       .values({
         name: body.name,
-        role: ["waiter","cashier","barista","kitchen","admin"].includes(body.role) ? body.role : "waiter",
+        role: STAFF_ROLES.includes(body.role) ? body.role : "waiter",
         pin: await hashSecret(String(body.pin)),
       })
       .returning();
@@ -70,7 +71,9 @@ export async function PUT(request: Request) {
       .update(staffUsers)
       .set({
         name: body.name,
-        role: body.role,
+        // An unknown role would lock the person out of every staff screen (each
+        // screen only lists its own role), so it is ignored instead of stored.
+        role: STAFF_ROLES.includes(body.role) ? body.role : undefined,
         pin: body.pin ? await hashSecret(String(body.pin)) : undefined,
       })
       .where(eq(staffUsers.id, body.id))

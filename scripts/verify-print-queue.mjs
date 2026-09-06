@@ -154,8 +154,9 @@ function pass(name, cond) {
   pass("legacy items without a timestamp stay visible (old DBs keep working)", /if \(!it\.createdAt\) return true/.test(stationsApi));
   pass("the acceptance stamp is written and self-heals on old databases", /updates\.confirmedAt = new Date\(\)/.test(tickets) && /confirmedAt: timestamp\("confirmed_at"\)/.test(schema) && /confirmed_at: \{ type: "timestamp", dropNotNull: true \}/.test(migrate));
   pass("a ticket with zero released items disappears from the station list", /\.filter\(\(t\) => t\.items\.length > 0\)/.test(stationsApi));
-  pass("accepting rings kitchen + barista + cashier together", /case "confirmed"/.test(alerts) && /roles: STATION_ROLES/.test(alerts) && /New order to cook/.test(alerts));
-  pass("the waiter's button says where the order goes", /Accept & Send → Kitchen, Barista & Cashier/.test(waiter));
+  pass("accepting rings ONLY the crews with items on the bill, plus the cashier", /case "confirmed"/.test(alerts) && /t\.stations/.test(alerts) && /fana-cook-\$\{t\.id\}-\$\{station\}/.test(alerts) && /New order to cook/.test(alerts));
+  pass("the route tells the matrix which crews the bill actually involves", /stations: billStations/.test(tickets) && /crewRows\.map\(\(r\) => stationOf\(r\.stationName\)\)/.test(tickets));
+  pass("the waiter's button says where the order goes", /Accept & Send → Stations & Cashier/.test(waiter));
   pass("the cashier's button says PRINTED & SEND on an addition card", /added \? "✓ PRINTED & SEND" : "✓ PRINTED"/.test(cashier));
   pass("her addition card still shows ONLY the new items", /isNewUnprinted/.test(cashier) && /new items only/.test(cashier));
   pass("the print appends the new items to that table's order for the crew", /body\.status === "printed" \|\| \(body\.status === "preparing"/.test(tickets) && /fana-station-/.test(tickets));
@@ -175,6 +176,7 @@ console.log("   • cashier: key into EFD → print → tap ✓ PRINTED (one cli
 console.log("   • waiter: guests leave → clear table → table turns green");
 console.log("   • payments stay in the EFD/POS — full mode still available via Settings");
 console.log("   • the ORIGINAL order is released by ACCEPTANCE: one waiter tap reaches");
-console.log("     kitchen, barista and cashier at once");
+console.log("     the crews that have items on it (kitchen / barista / buna) and the");
+console.log("     cashier at once, and nobody else");
 console.log("   • food ADDED later keeps the print-and-send flow: cashier sees only the");
 console.log("     new items, her print sends them to that table's order for the crew");

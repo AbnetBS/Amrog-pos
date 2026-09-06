@@ -36,7 +36,31 @@ interface CartEntry {
 
 type View = "login" | "tables" | "order" | "bill" | "payment";
 
-export default function WaiterApp() {
+/** One traditional-buna line waiting for (or being made by) the buna makers. */
+interface BunaLine {
+  id: number;
+  ticketId: number;
+  tableName: string;
+  name: string;
+  quantity: number;
+  notes?: string | null;
+  stationStatus: "pending" | "accepted" | "done";
+  createdAt?: string | null;
+}
+
+export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna" }) {
+  // ── WHO IS THIS SCREEN FOR? ──
+  // The buna makers take orders exactly like a waiter when the room is full, so
+  // they get the SAME app, with two differences (owner's decision, Sept 2026):
+  //   1. their phone rings only for THEIR work — a traditional-buna line
+  //      arriving, or food ready on a table THEY accepted — never for a QR
+  //      order, a guest top-up or a bill request;
+  //   2. they never close a bill (the waiter clears the table).
+  const isBuna = role === "buna";
+  const roleLabel = isBuna ? "Buna Maker" : "Waiter";
+  const sessionKey = `fana_${role}`;
+  const alertsKey = `fana_alerts_${role}`;
+
   // Auth
   const [staffName, setStaffName] = useState<string>("");
   const [staffList, setStaffList] = useState<StaffLite[]>([]);
@@ -48,6 +72,13 @@ export default function WaiterApp() {
   const [tables, setTables] = useState<CafeTable[]>([]);
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [activeTicket, setActiveTicket] = useState<Ticket | null>(null);
+
+  // ── THE BUNA LANE (buna makers only) ──
+  // Their own work, pinned above the table grid: every traditional-buna line
+  // released to them, with Accept / Done exactly like the station screens.
+  // Nothing here rings on its own — the push from the server does that, so the
+  // phone in a pocket and the strip on screen stay in step.
+  const [bunaLines, setBunaLines] = useState<BunaLine[]>([]);
 
   // UI
   const [view, setView] = useState<View>("login");
@@ -156,14 +187,14 @@ export default function WaiterApp() {
   }, [tables]);
 
   useEffect(() => {
-    const saved = sessionStorage.getItem("fana_waiter");
+    const saved = sessionStorage.getItem(sessionKey);
     // A restored session is a working waiter: alerts default to ON. (Before,
     // alerts depended purely on a localStorage flag, so a device that had it
     // cleared showed a logged-in waiter whose phone never rang.)
-    const on = localStorage.getItem("fana_alerts_waiter") === "1" || !!saved;
+    const on = localStorage.getItem(alertsKey) === "1" || !!saved;
     setAlertsOn(on);
     alertsOnRef.current = on;
-    if (on) localStorage.setItem("fana_alerts_waiter", "1");
+    if (on) localStorage.setItem(alertsKey, "1");
     if (saved) {
       const s = JSON.parse(saved);
       setStaffName(s.name);
@@ -171,7 +202,9 @@ export default function WaiterApp() {
     }
     fetch("/api/staff?public=1")
       .then((r) => r.json())
-      .then((d) => setStaffList(d.filter((s: StaffLite) => s.role === "waiter")))
+      // Each screen only ever lists its OWN crew, so a buna maker cannot be
+      // picked on the waiter screen (or the other way round) by mistake.
+      .then((d) => setStaffList(d.filter((s: StaffLite) => s.role === role)))
       .catch(() => {});
     // Read owner switches: receipt-photo requirement + cashier workflow mode
     fetch("/api/settings")
@@ -251,7 +284,7 @@ export default function WaiterApp() {
     if ("Notification" in window && Notification.permission === "default") {
       await Notification.requestPermission();
     }
-    localStorage.setItem("fana_alerts_waiter", "1");
+    localStorage.setItem(alertsKey, "1");
     setAlertsOn(true);
     alertsOnRef.current = true;
     // Also (re)subscribe this phone to pocket alerts and ring a sample so the
@@ -395,11 +428,13 @@ export default function WaiterApp() {
           statusMoves.push({ ticket: t, from: prevStatus, to: t.status });
         }
         // Guest tapped "bring the bill" on their own phone — only MY tables
-        // ring me (another waiter's guest is her walk, not mine).
+        // ring me (another waiter's guest is her walk, not mine). The buna
+        // makers are skipped entirely: the receipt is a floor job, and their
+        // phone must stay quiet for everything but their own buna work.
         if (t.receiptRequestedAt) {
           if (!billAskedRef.current.has(t.id)) {
             billAskedRef.current.add(t.id);
-            if (alertsInitRef.current && mine) billAsks.push(t);
+            if (alertsInitRef.current && mine && !isBuna) billAsks.push(t);
           }
         } else {
           billAskedRef.current.delete(t.id);
@@ -416,13 +451,18 @@ export default function WaiterApp() {
       // statusMoveLabel). Dropping them here keeps even the short ding away.
       // A cancellation is shown, never sounded: only the kitchen and barista
       // are rung for it (they may have a pan on the fire). She reads it as a
-      // quiet line on her screen.
-      const quietMoves = statusMoves.filter((m) => m.to === "cancelled");
-      const loudMoves = statusMoves.filter(
-        (m) => m.to !== "cancelled" && statusMoveLabel(m.to, m.ticket.tableName) !== ""
-      );
-      if (alertsInitRef.current && quietMoves.length > 0) {
-        showToast(statusMoveLabel(quietMoves[0].to, quietMoves[0].ticket.tableName));
+      // quiet line on her screen. For the BUNA MAKERS every status move made by
+      // somebody else is quiet: their phone is reserved for their own work.
+      const quietMoves = statusMoves.filter((m) => m.to === "cancelled" || isBuna);
+      const loudMoves = isBuna
+        ? []
+        : statusMoves.filter(
+            (m) => m.to !== "cancelled" && statusMoveLabel(m.to, m.ticket.tableName) !== ""
+          );
+      const quietLabel =
+        quietMoves.length > 0 ? statusMoveLabel(quietMoves[0].to, quietMoves[0].ticket.tableName) : "";
+      if (alertsInitRef.current && quietLabel) {
+        showToast(quietLabel);
       }
       if (alertsInitRef.current && alertsOnRef.current && (readyItems.length > 0 || billAsks.length > 0 || loudMoves.length > 0)) {
         // Ready food and a waiting guest are ACT NOW events: full alarm.
@@ -471,7 +511,11 @@ export default function WaiterApp() {
         }
       }
 
-      if (alertsInitRef.current && alertsOnRef.current && (fresh.length > 0 || added.length > 0)) {
+      // A QR order or a guest top-up is a FLOOR event: the waiters walk to the
+      // table. The buna makers are deliberately excluded — their phone rings
+      // for their own buna lines and for food ready on their own tables, so a
+      // guest ordering a macchiato three tables away never wakes them.
+      if (alertsInitRef.current && alertsOnRef.current && !isBuna && (fresh.length > 0 || added.length > 0)) {
         playAlarm();
         if (fresh.length > 0) {
           const t0 = fresh[0];
@@ -523,6 +567,7 @@ export default function WaiterApp() {
 
   const loadAll = async () => {
     loadTables();
+    if (isBuna) void loadBunaLane();
     const m = await fetch("/api/menu");
     if (m.ok) setMenu(await m.json());
     const cr = await fetch("/api/categories");
@@ -530,6 +575,57 @@ export default function WaiterApp() {
       const cats = (await cr.json()) as Array<{ slug: string; name: string }>;
       setCategories(cats.map((c) => ({ slug: c.slug, name: c.name })));
     }
+  };
+
+  /**
+   * The buna makers' own lane. Same API the kitchen and barista screens use, so
+   * a line released to them appears here the moment the order is accepted (and
+   * the release rule — nothing shows before the bill is accepted/printed — is
+   * inherited from the server, not re-implemented here).
+   */
+  const loadBunaLane = async () => {
+    try {
+      const r = await fetch("/api/station-items?station=buna");
+      if (!r.ok) return;
+      const data = (await r.json()) as Array<{
+        id: number;
+        tableName: string;
+        items: Array<{
+          id: number;
+          name: string;
+          quantity: number;
+          notes?: string | null;
+          stationStatus: "pending" | "accepted" | "done";
+          createdAt?: string | null;
+        }>;
+      }>;
+      setBunaLines(
+        data.flatMap((t) =>
+          t.items.map((i) => ({
+            id: i.id,
+            ticketId: t.id,
+            tableName: t.tableName,
+            name: i.name,
+            quantity: i.quantity,
+            notes: i.notes,
+            stationStatus: i.stationStatus,
+            createdAt: i.createdAt,
+          }))
+        )
+      );
+    } catch {
+      /* the lane is a convenience view; never break the screen over it */
+    }
+  };
+
+  /** Accept / Done on one buna line — the same call the station screens make. */
+  const setBunaStatus = async (line: BunaLine, status: "accepted" | "done") => {
+    await fetch("/api/station-items", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ itemId: line.id, stationStatus: status }),
+    });
+    void loadBunaLane();
   };
 
   useEffect(() => {
@@ -549,18 +645,18 @@ export default function WaiterApp() {
     const r = await fetch("/api/staff/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: selectedName, pin, role: "waiter" }),
+      body: JSON.stringify({ name: selectedName, pin, role }),
     });
     const d = await r.json();
     if (r.ok && d.success) {
       setStaffName(d.staff.name);
-      sessionStorage.setItem("fana_waiter", JSON.stringify(d.staff));
+      sessionStorage.setItem(sessionKey, JSON.stringify(d.staff));
       setView("tables");
       // GROUP 10: the login tap is the ONE user gesture browsers demand —
       // unlock the loud alarm AND arm pocket notifications right here, so the
       // waiter never has to find a separate "enable" button.
       unlockAudio();
-      localStorage.setItem("fana_alerts_waiter", "1");
+      localStorage.setItem(alertsKey, "1");
       setAlertsOn(true);
       alertsOnRef.current = true;
       void enablePocketAlerts().then((res) => {
@@ -575,7 +671,7 @@ export default function WaiterApp() {
   };
 
   const logout = () => {
-    sessionStorage.removeItem("fana_waiter");
+    sessionStorage.removeItem(sessionKey);
     fetch("/api/staff/login", { method: "DELETE" }).catch(() => {});
     setStaffName("");
     setView("login");
@@ -869,7 +965,7 @@ export default function WaiterApp() {
       body: JSON.stringify({ id: activeTicket.id, status: "confirmed", confirmedBy: staffName }),
     });
     noteOwnStatus(activeTicket.id, "confirmed");
-    showToast("✓ Accepted • kitchen, barista and cashier all have it");
+    showToast("✓ Accepted • the crews with items on it, and the cashier, all have it");
     onGoBack();
     loadTables();
   };
@@ -883,7 +979,7 @@ export default function WaiterApp() {
             <div className="w-14 h-14 rounded-2xl bg-[#C9A227] text-[#2C1B17] flex items-center justify-center mx-auto">
               <Users className="w-7 h-7" />
             </div>
-            <h1 className="font-serif text-2xl font-bold text-amber-100">Waiter Login</h1>
+            <h1 className="font-serif text-2xl font-bold text-amber-100">{roleLabel} Login</h1>
             <p className="text-xs text-stone-400">Enter your name and PIN given by the admin.</p>
           </div>
 
@@ -921,7 +1017,7 @@ export default function WaiterApp() {
               disabled={!selectedName || !pin}
               className="w-full bg-gradient-to-r from-[#C9A227] to-[#B8921F] text-[#2C1B17] font-black text-sm uppercase py-4 rounded-xl disabled:opacity-40"
             >
-              Login as Waiter
+              Login as {roleLabel}
             </button>
             <a href="/" className="block text-center text-xs text-[#C9A227] hover:underline">← Back to public website</a>
           </div>
@@ -941,7 +1037,7 @@ export default function WaiterApp() {
           </div>
           <div>
             <p className="text-xs font-bold text-amber-100 leading-none">{staffName}</p>
-            <p className="text-[10px] text-stone-400">Waiter • Fana Cafe</p>
+            <p className="text-[10px] text-stone-400">{roleLabel} • Fana Cafe</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -982,6 +1078,94 @@ export default function WaiterApp() {
       {view === "tables" && (
         <div className="p-4 space-y-4 max-w-3xl mx-auto">
           <PocketAlertsHint />
+
+          {/* ── MY BUNA ── the makers' own work, above the table grid ── */}
+          {isBuna && (
+            <div className="bg-[#2C1B17] border-2 border-rose-500/40 rounded-2xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-serif font-bold text-rose-200 text-sm flex items-center gap-2">
+                  🫖 My Buna
+                  {bunaLines.filter((l) => l.stationStatus !== "done").length > 0 && (
+                    <span className="text-[10px] font-black bg-rose-600 text-white rounded-full px-2 py-0.5">
+                      {bunaLines.filter((l) => l.stationStatus !== "done").length} to make
+                    </span>
+                  )}
+                </h2>
+                <button
+                  onClick={() => void loadBunaLane()}
+                  className="p-1.5 rounded-lg bg-white/10 text-rose-200"
+                  title="Refresh"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {bunaLines.length === 0 ? (
+                <p className="text-[11px] text-stone-500 text-center py-3">
+                  No traditional buna right now. Your phone rings the moment an order with buna is accepted.
+                </p>
+              ) : (
+                <div className="space-y-2 divide-y divide-stone-800">
+                  {[...bunaLines]
+                    .sort((a, b) => {
+                      const rank = (s: string) => (s === "pending" ? 0 : s === "accepted" ? 1 : 2);
+                      return rank(a.stationStatus) - rank(b.stationStatus);
+                    })
+                    .map((line) => (
+                      <div
+                        key={line.id}
+                        className={`pt-2 flex items-center justify-between gap-3 text-xs ${
+                          line.stationStatus === "done" ? "opacity-50" : ""
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p
+                            className={`font-bold ${
+                              line.stationStatus === "done" ? "text-stone-500 line-through" : "text-amber-100"
+                            }`}
+                          >
+                            {line.name} <span className="text-[#C9A227]">x{line.quantity}</span>
+                          </p>
+                          <p className="text-[11px] font-bold text-stone-300 mt-0.5">
+                            {line.tableName} • waiting {waitingLabel(line.createdAt)}
+                          </p>
+                          {line.notes && (
+                            <p
+                              className={`text-[11px] font-semibold mt-1 px-2 py-1 rounded-lg bg-amber-950/50 border border-amber-700/40 ${
+                                line.stationStatus === "done" ? "text-stone-500 line-through" : "text-amber-200"
+                              }`}
+                            >
+                              📝 {line.notes}
+                            </p>
+                          )}
+                        </div>
+                        {line.stationStatus === "pending" && (
+                          <button
+                            onClick={() => void setBunaStatus(line, "accepted")}
+                            className="shrink-0 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-black uppercase transition"
+                          >
+                            Accept ✓
+                          </button>
+                        )}
+                        {line.stationStatus === "accepted" && (
+                          <button
+                            onClick={() => void setBunaStatus(line, "done")}
+                            className="shrink-0 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase transition flex items-center gap-1"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Done
+                          </button>
+                        )}
+                        {line.stationStatus === "done" && (
+                          <span className="shrink-0 text-[10px] font-black text-emerald-400 bg-emerald-950/60 px-2.5 py-1 rounded-full uppercase border border-emerald-700">
+                            ✓ Done
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <h1 className="font-serif text-xl font-bold text-amber-100">Select Table</h1>
             <div className="flex gap-3 text-[10px]">
@@ -1299,7 +1483,7 @@ export default function WaiterApp() {
               onClick={confirmOrder}
               className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm uppercase py-4 rounded-xl flex items-center justify-center gap-2"
             >
-              <CheckCircle2 className="w-4 h-4" /> Accept & Send → Kitchen, Barista & Cashier
+              <CheckCircle2 className="w-4 h-4" /> Accept & Send → Stations & Cashier
             </button>
           )}
 
@@ -1312,17 +1496,20 @@ export default function WaiterApp() {
                   ✓ Sent • the kitchen and barista are cooking, the cashier is printing
                 </div>
               )}
-              {(activeTicket.status === "printed" ||
-                activeTicket.status === "preparing" ||
-                activeTicket.status === "ready_for_payment" ||
-                activeTicket.status === "completed") && (
-                <button
-                  onClick={clearTable}
-                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm uppercase py-4 rounded-xl flex items-center justify-center gap-2"
-                >
-                  <CheckCircle2 className="w-4 h-4" /> Table Cleared • Free Table
-                </button>
-              )}
+              {/* Closing a bill stays a FLOOR job: the buna makers take orders
+                  and make buna, but the waiter is the one who clears the table. */}
+              {!isBuna &&
+                (activeTicket.status === "printed" ||
+                  activeTicket.status === "preparing" ||
+                  activeTicket.status === "ready_for_payment" ||
+                  activeTicket.status === "completed") && (
+                  <button
+                    onClick={clearTable}
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm uppercase py-4 rounded-xl flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle2 className="w-4 h-4" /> Table Cleared • Free Table
+                  </button>
+                )}
             </>
           ) : (
             <>

@@ -25,10 +25,15 @@
  * which makes the whole matrix testable without a server.
  */
 
-export type StaffRole = "waiter" | "cashier" | "kitchen" | "barista";
+// Relative import on purpose: this matrix is executed directly by
+// `scripts/verify-role-alerts.ts`, outside Next's path aliases.
+import { STATION_NAMES, STATION_LABELS, isStationName, type StationName } from "./stations";
 
-export const STATION_ROLES: StaffRole[] = ["kitchen", "barista"];
-export const ALL_STAFF_ROLES: StaffRole[] = ["waiter", "cashier", "kitchen", "barista"];
+export type StaffRole = "waiter" | "cashier" | "kitchen" | "barista" | "buna";
+
+/** The three crews that physically make something (see @/lib/stations). */
+export const STATION_ROLES: StaffRole[] = [...STATION_NAMES];
+export const ALL_STAFF_ROLES: StaffRole[] = ["waiter", "cashier", ...STATION_NAMES];
 
 export interface RoleAlert {
   roles: StaffRole[];
@@ -59,14 +64,32 @@ export interface TicketAlertInfo {
   totalAmount?: number | null;
   /** Present for pending bills so staff know what they are walking to. */
   orderNumber?: string | null;
+  /**
+   * The crews that ACTUALLY have lines on this bill.
+   *
+   * A drinks-only order used to wake the kitchen, and — since the buna makers
+   * arrived — every accepted order woke all three crews. Now the caller passes
+   * the stations it found on the ticket and only those phones ring. Left empty
+   * (a legacy caller) it falls back to every crew: ringing one crew too many
+   * is better than serving nobody.
+   */
+  stations?: StationName[] | null;
 }
+
+/** What each crew reads when an order is released to them. */
+const RELEASE_TITLES: Record<StationName, string> = {
+  kitchen: "👨‍🍳 New order to cook",
+  barista: "☕ New drinks to make",
+  buna: "🫖 New buna to make",
+};
 
 const money = (t: TicketAlertInfo) =>
   typeof t.totalAmount === "number" && t.totalAmount > 0 ? ` • ${t.totalAmount} ETB` : "";
 
 /**
  * A ticket moved to a new status. `confirmed` is the moment the food is
- * released, so it wakes the stations, the cashier and the waiter at once.
+ * released, so it wakes the crews that have lines on the bill, the cashier and
+ * the waiter at once.
  * `printed` and `preparing` deliberately do NOT wake the stations: by then the
  * crew is already cooking, and a re-print must never re-ring them for food
  * they already have.
@@ -86,19 +109,28 @@ export function ticketStatusAlerts(status: string, t: TicketAlertInfo): RoleAler
         },
       ];
 
-    // ONE TAP FEEDS EVERYBODY. Accepting an order used to reach the cashier
-    // only, and the crew waited for her print. Now the same tap reaches the
-    // kitchen, the barista and the cashier at the same second.
-    case "confirmed":
+    // ONE TAP FEEDS EVERYBODY — but only the crews that have work in it.
+    // Accepting an order used to reach the cashier only, and the crew waited
+    // for her print; the fix made the same tap reach every crew at once, which
+    // then woke the kitchen for a drinks-only bill and woke the buna makers for
+    // every macchiato. Now the same tap reaches exactly the crews whose lines
+    // are on the ticket, plus the cashier (to print) and the waiter (to know it
+    // went through). One alert per crew, so each gets its own tag and its own
+    // wording, and a drink order never rings the kitchen.
+    case "confirmed": {
+      const crews = (t.stations && t.stations.length > 0 ? t.stations : STATION_NAMES).filter(isStationName);
       return [
-        {
-          roles: STATION_ROLES,
-          title: "👨‍🍳 New order to cook",
-          body: `${table} • accepted • start now`,
-          tag: `fana-cook-${t.id}`,
+        ...crews.map((station) => ({
+          roles: [station] as StaffRole[],
+          title: RELEASE_TITLES[station],
+          body:
+            station === "buna"
+              ? `${table} • accepted • traditional buna, start now`
+              : `${table} • accepted • start now`,
+          tag: `fana-cook-${t.id}-${station}`,
           urgent: true,
           repeat: 0,
-        },
+        })),
         {
           roles: ["cashier"],
           title: "🧾 To print",
@@ -110,12 +142,13 @@ export function ticketStatusAlerts(status: string, t: TicketAlertInfo): RoleAler
         {
           roles: ["waiter"],
           title: "✓ Order accepted",
-          body: `${table} • kitchen, barista and cashier all have it`,
+          body: `${table} • ${crews.map((s) => STATION_LABELS[s]).join(", ") || "the crew"} and the cashier all have it`,
           tag: `fana-confirmed-${t.id}`,
           urgent: false,
           repeat: 0,
         },
       ];
+    }
 
     case "printed":
     case "preparing":
@@ -268,9 +301,9 @@ export function billRequestAlerts(t: TicketAlertInfo): RoleAlert[] {
 }
 
 function stationRoleFor(station?: string | null): StaffRole[] {
-  if (station === "barista") return ["barista"];
-  if (station === "kitchen") return ["kitchen"];
-  return [];
+  // kitchen | barista | buna — an unknown or missing station belongs to no
+  // crew, so it rings nobody (the screens still update silently).
+  return isStationName(station) ? [station] : [];
 }
 
 /**

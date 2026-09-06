@@ -8,6 +8,7 @@ import {
   Receipt,
   Coffee,
   ChefHat,
+  Flame,
   ShieldCheck,
   ArrowLeft,
   KeyRound,
@@ -15,7 +16,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 
-export type RoleType = "waiter" | "cashier" | "barista" | "kitchen" | "admin";
+export type RoleType = "waiter" | "cashier" | "barista" | "kitchen" | "buna" | "admin";
 
 interface StaffAuthModalProps {
   isOpen: boolean;
@@ -185,6 +186,14 @@ export default function StaffAuthModal({ isOpen, onClose }: StaffAuthModalProps)
       icon: <ChefHat className="w-6 h-6 text-orange-300" />,
       color: "from-orange-600/30 to-orange-900/30 border-orange-500/40 hover:border-orange-400",
       badgeBg: "bg-orange-500/20 text-orange-300 border-orange-500/40",
+    },
+    {
+      id: "buna" as const,
+      title: "Buna Maker",
+      description: "Traditional coffee, orders too",
+      icon: <Flame className="w-6 h-6 text-rose-300" />,
+      color: "from-rose-600/30 to-rose-900/30 border-rose-500/40 hover:border-rose-400",
+      badgeBg: "bg-rose-500/20 text-rose-300 border-rose-500/40",
     },
     {
       id: "admin" as const,

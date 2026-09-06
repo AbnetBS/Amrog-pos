@@ -78,11 +78,14 @@ export default function StationApp({ station }: { station: Station }) {
   const [now, setNow] = useState(() => Date.now());
   const pendingSeenRef = useRef<Set<number>>(new Set());
   // EVERY ROLE EVENT RINGS: the crew also has to hear when a line they are
-  // cooking is REMOVED or its quantity is corrected, and when a whole order
-  // disappears (cancelled or the table was cleared). Those changes used to be
-  // completely silent, so food was cooked for a bill that no longer wanted it.
+  // cooking is REMOVED or its quantity is corrected, and when an order they
+  // were STILL WORKING ON disappears (cancelled, or cleared mid-prep). A
+  // ticket that leaves the list with all of their items already DONE is not
+  // an event for them — it only updates the screen (see `closedQuiet`).
   /** Item id -> what the crew last saw for that line. */
-  const itemSigRef = useRef<Map<number, { quantity: number; name: string; ticketId: number; tableName: string }>>(new Map());
+  const itemSigRef = useRef<
+    Map<number, { quantity: number; name: string; ticketId: number; tableName: string; stationStatus: string }>
+  >(new Map());
   /** Ticket id -> table name, so a vanished order can still be named. */
   const ticketNameRef = useRef<Map<number, string>>(new Map());
   const initRef = useRef(false);
@@ -167,12 +170,35 @@ export default function StationApp({ station }: { station: Station }) {
     const changed: Array<{ tableName: string; name: string; from: number; to: number }> = [];
     const removed: Array<{ tableName: string; name: string }> = [];
     const gone: string[] = [];
+    // TABLE CLEARED / BILL PAID IS NOT AN ALARM (owner's decision, Sept 2026).
+    // A ticket leaves this list the moment a waiter clears the table or marks
+    // it paid, and the crew used to get a full "stop preparing" alarm for it
+    // even when every one of their dishes was already DONE — pure noise, tens
+    // of times a day. Now: the last snapshot tells us how much UNFINISHED work
+    // (pending / accepted) that ticket still had. All done → silent, the card
+    // just disappears. Still cooking → the alarm stands, because for them it
+    // really is money burning. (A CANCELLATION is unaffected: it also pushes
+    // ⛔ ORDER CANCELLED from the server, so it rings either way.)
+    /** Ticket id -> unfinished lines as of the PREVIOUS load. */
+    const prevOpenWork = new Map<number, number>();
+    for (const seen of itemSigRef.current.values()) {
+      if (seen.stationStatus !== "done") {
+        prevOpenWork.set(seen.ticketId, (prevOpenWork.get(seen.ticketId) || 0) + 1);
+      }
+    }
+    const closedQuiet: string[] = [];
     for (const t of data) {
       ticketNameRef.current.set(t.id, t.tableName);
       for (const i of t.items) {
         liveIds.add(i.id);
         const prev = itemSigRef.current.get(i.id);
-        itemSigRef.current.set(i.id, { quantity: i.quantity, name: i.name, ticketId: t.id, tableName: t.tableName });
+        itemSigRef.current.set(i.id, {
+          quantity: i.quantity,
+          name: i.name,
+          ticketId: t.id,
+          tableName: t.tableName,
+          stationStatus: i.stationStatus,
+        });
         if (initRef.current && prev !== undefined && prev.quantity !== i.quantity) {
           changed.push({ tableName: t.tableName, name: i.name, from: prev.quantity, to: i.quantity });
         }
@@ -191,7 +217,10 @@ export default function StationApp({ station }: { station: Station }) {
     for (const [id, name] of [...ticketNameRef.current.entries()]) {
       if (nowTicketIds.has(id)) continue;
       ticketNameRef.current.delete(id);
-      if (initRef.current) gone.push(name);
+      if (!initRef.current) continue;
+      // Only a ticket with work still on the fire is worth an alarm.
+      if ((prevOpenWork.get(id) || 0) > 0) gone.push(name);
+      else closedQuiet.push(name);
     }
 
     if (initRef.current && alertsOnRef.current && (changed.length > 0 || removed.length > 0 || gone.length > 0)) {
@@ -211,6 +240,18 @@ export default function StationApp({ station }: { station: Station }) {
         tag: `fana-station-change-${Date.now()}`,
       });
       showToast(message);
+    }
+
+    // The screen still tells the truth about a table that was cleared or paid
+    // — it just does not make a sound or buzz the phone for it.
+    if (
+      initRef.current &&
+      closedQuiet.length > 0 &&
+      removed.length === 0 &&
+      gone.length === 0 &&
+      changed.length === 0
+    ) {
+      showToast(`✓ ${closedQuiet[0]}: bill closed • all your items were done`);
     }
 
     if (initRef.current && alertsOnRef.current && fresh.length > 0) {

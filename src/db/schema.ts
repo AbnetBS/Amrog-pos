@@ -23,6 +23,12 @@ export const menuItems = pgTable("menu_items", {
   imageUrl: text("image_url").notNull(),
   isPopular: boolean("is_popular").default(false),
   isAvailable: boolean("is_available").default(true),
+  // TRADITIONAL BUNA (owner's decision, Sept 2026): flagged items are made by
+  // the buna makers at their own place, so an order line for them is routed to
+  // the "buna" station whatever category the item sits in. It is a PER-ITEM
+  // flag on purpose — "Jebena Buna" lives in the Coffee category next to the
+  // macchiato, and only the traditional one leaves the barista's lane.
+  isBuna: boolean("is_buna").default(false),
   dietaryTags: text("dietary_tags"),
   prepTime: varchar("prep_time", { length: 50 }).default("10-15 min"),
   badge: varchar("badge", { length: 50 }),

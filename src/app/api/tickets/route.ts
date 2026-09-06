@@ -13,6 +13,7 @@ import { calculateDailyPromotionLinePrices, isDailyPromotionOrderable, parseDail
 import { canMergeLines } from "@/lib/order-lines";
 import { sendPushToRoles, CUSTOMER_ALERT_RING } from "@/lib/push";
 import { ticketStatusAlerts, withoutActor } from "@/lib/alerts";
+import { stationForOrder, stationOf, type StationName } from "@/lib/stations";
 
 /**
  * Customer order limits are TWO-TIER (per table + per venue) because every guest
@@ -404,6 +405,9 @@ export async function POST(request: Request) {
         ? await tx.select().from(menuItems).where(inArray(menuItems.id, orderedMenuIds))
         : [];
     const priceById = new Map(menuRows.map((m) => [m.id, effectivePrice(m).price]));
+    // Which ordered items are TRADITIONAL BUNA: those leave the category
+    // routing entirely and are made by the buna makers at their own place.
+    const bunaById = new Map(menuRows.map((m) => [m.id, Boolean(m.isBuna)]));
 
     // ── DAILY PROMOTION INTEGRITY ──
     // The browser may name a Daily Board promotion, but it can never choose its
@@ -539,7 +543,10 @@ export async function POST(request: Request) {
       for (let idx = 0; idx < ticketRows.length; idx++) {
         const it = ticketRows[idx];
         const catSlug = String(it.category || "").toLowerCase();
-        const stationName = routing[catSlug] || "kitchen";
+        // A menu item flagged "Traditional Buna" always goes to the BUNA crew,
+        // whatever category it sits in; everything else follows the owner's
+        // category routing (barista | kitchen), defaulting to the kitchen.
+        const stationName = stationForOrder(routing, catSlug, bunaById.get(Number(it.menuItemId)) === true);
         const incoming = {
           ticketId,
           menuItemId: it.menuItemId,
@@ -883,10 +890,12 @@ export async function PUT(request: Request) {
         const fresh = stationRows.filter(
           (r) => prevStamp === null || !r.createdAt || new Date(r.createdAt).getTime() > prevStamp
         );
-        const stations = [...new Set(fresh.map((r) => (r.stationName === "barista" ? "barista" : "kitchen")))];
+        // stationOf() keeps the three crews apart: a traditional-buna line goes
+        // to the BUNA makers, never to the kitchen that used to inherit it.
+        const stations = [...new Set(fresh.map((r) => stationOf(r.stationName)))];
         if (stations.length > 0) {
           void sendPushToRoles(stations, {
-            title: "👨‍🍳 New items",
+            title: stations.length === 1 && stations[0] === "buna" ? "🫖 New buna" : "👨‍🍳 New items",
             body: `${updated[0].tableName} • added to the order • check your station list`,
             tag: `fana-station-${updated[0].id}-${Date.now()}`,
             urgent: true,
@@ -907,12 +916,25 @@ export async function PUT(request: Request) {
     // workflow; the actor's own role is skipped so nobody rings themselves.
     if (body.status && body.status !== cur.status) {
       try {
+        // WHICH CREWS DOES THIS BILL ACTUALLY INVOLVE? Accepting used to wake
+        // every crew at once, so the kitchen was woken for a drinks-only table
+        // and the buna makers for every macchiato. The release alert is now
+        // built per crew that really has a line on the ticket.
+        let billStations: StationName[] = [];
+        if (String(body.status) === "confirmed") {
+          const crewRows = await db
+            .select({ stationName: ticketItems.stationName })
+            .from(ticketItems)
+            .where(and(eq(ticketItems.ticketId, updated[0].id), eq(ticketItems.removed, false)));
+          billStations = [...new Set(crewRows.map((r) => stationOf(r.stationName)))];
+        }
         const alerts = withoutActor(
           ticketStatusAlerts(String(body.status), {
             id: updated[0].id,
             tableName: updated[0].tableName,
             totalAmount: updated[0].totalAmount,
             orderNumber: updated[0].orderNumber,
+            stations: billStations,
           }),
           actor?.role
         );

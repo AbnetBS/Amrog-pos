@@ -37,7 +37,7 @@ Both run in `npm test`.
 
 ## How staff use it
 
-1. **Log in** on the phone (waiter / cashier / kitchen / barista). The login tap
+1. **Log in** on the phone (waiter / cashier / kitchen / barista / buna). The login tap
    unlocks the alarm sound and arms pocket alerts in one go. Tap **Allow** when
    the browser asks about notifications.
 2. Look at the chip in the top bar:
@@ -90,26 +90,31 @@ Every action in the workflow now wakes the roles that must react. The single
 source of truth is `src/lib/alerts.ts`, and `scripts/verify-role-alerts.ts`
 walks the whole table so no event can be dropped by accident.
 
-| What happens | Waiter | Cashier | Kitchen | Barista |
-|---|---|---|---|---|
-| Guest submits a QR order | **ring** | - | - | - |
-| Guest adds items to an existing bill | **ring** | ring (if confirmed/printed) | - | - |
-| Waiter accepts / sends an order | - | **ring** | **ring** | **ring** |
-| Waiter or cashier accepts a QR order | ring | **ring** | **ring** | **ring** |
-| Items added to an already accepted bill | **ring** | **ring** | - | - |
-| Cashier taps PRINTED & SEND (additions) | silent | - | **ring** (new items only) | **ring** (new items only) |
-| Bill printed / kitchen accepted (first print) | silent | - | - | - |
-| Kitchen/barista starts an item | silent | - | - | - |
-| Kitchen/barista finishes an item | **ring, owner only** | - | - | - |
-| Last item finished (whole order ready) | **ring "ORDER READY TO SERVE", owner only** | - | - | - |
-| Cashier removes an item from a bill | silent | - | **ring** (if theirs and started) | **ring** (if theirs and started) |
-| Quantity corrected on a bill | ring | - | **ring** (if theirs) | **ring** (if theirs) |
-| Guest asks for the bill | **ring, owner only** | **ring** | - | - |
-| Guest is ready to pay | silent | silent | - | - |
-| Payment completed | silent | silent | - | - |
-| Bill settled / paid | silent | silent | - | - |
-| Table cleared | silent | silent | silent | silent |
-| **Order cancelled** | silent | silent | **ring** | **ring** |
+| What happens | Waiter | Cashier | Kitchen | Barista | Buna |
+|---|---|---|---|---|---|
+| Guest submits a QR order | **ring** | - | - | - | - |
+| Guest adds items to an existing bill | **ring** | ring (if confirmed/printed) | - | - | - |
+| Waiter accepts / sends an order | - | **ring** | **ring** (if it has kitchen items) | **ring** (if it has drinks) | **ring** (if it has buna) |
+| Waiter or cashier accepts a QR order | ring | **ring** | **ring** (if theirs) | **ring** (if theirs) | **ring** (if theirs) |
+| Items added to an already accepted bill | **ring** | **ring** | - | - | - |
+| Cashier taps PRINTED & SEND (additions) | silent | - | **ring** (new items only) | **ring** (new items only) | **ring** (new items only) |
+| Bill printed / kitchen accepted (first print) | silent | - | - | - | - |
+| A crew starts an item | silent | - | - | - | - |
+| A crew finishes an item | **ring, owner only** | - | - | - | - |
+| Last item finished (whole order ready) | **ring "ORDER READY TO SERVE", owner only** | - | - | - | - |
+| Cashier removes an item from a bill | silent | - | **ring** (if theirs and started) | **ring** (if theirs and started) | **ring** (if theirs and started) |
+| Quantity corrected on a bill | ring | - | **ring** (if theirs) | **ring** (if theirs) | **ring** (if theirs) |
+| Guest asks for the bill | **ring, owner only** | **ring** | - | - | - |
+| Guest is ready to pay | silent | silent | - | - | - |
+| Payment completed | silent | silent | - | - | - |
+| Bill settled / paid | silent | silent | - | - | - |
+| Table cleared | silent | silent | silent | silent | silent |
+| **Order cancelled** | silent | silent | **ring** | **ring** | **ring** |
+
+The **Buna** column is the traditional-coffee crew (see "The buna makers" below).
+The three making crews only ring for an accepted order when that order actually
+contains one of their lines - a drinks-only table no longer wakes the kitchen,
+and a macchiato no longer wakes the buna makers.
 
 **bold** = urgent: the notification stays on the lock screen until it is
 tapped. Plain "ring" = informational, it fades on its own. "silent" = the
@@ -137,10 +142,10 @@ still updates instantly, she just has nowhere to walk for any of them, so they
 are silent. Removing a dish the crew already started still rings that station
 ("do not prepare"); removing one they never started rings nobody at all.
 
-A **cancelled** order rings the kitchen and the barista only: they are the ones
-who may have a pan on the fire, and stopping them saves food. The waiter and
-the cashier see the cancellation on their screen (the waiter gets a quiet line
-at the top of hers) without any sound.
+A **cancelled** order rings the kitchen, the barista and the buna makers: they
+are the ones who may have a pan or a jebena on the fire, and stopping them saves
+food. The waiter and the cashier see the cancellation on their screen (the
+waiter gets a quiet line at the top of hers) without any sound.
 
 Three rules keep this from becoming noise:
 
@@ -151,24 +156,60 @@ Three rules keep this from becoming noise:
   the waiter who accepted/sent that table - not the whole team. A QR order
   nobody accepted yet still rings every waiter, because any of them can walk
   over. Safety net: if the owner's phone has no live subscription, the whole
-  waiter team is rung instead, so food never goes cold unnoticed.
-- **A cancelled order is the loudest thing in the system.** It rings the
-  kitchen and the barista with an urgent alert that stays on their lock
-  screen until tapped, because food already on the fire has to stop.
+  waiter team is rung instead, so food never goes cold unnoticed. The owner is
+  looked up BY NAME across every role, so a table accepted by a buna maker rings
+  the buna maker, not the floor team.
+- **A cancelled order is the loudest thing in the system.** It rings the three
+  making crews with an urgent alert that stays on their lock screen until
+  tapped, because food already on the fire has to stop.
+
+**A cleared table is not an alarm.** When a waiter clears a table or a bill is
+marked paid, the ticket simply leaves the crew's list. That used to fire a full
+"stop preparing" alarm even when every dish was already Done - dozens of false
+alarms a shift. Now a station screen only alarms for a vanishing ticket when it
+still had PENDING or ACCEPTED lines on it; with everything Done it just shows a
+quiet toast and the card disappears.
+
+## The buna makers (traditional coffee)
+
+Two people make the traditional coffee at their own place, indoors and outdoors,
+and when the room is full they take orders like waiters too. They have:
+
+- **their own role and screen**: `/buna`, staff role `buna`, added under Admin →
+  Staff like any other account;
+- **the waiter app**: tables, menu, send - so they can take an order when the
+  floor is short-handed. They never close a bill; clearing a table stays a floor
+  job;
+- **their own lane**: "My Buna" is pinned above the table grid with Accept /
+  Done on each traditional-buna line, the same calls the kitchen and barista
+  screens make;
+- **a quiet phone**: a QR order, a guest top-up, a bill request and somebody
+  else's status move never wake them. Their phone rings only when
+  - an accepted order contains a **traditional buna** line ("🫖 New buna to make"), or
+  - food is **ready on a table they accepted** (they own it, so it rings them by name).
+
+**Which item is traditional buna?** A per-item switch in Admin → Menu:
+"🫖 Traditional Buna". It is deliberately per ITEM and not per category, so
+"Jebena Buna" can sit in the Coffee category next to the macchiato and only the
+traditional one leaves the barista's lane. Flagged items are stamped
+`station_name = 'buna'` at order time whatever their category is
+(`src/lib/stations.ts` → `stationForOrder`).
 
 ## Who receives what, and when (the release rule)
 
 **The first order: one tap feeds everybody.**
-The waiter takes the order and taps **✓ ACCEPT & SEND → Kitchen, Barista &
-Cashier**. In that same second:
+The waiter takes the order and taps **✓ ACCEPT & SEND → Stations & Cashier**. In
+that same second:
 
 - the kitchen screen shows the kitchen dishes, and only those;
 - the barista screen shows the drinks, and only those;
+- the buna makers' lane shows the traditional buna, and only that;
 - the cashier's queue shows the bill to key into the EFD and print.
 
-All three ring. Nobody waits for the print. A QR order from a guest is the one
-thing that must be accepted first (waiter or cashier) - that single tap then
-feeds the same three screens.
+Every crew that has a line on the bill rings, and no crew that has none. Nobody
+waits for the print. A QR order from a guest is the one thing that must be
+accepted first (waiter, cashier or buna maker) - that single tap then feeds the
+same screens.
 
 **Food added later: the print-and-send flow, unchanged.**
 When a dish is added to a bill that is already accepted (the guest orders more,
