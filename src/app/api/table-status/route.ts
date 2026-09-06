@@ -7,6 +7,7 @@ import { checkRateLimit, checkSharedIpRateLimit, getClientIp, VENUE_POLICIES } f
 import { publish, CHANNELS } from "@/lib/realtime";
 import { sendPushToNamedStaff, sendPushToRoles, CUSTOMER_ALERT_RING } from "@/lib/push";
 import { ticketOwner } from "@/lib/alerts";
+import { stationOf } from "@/lib/stations";
 import {
   customerOrderPhase,
   groupOrderLines,
@@ -147,7 +148,10 @@ async function buildPayload(tableId: number): Promise<TableStatusPayload> {
         name: line.name,
         quantity: line.quantity,
         notes: String(line.notes ?? ""),
-        station: (String(line.stationName ?? "kitchen") === "barista" ? "barista" : "kitchen") as "kitchen" | "barista",
+        // The guest sees two buckets: food and drinks. Traditional buna is a
+        // drink, so the buna makers' lane folds into the barista bucket here —
+        // the guest never needs to know a third crew exists.
+        station: (stationOf(line.stationName) === "kitchen" ? "kitchen" : "barista") as "kitchen" | "barista",
         stationStatus: String(line.stationStatus ?? "pending"),
       })),
     },

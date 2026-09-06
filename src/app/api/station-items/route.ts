@@ -6,13 +6,17 @@ import { requireStaffOrAdmin, readStaffSession, readAdminSession } from "@/lib/s
 import { publish, CHANNELS } from "@/lib/realtime";
 import { sendPushToNamedStaff, sendPushToRoles } from "@/lib/push";
 import { stationProgressAlerts, ticketOwner } from "@/lib/alerts";
+import { stationOf, type StationName } from "@/lib/stations";
 
-type Station = "barista" | "kitchen";
+/** The three crews that receive work (see @/lib/stations). */
+type Station = StationName;
 
 async function authorizedStation(): Promise<Station | "admin" | null> {
   if (await readAdminSession()) return "admin";
   const staff = await readStaffSession();
-  if (staff?.role === "barista" || staff?.role === "kitchen") return staff.role;
+  // A crew may only ever read its OWN lane: buna makers see buna lines, the
+  // barista sees the drinks, the kitchen sees the food.
+  if (staff?.role === "barista" || staff?.role === "kitchen" || staff?.role === "buna") return staff.role;
   return null;
 }
 
@@ -27,9 +31,8 @@ export async function GET(request: Request) {
   if (!stationRole) return NextResponse.json({ error: "Station role required" }, { status: 403 });
   try {
     const { searchParams } = new URL(request.url);
-    const stationQuery = (searchParams.get("station") || "kitchen").toLowerCase();
-    const requested: Station = stationQuery === "barista" ? "barista" : "kitchen";
-    const station: Station = stationRole === "admin" ? requested : stationRole;
+    // Anything unrecognised falls back to the kitchen lane, exactly as before.
+    const station: Station = stationRole === "admin" ? stationOf(searchParams.get("station")) : stationRole;
 
     // GROUP 6 — bound the item read to OPEN tickets only. Previously this
     // fetched EVERY historical item for the station (e.g. ~15k rows at 10k

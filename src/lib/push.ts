@@ -1,7 +1,7 @@
 import webpush from "web-push";
 import { db } from "@/db";
 import { siteSettings, pushSubscriptions } from "@/db/schema";
-import { and, eq, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 /**
  * WEB PUSH ("pocket mode") — Group 10.
@@ -56,6 +56,9 @@ export function urlForRole(role: string): string {
   if (role === "cashier") return "/cashier";
   if (role === "kitchen") return "/kitchen";
   if (role === "barista") return "/barista";
+  // The traditional-coffee crew takes orders like a waiter but works its own
+  // lane, so it has its own screen.
+  if (role === "buna") return "/buna";
   return "/waiter";
 }
 
@@ -172,15 +175,21 @@ export async function sendPushToRoles(roles: string[], payload: PushPayload): Pr
 }
 
 /**
- * Push to ONE named staff member — the waiter who owns the table.
+ * Push to ONE named staff member — whoever OWNS the table.
  *
  * Subscriptions already store the staff name (taken from the session at
  * subscribe time), so "food ready" and "bill requested" ring only her phone
  * instead of every waiter's (owner's decision, Sept 2026).
  *
- * SAFE FALLBACK: when the name is unknown, or that waiter has no live
- * subscription (new phone, alerts never armed), the whole ROLE is rung
- * instead. A missed "food ready" is worse than an extra ring.
+ * THE OWNER IS NOT ALWAYS A WAITER (Sept 2026): when the room is full the buna
+ * makers take orders too, so the name on a ticket can belong to someone whose
+ * device is subscribed under a different role. The lookup is therefore BY NAME
+ * across every role, and the payload's url still resolves per subscription, so
+ * tapping the notification opens the screen that person actually works on.
+ *
+ * SAFE FALLBACK: when the name is unknown, or that person has no live
+ * subscription (new phone, alerts never armed), the whole ROLE is rung instead.
+ * A missed "food ready" is worse than an extra ring.
  */
 export async function sendPushToNamedStaff(
   role: string,
@@ -190,10 +199,7 @@ export async function sendPushToNamedStaff(
   const name = (staffName || "").trim();
   if (!name) return sendPushToRoles([role], payload);
   try {
-    const matches = await db
-      .select()
-      .from(pushSubscriptions)
-      .where(and(eq(pushSubscriptions.role, role), eq(pushSubscriptions.name, name)));
+    const matches = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.name, name));
     if (matches.length === 0) return sendPushToRoles([role], payload);
     await deliverToSubs(matches, payload);
   } catch {

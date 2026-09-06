@@ -35,6 +35,9 @@ export async function POST(request: Request) {
           : "https://images.pexels.com/photos/16563658/pexels-photo-16563658.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=300&w=480",
         isPopular: Boolean(body.isPopular),
         isAvailable: body.isAvailable !== undefined ? Boolean(body.isAvailable) : true,
+        // Traditional buna: the item is made by the buna makers, so its order
+        // lines are routed to the "buna" station instead of the barista.
+        isBuna: Boolean(body.isBuna),
         dietaryTags: body.dietaryTags || "",
         prepTime: body.prepTime || "10-15 min",
         badge: body.badge || "",
@@ -75,6 +78,7 @@ export async function PUT(request: Request) {
         imageUrl: body.imageUrl !== undefined ? await persistImageRef(String(body.imageUrl)) : cur.imageUrl,
         isPopular: body.isPopular !== undefined ? Boolean(body.isPopular) : cur.isPopular,
         isAvailable: body.isAvailable !== undefined ? Boolean(body.isAvailable) : cur.isAvailable,
+        isBuna: body.isBuna !== undefined ? Boolean(body.isBuna) : cur.isBuna,
         dietaryTags: body.dietaryTags ?? cur.dietaryTags,
         prepTime: body.prepTime ?? cur.prepTime,
         badge: body.badge ?? cur.badge,

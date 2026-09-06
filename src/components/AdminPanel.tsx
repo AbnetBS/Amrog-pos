@@ -661,6 +661,7 @@ export default function AdminPanel({
                     imageUrl: "https://images.pexels.com/photos/16563658/pexels-photo-16563658.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=300&w=480",
                     isPopular: false,
                     isAvailable: true,
+                    isBuna: false,
                     dietaryTags: "",
                     prepTime: "10 min",
                     badge: "",
@@ -691,7 +692,14 @@ export default function AdminPanel({
                         <td className="p-4 flex items-center gap-3">
                           <img src={item.imageUrl} alt={item.name} className="w-12 h-12 rounded-xl object-cover shrink-0 border border-amber-500/30" />
                           <div>
-                            <p className="font-bold text-amber-100 text-sm">{item.name}</p>
+                            <p className="font-bold text-amber-100 text-sm flex items-center gap-2 flex-wrap">
+                              {item.name}
+                              {item.isBuna && (
+                                <span className="text-[9px] font-black uppercase bg-amber-900/60 text-amber-300 border border-amber-700 rounded px-1.5 py-0.5">
+                                  🫖 Buna Makers
+                                </span>
+                              )}
+                            </p>
                             <p className="text-[11px] text-stone-400 line-clamp-1 max-w-xs">{item.description}</p>
                           </div>
                         </td>
@@ -959,7 +967,21 @@ export default function AdminPanel({
                   <input type="checkbox" checked={editingItem.isPopular ?? false} onChange={(e) => setEditingItem({ ...editingItem, isPopular: e.target.checked })} className="w-4 h-4 accent-[#C9A227]" />
                   <span>Popular Highlights</span>
                 </label>
+                <label className="flex items-center gap-2 text-xs font-bold text-amber-100 cursor-pointer">
+                  <input type="checkbox" checked={editingItem.isBuna ?? false} onChange={(e) => setEditingItem({ ...editingItem, isBuna: e.target.checked })} className="w-4 h-4 accent-[#C9A227]" />
+                  <span>🫖 Traditional Buna</span>
+                </label>
               </div>
+
+              {/* WHY THIS SWITCH EXISTS: the buna makers have their own place, so a
+                  traditional coffee must leave the barista's lane and land on
+                  theirs — whatever category the item sits in. */}
+              <p className="text-[11px] text-stone-400 leading-relaxed">
+                <strong className="text-amber-200">Traditional Buna</strong> sends this item to the{" "}
+                <strong className="text-amber-200">Buna Makers</strong> instead of the barista, and rings only
+                their phones. Use it for jebena buna and the other traditional coffee. It works from any
+                category, so it can sit next to the macchiato in <em>Coffee</em>.
+              </p>
 
               <button type="submit" disabled={isMenuSubmitting} className="w-full bg-gradient-to-r from-[#C9A227] to-[#B8921F] text-[#2C1B17] font-black text-xs uppercase tracking-wider py-3.5 rounded-xl shadow-xl transition mt-4">
                 {isMenuSubmitting ? "Saving..." : "Save Dish"}

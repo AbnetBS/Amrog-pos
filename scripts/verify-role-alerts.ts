@@ -91,10 +91,10 @@ const urgentFor = (alerts: RoleAlert[], role: string) =>
   // The screens still show all of these; they simply make no sound.
   pass("no money step wakes a phone", silentStatuses.every((st) => ticketStatusAlerts(st, TICKET).length === 0));
 
-  // A cancellation is money burning on a pan: the two cooking crews are rung,
+  // A cancellation is money burning on a pan: the cooking crews are rung,
   // the waiter and cashier read it quietly on their screens.
   const cancelled = ticketStatusAlerts("cancelled", TICKET);
-  pass("CANCELLED rings the kitchen and the barista", rolesOf(cancelled).join() === "barista,kitchen");
+  pass("CANCELLED rings the kitchen, the barista and the buna makers", rolesOf(cancelled).join() === "barista,buna,kitchen");
   pass("CANCELLED does not ring the waiter or the cashier", !hasRole(cancelled, "waiter") && !hasRole(cancelled, "cashier"));
   pass("CANCELLED is urgent and rings ONCE (no re-rings until answered)", cancelled.every((a) => a.urgent && a.repeat === 0));
   pass("CANCELLED says what to do (stop and do not serve)", cancelled.every((a) => /stop preparing/i.test(a.body)));
@@ -181,10 +181,12 @@ const urgentFor = (alerts: RoleAlert[], role: string) =>
   const cancelled = ticketStatusAlerts("cancelled", TICKET);
   const confirmedAsCashier = withoutActor(ticketStatusAlerts("confirmed", TICKET), "cashier");
   pass("the actor's own role is dropped", !hasRole(confirmedAsCashier, "cashier") && hasRole(confirmedAsCashier, "waiter"));
-  pass("everyone else still gets it", rolesOf(confirmedAsCashier).join() === "barista,kitchen,waiter");
+  // TICKET carries no `stations`, so the release falls back to every crew:
+  // ringing one crew too many is better than serving nobody.
+  pass("everyone else still gets it", rolesOf(confirmedAsCashier).join() === "barista,buna,kitchen,waiter");
 
   const confirmedByWaiter = withoutActor(ticketStatusAlerts("confirmed", TICKET), "waiter");
-  pass("a waiter accepting rings the kitchen, the barista and the cashier", rolesOf(confirmedByWaiter).join() === "barista,cashier,kitchen");
+  pass("a waiter accepting rings every crew and the cashier", rolesOf(confirmedByWaiter).join() === "barista,buna,cashier,kitchen");
 
   const soloAlert = withoutActor(stationProgressAlerts("done", { ...TICKET, station: "kitchen", itemName: "Shiro", quantity: 1, wholeOrderReady: true }), "waiter");
   pass("an alert with no recipients left is dropped entirely", soloAlert.length === 0);
@@ -252,9 +254,65 @@ const urgentFor = (alerts: RoleAlert[], role: string) =>
   pass("payment and closing moments are not in that list", !/ready_for_payment: `/.test(cashier) && !/closed: `/.test(cashier) && !/paid: `/.test(cashier) && !/completed: `/.test(cashier));
 }
 
+/* ── 8. The release reaches only the crews with work in it ────────────────── */
+{
+  // Accepting used to wake EVERY crew, so the kitchen was woken for a
+  // drinks-only table and the buna makers for every macchiato. The matrix now
+  // takes the crews the route found on the ticket.
+  const drinksOnly = ticketStatusAlerts("confirmed", { ...TICKET, stations: ["barista"] });
+  const bunaOnly = ticketStatusAlerts("confirmed", { ...TICKET, stations: ["buna"] });
+  const mixed = ticketStatusAlerts("confirmed", { ...TICKET, stations: ["kitchen", "buna"] });
+  const unknownCrews = ticketStatusAlerts("confirmed", TICKET);
+
+  pass("a drinks-only order does NOT ring the kitchen", !hasRole(drinksOnly, "kitchen"));
+  pass("a drinks-only order does NOT ring the buna makers", !hasRole(drinksOnly, "buna"));
+  pass("a drinks-only order still rings the barista, cashier and waiter",
+    rolesOf(drinksOnly).join() === "barista,cashier,waiter");
+  pass("a traditional-buna order rings ONLY the buna makers",
+    rolesOf(bunaOnly).join() === "buna,cashier,waiter");
+  pass("the buna makers' release says it is traditional buna",
+    bunaOnly.some((a) => a.roles.includes("buna") && /traditional buna/.test(a.body)));
+  pass("a mixed order rings exactly the two crews involved",
+    rolesOf(mixed).join() === "buna,cashier,kitchen,waiter");
+  pass("every crew alert is urgent and has its own tag",
+    mixed.filter((a) => a.urgent).every((a) => a.repeat === 0) &&
+    new Set(mixed.map((a) => a.tag)).size === mixed.length);
+  pass("a caller that names no crews falls back to all of them (never nobody)",
+    hasRole(unknownCrews, "kitchen") && hasRole(unknownCrews, "barista") && hasRole(unknownCrews, "buna"));
+
+  // A buna line taken off the bill, or corrected, belongs to the buna makers.
+  const bunaRemoved = itemRemovedAlerts({ ...TICKET, itemName: "Jebena Buna", station: "buna" });
+  const bunaQty = itemQuantityAlerts({ ...TICKET, itemName: "Jebena Buna", station: "buna", fromQuantity: 1, toQuantity: 3 });
+  pass("a removed buna line rings the buna makers (not the barista)",
+    rolesOf(bunaRemoved).join() === "buna" && !hasRole(bunaRemoved, "barista"));
+  pass("a corrected buna quantity rings the buna makers and the waiter",
+    rolesOf(bunaQty).join() === "buna,waiter");
+
+  // The routes must actually hand the crews over, and keep the three apart.
+  const stationsLib = read("src/lib/stations.ts");
+  const tickets = read("src/app/api/tickets/route.ts");
+  pass("the station vocabulary holds all three crews", /export type StationName = "kitchen" \| "barista" \| "buna"/.test(stationsLib));
+  pass("a flagged item goes to the buna station whatever its category", /if \(isBunaItem\) return "buna"/.test(stationsLib));
+  pass("the order route uses that rule", /stationForOrder\(routing, catSlug, bunaById\.get/.test(tickets));
+  pass("the release push keeps the buna lane apart from the kitchen", /stations\.length === 1 && stations\[0\] === "buna"/.test(tickets));
+  pass("food ready still finds its owner by NAME, whatever role they hold",
+    /\.where\(eq\(pushSubscriptions\.name, name\)\)/.test(read("src/lib/push.ts")));
+}
+
+/* ── 9. A cleared table is not an alarm for a crew that already finished ──── */
+{
+  const station = read("src/components/rms/StationApp.tsx");
+  pass("the station screen remembers what work was still unfinished",
+    /prevOpenWork/.test(station) && /stationStatus !== "done"/.test(station));
+  pass("a bill closed with everything DONE only updates the screen",
+    /if \(\(prevOpenWork\.get\(id\) \|\| 0\) > 0\) gone\.push\(name\);\s*\n\s*else closedQuiet\.push\(name\);/.test(station));
+  pass("a bill closed mid-preparation still alarms the crew", /prevOpenWork\.get\(id\) \|\| 0\) > 0/.test(station));
+  pass("the silent close never plays a sound or a notification",
+    !/closedQuiet[\s\S]{0,200}playAlarm/.test(station) && !/closedQuiet[\s\S]{0,300}triggerDesktopNotification/.test(station));
+}
+
 if (failures.length > 0) {
-  console.error("\n❌ ROLE-ALERT COVERAGE TEST FAILED\n");
-  for (const f of failures) console.error("  • " + f);
+  console.error("\n❌ ROLE-ALERT COVERAGE TEST FAILED\n");  for (const f of failures) console.error("  • " + f);
   process.exit(1);
 }
 console.log("\n✅ Role-alert coverage test PASSED");

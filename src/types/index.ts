@@ -7,6 +7,8 @@ export interface MenuItem {
   imageUrl: string;
   isPopular: boolean;
   isAvailable: boolean;
+  /** Traditional buna → routed to the buna makers instead of the barista. */
+  isBuna?: boolean;
   dietaryTags?: string | null;
   prepTime?: string | null;
   badge?: string | null;

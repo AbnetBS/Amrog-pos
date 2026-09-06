@@ -16,7 +16,7 @@ import { sql } from "drizzle-orm";
  * once and stamps the new version. Existing DBs self-heal on the first
  * request after a deploy — no manual action needed.
  */
-const SCHEMA_VERSION = "2026-09-03-2";
+const SCHEMA_VERSION = "2026-09-06-1";
 
 /**
  * UNIVERSAL self-healing schema manager — works on ANY Postgres database
@@ -71,6 +71,7 @@ const CREATES: Array<[string, string]> = [
       image_url text,
       is_popular boolean DEFAULT false,
       is_available boolean DEFAULT true,
+      is_buna boolean DEFAULT false,
       dietary_tags text,
       prep_time text DEFAULT '10-15 min',
       badge text,
@@ -355,6 +356,7 @@ const TABLE_COLUMNS: Record<string, Record<string, ColSpec>> = {
     image_url: { type: "text" },
     is_popular: { type: "boolean", def: "false" },
     is_available: { type: "boolean", def: "true" },
+    is_buna: { type: "boolean", def: "false" },
     dietary_tags: { type: "text" },
     prep_time: { type: "text", def: "'10-15 min'" },
     badge: { type: "text" },
