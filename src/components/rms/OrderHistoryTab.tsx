@@ -80,7 +80,7 @@ export default function OrderHistoryTab() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-serif font-bold text-amber-100">Order History ({filtered.length})</h2>
-          <p className="text-xs text-stone-400">Every completed & cancelled bill • search by date, table, waiter, method or status.</p>
+          <p className="text-xs text-stone-400">Every completed, closed & cancelled bill • search by date, table, waiter, method or status.</p>
         </div>
         <div className="flex gap-2 self-start">
           <button
@@ -119,6 +119,7 @@ export default function OrderHistoryTab() {
           <option value="all">All Statuses</option>
           <option value="paid">Paid</option>
           <option value="completed">Completed</option>
+          <option value="closed">Closed (table cleared)</option>
           <option value="cancelled">Cancelled</option>
         </select>
       </div>
@@ -126,7 +127,7 @@ export default function OrderHistoryTab() {
       {/* Orders list */}
       {filtered.length === 0 ? (
         <div className="p-10 bg-[#2C1B17] rounded-2xl border border-stone-800 text-center text-stone-500 text-xs">
-          No orders match your search. Paid bills appear here automatically.
+          No orders match your search. Closed and paid bills appear here automatically.
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -148,10 +149,10 @@ export default function OrderHistoryTab() {
                   <div className="flex items-center gap-1.5">
                     <span
                       className={`inline-block text-[10px] font-black px-2.5 py-1 rounded-full uppercase ${
-                        o.status === "paid" ? "bg-emerald-500/20 text-emerald-400" : o.status === "completed" ? "bg-sky-500/20 text-sky-300" : "bg-rose-500/20 text-rose-400"
+                        o.status === "paid" ? "bg-emerald-500/20 text-emerald-400" : o.status === "completed" ? "bg-sky-500/20 text-sky-300" : o.status === "closed" ? "bg-amber-500/20 text-amber-300" : "bg-rose-500/20 text-rose-400"
                       }`}
                     >
-                      {o.status === "paid" ? "✓ PAID" : o.status}
+                      {o.status === "paid" ? "✓ PAID" : o.status === "closed" ? "✓ CLOSED" : o.status}
                     </span>
                     <button
                       onClick={() => deleteOrder(o.id, o.tableName, o.totalAmount)}

@@ -23,6 +23,13 @@ export interface UrgentAlert {
   id: string;
   /** "order" = new order, "added" = extra dishes, "bill" = asked for the bill. */
   kind: "order" | "added" | "bill";
+  /**
+   * The ticket this alert is about. When ANOTHER device answers the event
+   * (the order gets accepted, the additions printed, the bill request cleared),
+   * every screen dismisses its own takeover — the cashier's accept on one
+   * device stops the alarm on all of them.
+   */
+  ticketId?: number;
   /** Big line: which table. */
   table: string;
   /** Small line: money, dish count, whatever helps decide. */

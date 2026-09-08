@@ -42,10 +42,30 @@ export function usePocketAlerts(options: {
   const { onAlert, active } = options;
   const [status, setStatus] = useState<PocketAlertsStatus | null>(null);
   const [busy, setBusy] = useState(false);
+  /**
+   * POCKET OFF-DUTY SWITCH: null = no staff session on this device (login
+   * screen) or the state could not be read; the chip then hides the switch
+   * and only shows the per-device arm/test controls.
+   */
+  const [notificationsEnabled, setNotificationsEnabledState] = useState<boolean | null>(null);
   const onAlertRef = useRef(onAlert);
   useEffect(() => {
     onAlertRef.current = onAlert;
   }, [onAlert]);
+
+  const refreshServerSwitch = useCallback(async () => {
+    try {
+      const res = await fetch("/api/staff/notifications", { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        setNotificationsEnabledState(data.notificationsEnabled !== false);
+      } else if (res.status === 401) {
+        setNotificationsEnabledState(null);
+      }
+    } catch {
+      /* offline - keep the last known state; the chip still shows the device */
+    }
+  }, []);
 
   const refreshStatus = useCallback(async () => {
     try {
@@ -53,7 +73,8 @@ export function usePocketAlerts(options: {
     } catch {
       /* ignore */
     }
-  }, []);
+    void refreshServerSwitch();
+  }, [refreshServerSwitch]);
 
   // Any tap on the page unlocks the audio engine (browsers demand a gesture).
   useEffect(() => {
@@ -133,5 +154,31 @@ export function usePocketAlerts(options: {
     return res;
   }, [refreshStatus]);
 
-  return { status, busy, arm, test, refreshStatus };
+  /**
+   * The per-person OFF-DUTY switch: false = this person's phones stay silent
+   * (whatever device they tap it on) until they switch back or sign in with
+   * their PIN again. Returns false when the server could not be reached.
+   */
+  const setNotificationsEnabled = useCallback(async (value: boolean) => {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/staff/notifications", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notificationsEnabled: value }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNotificationsEnabledState(data.notificationsEnabled !== false);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  return { status, busy, arm, test, refreshStatus, notificationsEnabled, setNotificationsEnabled };
 }

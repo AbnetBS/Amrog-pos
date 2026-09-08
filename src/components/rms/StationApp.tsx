@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Coffee, CookingPot, RefreshCw, LogOut, CheckCircle2, BellRing, Clock } from "lucide-react";
+import { Coffee, CookingPot, RefreshCw, LogOut, CheckCircle2, BellRing, Clock, History, X } from "lucide-react";
 import { unlockAudio, playAlarm, playDing } from "@/lib/sound";
 import { formatClock, formatDayMonthYear, minutesSince, waitingLabel } from "@/lib/order-lines";
 import { triggerDesktopNotification } from "@/lib/notifications";
@@ -45,6 +45,34 @@ interface StationTicket {
   items: StationItem[];
 }
 
+/**
+ * One order in "Today's History" — every line this crew RECEIVED today, from
+ * bills that are still open or already cleared. `releasedAt` is when the work
+ * reached them (the send for the original order, the print for additions),
+ * which is also the day the history list groups by.
+ */
+interface HistoryTicket {
+  id: number;
+  tableName: string;
+  orderNumber?: string | null;
+  status: string;
+  createdBy?: string | null;
+  confirmedBy?: string | null;
+  createdAt?: string | null;
+  closedAt?: string | null;
+  printedAt?: string | null;
+  confirmedAt?: string | null;
+  releasedAt?: string | null;
+  items: Array<{
+    id: number;
+    name: string;
+    quantity: number;
+    notes?: string | null;
+    stationStatus: string;
+    createdAt?: string | null;
+  }>;
+}
+
 const STATION_META = {
   barista: { label: "Barista", icon: Coffee, color: "amber", slug: "barista" as Station, desc: "Drinks, juices, coffees & cold beverages" },
   kitchen: { label: "Kitchen (Chef)", icon: CookingPot, color: "emerald", slug: "kitchen" as Station, desc: "Foods, pastries, meals & snacks" },
@@ -68,6 +96,33 @@ export default function StationApp({ station }: { station: Station }) {
   const [toast, setToast] = useState("");
   // Always points at the CURRENT load() for the SSE + push relays.
   const loadRef = useRef<() => void>(() => {});
+
+  // ── TODAY'S HISTORY ──
+  // The crew's own archive: every order they received today (open or already
+  // cleared), exactly like the cashier's "Printed Today" pile but only THEIR
+  // items. This replaces the old "Open Tables" counter — the crew asked for
+  // their day's work, not the table count.
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyTickets, setHistoryTickets] = useState<HistoryTicket[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const historyLoadRef = useRef<() => void>(() => {});
+
+  const loadHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const r = await fetch(`/api/station-items?station=${station}&history=1`);
+      if (r.ok) setHistoryTickets(await r.json());
+    } catch {
+      /* a failed history load keeps the previous list */
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const openHistory = () => {
+    setShowHistory(true);
+    loadHistory();
+  };
 
   // Refs follow the latest render from an effect (never during render).
   useEffect(() => {
@@ -275,6 +330,7 @@ export default function StationApp({ station }: { station: Station }) {
 
   useEffect(() => {
     loadRef.current = load;
+    historyLoadRef.current = loadHistory;
   });
 
   // POCKET MODE: keeps this tablet/phone subscribed (self-healing) and rings
@@ -427,6 +483,8 @@ export default function StationApp({ station }: { station: Station }) {
             onArm={pocket.arm}
             onTest={pocket.test}
             onToast={showToast}
+            notificationsEnabled={pocket.notificationsEnabled}
+            onSetNotificationsEnabled={pocket.setNotificationsEnabled}
           />
           <button
             onClick={enableAlerts}
@@ -458,7 +516,8 @@ export default function StationApp({ station }: { station: Station }) {
         <PocketAlertsHint />
       </div>
 
-      {/* counters */}
+      {/* counters + the crew's own history button (owner's decision, Sept 2026:
+          the crew asked for their day's work, not the table count) */}
       <div className="max-w-4xl mx-auto px-4 md:px-6 pt-6 grid grid-cols-3 gap-3 text-center">
         <div className="bg-violet-950/60 border border-violet-700 rounded-2xl p-3.5">
           <p className="text-[10px] font-extrabold uppercase text-violet-300">New Incoming</p>
@@ -468,10 +527,14 @@ export default function StationApp({ station }: { station: Station }) {
           <p className="text-[10px] font-extrabold uppercase text-amber-300">Started (Accepted)</p>
           <p className="font-serif font-black text-2xl text-white">{acceptedCount}</p>
         </div>
-        <div className="bg-[#2C1B17] border border-stone-700 rounded-2xl p-3.5">
-          <p className="text-[10px] font-extrabold uppercase text-stone-400">Open Tables</p>
-          <p className="font-serif font-black text-2xl text-white">{tickets.length}</p>
-        </div>
+        <button
+          onClick={openHistory}
+          className="bg-[#2C1B17] border border-[#C9A227]/50 hover:border-[#C9A227] hover:bg-[#3D2314] rounded-2xl p-3.5 transition flex flex-col items-center justify-center gap-1"
+          title="Every order you received today, open or already cleared"
+        >
+          <History className="w-5 h-5 text-[#C9A227]" />
+          <p className="text-[10px] font-extrabold uppercase text-amber-200">Today&rsquo;s History</p>
+        </button>
       </div>
 
       {/* tickets cards */}
@@ -578,6 +641,138 @@ export default function StationApp({ station }: { station: Station }) {
           ))
         )}
       </div>
+
+      {/* ═══ TODAY'S HISTORY — the crew's archive of today's work ═══
+          Every order this crew RECEIVED today (open or already cleared), the
+          same idea as the cashier's "Printed Today" pile but only their items:
+          the paper stack they used to keep next to the station. */}
+      {showHistory && (
+        <div className="fixed inset-0 z-40 bg-[#14100C] overflow-y-auto">
+          <div className="sticky top-0 z-10 bg-[#2C1B17]/95 backdrop-blur border-b border-[#C9A227]/30 px-4 md:px-8 py-3.5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowHistory(false)}
+                className="p-2 rounded-xl bg-white/10 text-amber-200 hover:bg-white/20"
+                title="Back to the live list"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <div>
+                <h1 className="font-serif font-bold text-amber-100 leading-none">Today&rsquo;s History • {meta.label}</h1>
+                <p className="text-[10px] text-stone-400">Every order you received today, open or already cleared</p>
+              </div>
+            </div>
+            <button onClick={loadHistory} className="p-2 rounded-xl bg-white/10 text-amber-200 hover:bg-white/20" title="Refresh">
+              <RefreshCw className={`w-4 h-4 ${historyLoading ? "animate-spin" : ""}`} />
+            </button>
+          </div>
+
+          <div className="max-w-4xl mx-auto px-4 md:px-6 pt-5 pb-12">
+            {/* day summary */}
+            <div className="grid grid-cols-3 gap-3 text-center mb-5">
+              <div className="bg-[#2C1B17] border border-stone-700 rounded-2xl p-3.5">
+                <p className="text-[10px] font-extrabold uppercase text-stone-400">Orders today</p>
+                <p className="font-serif font-black text-2xl text-white">{historyTickets.length}</p>
+              </div>
+              <div className="bg-amber-950/60 border border-amber-700 rounded-2xl p-3.5">
+                <p className="text-[10px] font-extrabold uppercase text-amber-300">Items made / to make</p>
+                <p className="font-serif font-black text-2xl text-white">
+                  {historyTickets.reduce((s, t) => s + t.items.reduce((x, i) => x + i.quantity, 0), 0)}
+                </p>
+              </div>
+              <div className="bg-emerald-950/60 border border-emerald-700 rounded-2xl p-3.5">
+                <p className="text-[10px] font-extrabold uppercase text-emerald-300">Lines done</p>
+                <p className="font-serif font-black text-2xl text-white">
+                  {historyTickets.reduce((s, t) => s + t.items.filter((i) => i.stationStatus === "done").length, 0)}
+                  <span className="text-sm text-stone-400">
+                    /{historyTickets.reduce((s, t) => s + t.items.length, 0)}
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            {historyLoading && historyTickets.length === 0 ? (
+              <div className="bg-[#2C1B17] border border-stone-800 rounded-2xl p-10 text-center text-stone-500 text-xs">
+                Loading today&rsquo;s orders...
+              </div>
+            ) : historyTickets.length === 0 ? (
+              <div className="bg-[#2C1B17] border border-stone-800 rounded-2xl p-10 text-center text-stone-500 text-xs">
+                Nothing yet today. Orders appear here the moment you receive them.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {historyTickets.map((t) => {
+                  const doneCount = t.items.filter((i) => i.stationStatus === "done").length;
+                  const stamp = t.releasedAt || t.createdAt;
+                  return (
+                    <div key={t.id} className="bg-[#2C1B17] border border-[#C9A227]/30 rounded-2xl p-4 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-serif font-bold text-lg text-amber-100">
+                            {t.tableName}
+                            {t.orderNumber && (
+                              <span className="ml-2 align-middle text-[10px] font-black bg-stone-800 border border-[#C9A227]/40 text-[#C9A227] px-2 py-0.5 rounded-full">
+                                Order #{t.orderNumber}
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-[11px] font-bold text-stone-300 mt-0.5">
+                            🕒 received {formatClock(stamp)} • {formatDayMonthYear(stamp)}
+                          </p>
+                          <p className="text-xs text-[#D8B93E] font-black truncate">
+                            👤 {t.confirmedBy || t.createdBy || "staff"}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0 space-y-1">
+                          <span
+                            className={`inline-block text-[10px] font-black px-2.5 py-1 rounded-full uppercase ${
+                              t.status === "closed"
+                                ? "bg-stone-800 text-stone-300"
+                                : t.status === "printed"
+                                ? "bg-amber-900/60 text-amber-300 border border-amber-700"
+                                : "bg-emerald-900/60 text-emerald-300 border border-emerald-700"
+                            }`}
+                          >
+                            {t.status === "closed" ? "✓ cleared" : t.status === "printed" ? "🖨 printed" : t.status.replace(/_/g, " ")}
+                          </span>
+                          <p className="text-[10px] font-black text-emerald-400">
+                            {doneCount}/{t.items.length} done
+                          </p>
+                        </div>
+                      </div>
+                      <div className="divide-y divide-stone-800">
+                        {t.items.map((i) => (
+                          <div key={i.id} className="py-2 flex items-center justify-between gap-3 text-xs">
+                            <div className="flex-1 min-w-0">
+                              <p className={`font-bold ${i.stationStatus === "done" ? "text-stone-500 line-through" : "text-amber-100"}`}>
+                                {i.name} <span className="text-[#C9A227]">x{i.quantity}</span>
+                              </p>
+                              {i.notes && <p className="text-[11px] text-amber-200/80 italic mt-0.5">📝 {i.notes}</p>}
+                            </div>
+                            {i.stationStatus === "done" ? (
+                              <span className="shrink-0 text-[10px] font-black text-emerald-400 bg-emerald-950/60 px-2.5 py-1 rounded-full uppercase border border-emerald-700">
+                                ✓ Done
+                              </span>
+                            ) : i.stationStatus === "accepted" ? (
+                              <span className="shrink-0 text-[10px] font-black text-amber-300 bg-amber-950/60 px-2.5 py-1 rounded-full uppercase border border-amber-700">
+                                Started
+                              </span>
+                            ) : (
+                              <span className="shrink-0 text-[10px] font-black text-violet-300 bg-violet-950/60 px-2.5 py-1 rounded-full uppercase border border-violet-700">
+                                New
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

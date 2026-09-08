@@ -65,14 +65,20 @@ export function stationOf(value: string | null | undefined): StationName {
 /**
  * Which station does an ordered item belong to?
  *
- * The per-item traditional-buna flag WINS over the category routing: it is the
- * owner's explicit "this one goes to the buna makers" switch.
+ * Priority (the owner's explicit choices always beat the category default):
+ *   1. the per-item traditional-buna flag (menu_items.is_buna)
+ *   2. the per-item station override (menu_items.station_override) — for
+ *      mixed-crew categories like "Extra Things", where a coffee cup is the
+ *      barista's and a take away bag is the kitchen's
+ *   3. the owner's category routing (barista | kitchen), defaulting to kitchen
  */
 export function stationForOrder(
   categoryRouting: Record<string, "barista" | "kitchen">,
   categorySlug: string,
-  isBunaItem: boolean
+  isBunaItem: boolean,
+  stationOverride?: string | null
 ): StationName {
   if (isBunaItem) return "buna";
+  if (isStationName(stationOverride)) return stationOverride;
   return categoryRouting[categorySlug] || "kitchen";
 }

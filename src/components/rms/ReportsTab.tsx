@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { TrendingUp, ShoppingBag, CreditCard, Banknote, Smartphone, RefreshCw, ImageIcon, Award, PieChart } from "lucide-react";
-import { ReportData } from "@/types";
+import { TrendingUp, ShoppingBag, CreditCard, Banknote, Smartphone, RefreshCw, ImageIcon, Award, PieChart, Coffee, CookingPot, Printer, XCircle } from "lucide-react";
+import { ReportData, Ticket } from "@/types";
+import { formatClock, formatDateTime } from "@/lib/order-lines";
 
 export default function ReportsTab() {
   const [data, setData] = useState<ReportData | null>(null);
   const [receiptModal, setReceiptModal] = useState<string | null>(null);
+  // The printed-today archive card that is expanded into the full bill.
+  const [billModal, setBillModal] = useState<Ticket | null>(null);
 
   const load = async () => {
     const r = await fetch("/api/reports");
@@ -19,12 +22,20 @@ export default function ReportsTab() {
 
   const fmt = (n: number) => n.toLocaleString("en-US") + " ETB";
 
+  const stationMeta: Record<string, { label: string; icon: React.ReactNode; cls: string }> = {
+    barista: { label: "Barista", icon: <Coffee className="w-5 h-5 text-amber-300" />, cls: "border-amber-700/60" },
+    kitchen: { label: "Kitchen (Chef)", icon: <CookingPot className="w-5 h-5 text-emerald-300" />, cls: "border-emerald-700/60" },
+    buna: { label: "Buna Makers", icon: <span className="text-xl leading-none">🫖</span>, cls: "border-orange-700/60" },
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-serif font-bold text-amber-100">Today's Reports & Analytics</h2>
-          <p className="text-xs text-stone-400">Live numbers from paid & completed bills, refreshed from the database.</p>
+          <h2 className="text-xl font-serif font-bold text-amber-100">Today&rsquo;s Reports &amp; Analytics</h2>
+          <p className="text-xs text-stone-400">
+            Live numbers from today&rsquo;s sales: every bill keyed into the EFD (printed) or marked paid, refreshed from the database.
+          </p>
         </div>
         <button onClick={load} className="p-2 bg-white/10 hover:bg-white/20 text-amber-200 rounded-xl" title="Refresh">
           <RefreshCw className="w-4 h-4" />
@@ -62,6 +73,67 @@ export default function ReportsTab() {
             ))}
           </div>
 
+          {/* ═══ CROSS-CHECK BY STATION — the paper world's three piles ═══
+              Before this system the cross-checker collected the kitchen's, the
+              barista's and the buna makers' order papers, added each pile and
+              compared the total with the cashier's EFD receipts. These three
+              cards ARE those piles: today's sales split by who prepared them. */}
+          <div className="bg-[#2C1B17] rounded-2xl border border-[#C9A227]/40 p-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-bold text-amber-200 uppercase tracking-wider">📋 Cross-Check by Station (Today)</h3>
+                <p className="text-[11px] text-stone-400 mt-0.5">
+                  Each crew&rsquo;s pile of today&rsquo;s sales, split per item. Add the three totals and compare with the EFD receipt pile below.
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-extrabold uppercase text-stone-400">Barista + Kitchen + Buna</p>
+                <p className="font-serif font-black text-xl text-[#C9A227]">
+                  {fmt((data.stationSales || []).reduce((s, x) => s + (x.revenue || 0), 0))}
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {(data.stationSales || []).map((s) => {
+                const meta = stationMeta[s.station] || stationMeta.kitchen;
+                const items = (data.stationItems || []).filter((i) => i.station === s.station);
+                return (
+                  <div key={s.station} className={`bg-[#3D2314] rounded-2xl border ${meta.cls} p-4 space-y-3`}>
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-2 text-sm font-black text-amber-100">
+                        {meta.icon} {meta.label}
+                      </span>
+                      <span className="text-[10px] font-bold text-stone-400">{s.orders} bill(s)</span>
+                    </div>
+                    <div className="flex items-end justify-between gap-2">
+                      <div>
+                        <p className="text-[10px] uppercase font-extrabold text-stone-400">Items sold</p>
+                        <p className="font-serif font-black text-2xl text-white">{s.quantity}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] uppercase font-extrabold text-stone-400">Total sell</p>
+                        <p className="font-serif font-black text-2xl text-[#C9A227]">{fmt(s.revenue)}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                      {items.length === 0 ? (
+                        <p className="text-xs text-stone-500">Nothing sold from this station today.</p>
+                      ) : (
+                        items.map((i) => (
+                          <div key={`${i.station}-${i.name}`} className="flex items-center justify-between gap-2 text-xs bg-black/25 rounded-lg px-2.5 py-1.5">
+                            <span className="font-bold text-amber-100 truncate">{i.name}</span>
+                            <span className="shrink-0 text-stone-400 font-bold">x{i.quantity}</span>
+                            <span className="shrink-0 font-extrabold text-[#C9A227]">{i.revenue.toLocaleString("en-US")}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           {/* KPI cards */}
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="bg-[#2C1B17] rounded-2xl p-5 border border-stone-800">
@@ -77,7 +149,7 @@ export default function ReportsTab() {
             <div className="bg-[#2C1B17] rounded-2xl p-5 border border-stone-800">
               <Award className="w-5 h-5 mb-2 text-[#C9A227]" />
               <p className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">Payment Methods</p>
-              <div className="flex gap-2 mt-1">
+              <div className="flex gap-2 mt-1 flex-wrap">
                 {data.paymentStats.length === 0 && <span className="text-xs text-stone-500">No payments yet</span>}
                 {data.paymentStats.map((p) => (
                   <span key={p.method} className="text-[11px] font-bold text-white bg-white/10 px-2 py-1 rounded-lg capitalize">
@@ -194,6 +266,59 @@ export default function ReportsTab() {
             })}
           </div>
 
+          {/* ═══ PRINTED TODAY — the archive registered as history ═══
+              The same list the cashier sees below her tables: every bill keyed
+              into the EFD today, open or already cleared. This is the digital
+              receipt pile the cross-checker compares with the station piles
+              above. Tap any card to open the whole bill. */}
+          <div className="bg-[#2C1B17] rounded-2xl border border-stone-800 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <h3 className="text-sm font-bold text-amber-200 uppercase tracking-wider flex items-center gap-2">
+                <Printer className="w-4 h-4 text-[#C9A227]" /> Printed Today ({(data.printedToday || []).length})
+              </h3>
+              <div className="text-right">
+                <p className="text-[10px] font-extrabold uppercase text-stone-400">Total printed (compare with the EFD pile)</p>
+                <p className="font-serif font-black text-xl text-emerald-400">{fmt(data.printedTodayTotal || 0)}</p>
+              </div>
+            </div>
+            {(data.printedToday || []).length === 0 ? (
+              <p className="text-xs text-stone-500">
+                No bills printed yet today. Every bill the cashier taps ✓ PRINTED is registered here for the daily cross-check.
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {(data.printedToday || []).map((t) => {
+                  const cleared = t.status === "closed";
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => setBillModal(t)}
+                      className={`text-left bg-[#241714] rounded-xl p-3 flex items-center justify-between gap-2 transition hover:bg-[#2e1d18] active:scale-[0.98] border ${
+                        cleared ? "border-stone-700" : "border-stone-800"
+                      }`}
+                      title="Tap to see the full bill"
+                    >
+                      <div className="min-w-0 space-y-0.5">
+                        <p className="text-sm font-black text-amber-100">{t.tableName}</p>
+                        <p className="text-[11px] font-bold text-stone-300 truncate flex items-center gap-1">
+                          <Printer className="w-3 h-3 text-[#C9A227] shrink-0" /> printed {formatClock(t.printedAt)} • {t.printedBy || "cashier"}
+                        </p>
+                        <p className="text-[11px] font-bold text-stone-300 truncate">🕒 {formatDateTime(t.printedAt || t.createdAt)}</p>
+                        <p className="text-[11px] font-bold text-[#D8B93E] truncate">👤 {t.confirmedBy || t.createdBy || "staff"}</p>
+                        {cleared && (
+                          <p className="text-[10px] font-black text-stone-400 uppercase">✓ cleared {t.closedAt ? formatClock(t.closedAt) : ""}</p>
+                        )}
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-black text-emerald-400">{t.totalAmount} ETB</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Receipt photos */}
           <div className="bg-[#2C1B17] rounded-2xl border border-stone-800 p-5">
             <h3 className="text-sm font-bold text-amber-200 uppercase tracking-wider mb-4 flex items-center gap-2">
@@ -225,6 +350,65 @@ export default function ReportsTab() {
             )}
           </div>
         </>
+      )}
+
+      {/* BILL DETAIL MODAL — the printed-today archive card expanded: every
+          item with name, qty, unit price, line total and the bill total. */}
+      {billModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setBillModal(null)}
+        >
+          <div
+            className="bg-[#2C1B17] border-2 border-[#C9A227]/50 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-[#2C1B17] border-b border-stone-800 px-5 py-4 flex items-start justify-between gap-3">
+              <div>
+                <h3 className="font-serif font-black text-xl text-amber-100">{billModal.tableName}</h3>
+                <p className="text-xs font-bold text-stone-300 mt-0.5">
+                  {billModal.orderNumber ? `#${billModal.orderNumber} • ` : ""}
+                  printed {billModal.printedAt ? formatDateTime(billModal.printedAt) : "?"} • by {billModal.printedBy || "cashier"}
+                </p>
+                <p className="text-xs font-bold text-stone-300">
+                  {billModal.status === "closed"
+                    ? `✓ cleared ${billModal.closedAt ? formatDateTime(billModal.closedAt) : ""}`
+                    : "● open bill"}
+                </p>
+              </div>
+              <button onClick={() => setBillModal(null)} className="p-2 rounded-lg bg-white/10 text-stone-300 hover:bg-white/20 shrink-0" title="Close">
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <div className="bg-[#3D2314] rounded-xl divide-y divide-stone-800">
+                {(billModal.items || []).filter((i) => !i.removed).map((i) => (
+                  <div key={i.id} className="p-3 flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-amber-100 truncate">{i.name}</p>
+                      <p className="text-xs font-semibold text-stone-300">{i.quantity} × {i.price} ETB</p>
+                      {i.notes && <p className="text-[11px] font-semibold text-amber-300 italic mt-0.5">📝 {i.notes}</p>}
+                    </div>
+                    <span className="text-sm font-black text-[#C9A227] shrink-0">{i.price * i.quantity} ETB</span>
+                  </div>
+                ))}
+                {(billModal.items || []).filter((i) => !i.removed).length === 0 && (
+                  <p className="p-3 text-center text-xs text-stone-500">No items.</p>
+                )}
+              </div>
+              <div className="bg-[#3D2314] border border-[#C9A227]/40 rounded-xl px-4 py-3 flex items-center justify-between">
+                <span className="text-sm font-black text-stone-200">Bill total</span>
+                <span className="font-serif font-black text-2xl text-[#C9A227]">{billModal.totalAmount} ETB</span>
+              </div>
+              <button
+                onClick={() => setBillModal(null)}
+                className="w-full py-3 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 text-sm font-black"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {receiptModal && (

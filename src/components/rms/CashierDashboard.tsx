@@ -30,8 +30,12 @@ export default function CashierDashboard() {
 
   const [tables, setTables] = useState<CafeTable[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
-  // "Printed Today" — her daily archive, filled at PRINT time (see loadHistory).
-  const [history, setHistory] = useState<Ticket[]>([]);
+  // "Printed Today" / "Printed Yesterday" — her daily archive, filled at PRINT
+  // time (see loadHistory). Both days stay in state so switching between them
+  // is instant; `historyDay` picks which one renders.
+  const [historyToday, setHistoryToday] = useState<Ticket[]>([]);
+  const [historyYesterday, setHistoryYesterday] = useState<Ticket[]>([]);
+  const [historyDay, setHistoryDay] = useState<"today" | "yesterday">("today");
   const [receiptModal, setReceiptModal] = useState<string | null>(null);
   // GROUP 12: clickable bill cards — the expanded bill (Printed Today / queue).
   const [billModal, setBillModal] = useState<Ticket | null>(null);
@@ -152,10 +156,17 @@ export default function CashierDashboard() {
     // fastest way to make staff ignore the alerts that DO matter.
     const m: Record<string, string> = {
       pending_waiter: `🍽 New QR order • ${t.tableName} • ${t.totalAmount} ETB • needs confirmation`,
-      confirmed: `🧾 TO PRINT • ${t.tableName} • ${t.totalAmount} ETB`,
       preparing: `👨‍🍳 Preparing • ${t.tableName}`,
       printed: `🖨 Printed • ${t.tableName}`,
     };
+    // QR HOLD FLOW: a confirmed bill with no release stamp is HELD (she
+    // accepted it; the crews see nothing yet) — a different message from the
+    // real "to print" cards.
+    if (t.status === "confirmed") {
+      return t.confirmedAt
+        ? `🧾 TO PRINT • ${t.tableName} • ${t.totalAmount} ETB`
+        : `⏸ ACCEPTED & HELD • ${t.tableName} • ${t.totalAmount} ETB • send when the guest finishes`;
+    }
     return m[t.status] || null;
   };
 
@@ -201,7 +212,7 @@ export default function CashierDashboard() {
         const loudEvents = newEvents.filter((t) => eventMessage(t) !== null);
         const needsMe = loudEvents.some(
           (t) =>
-            t.status === "confirmed" ||
+            (t.status === "confirmed" && !!t.confirmedAt) ||
             t.status === "pending_waiter" ||
             !!t.receiptRequestedAt ||
             (t.status === "printed" && (t.unprintedSubmissions || 0) > 0)
@@ -226,12 +237,16 @@ export default function CashierDashboard() {
             setUrgent({
               id,
               kind: isBill ? "bill" : isNew ? "order" : "added",
+              ticketId: guestEvent.id,
               table: guestEvent.tableName,
               detail: isBill
                 ? `${guestEvent.totalAmount} ETB • guest wants to pay`
                 : isNew
                   ? `${guestEvent.totalAmount} ETB • new QR order`
                   : `${guestEvent.totalAmount} ETB • guest added items`,
+              // QR HOLD FLOW: accepting a QR order only stops the alarms — the
+              // bill is HELD until her CONFIRM & SEND, so the guest can keep
+              // adding from their phone.
               actionLabel: isNew ? "✓ ACCEPT ORDER" : "GOT IT",
               onAction: isNew ? () => setStatusRef.current(guestEvent.id, "confirmed") : undefined,
             });
@@ -262,6 +277,20 @@ export default function CashierDashboard() {
       }
       initializedRef.current = true;
 
+      // ── ANOTHER DEVICE ANSWERED ──
+      // Once the order is accepted (or the additions printed, or the bill
+      // request cleared) this screen's full-page takeover has nothing left to
+      // ask for and closes by itself: the cashier's accept on ONE device stops
+      // the alarm on ALL of them.
+      setUrgent((cur) => {
+        if (!cur || cur.ticketId == null) return cur;
+        const t = active.find((x) => x.id === cur.ticketId);
+        if (!t) return null; // the bill left the active list (cleared/paid/cancelled)
+        if (cur.kind === "order") return t.status === "pending_waiter" ? cur : null;
+        if (cur.kind === "bill") return t.receiptRequestedAt ? cur : null;
+        return (t.unprintedSubmissions || 0) > 0 ? cur : null; // "added"
+      });
+
       setTickets(active);
       }
     } catch {
@@ -270,22 +299,34 @@ export default function CashierDashboard() {
     }
   };
 
-  // "Printed Today" panel — loaded on login + every refresh (NOT on the 8s hot
-  // loop, and it may skip while the tab is hidden to save data).
+  // "Printed Today" / "Printed Yesterday" panels — loaded on login + every
+  // refresh (NOT on the 8s hot loop, and it may skip while the tab is hidden
+  // to save data).
   // GROUP 12: in print-queue mode this is the cashier's DAILY CROSS-CHECK
   // against the EFD receipt count, so it must count HER action — the print —
   // not the waiter's table-clear. ?printedToday=1 returns every bill whose
   // printedAt is today (any status: freshly printed, crew working, or later
   // cleared), newest print first, WITH items so a tap opens the full bill.
+  // ?printedDate=<yesterday> loads the same list for yesterday, because the
+  // morning shift sometimes has to re-check last night's receipts.
   // A bill enters here the moment she taps ✓ PRINTED and STAYS after
   // the waiter clears the table (it was printed today — she still needs it
   // for the end-of-shift receipt count). Full mode keeps "Recently Paid".
   const loadHistory = async () => {
     if (typeof document !== "undefined" && document.hidden) return;
-    const r = await fetch(modeRef.current ? "/api/tickets?printedToday=1" : "/api/tickets?paid=1&limit=12");
-    if (r.ok) {
-      const rows: Ticket[] = await r.json();
-      setHistory(modeRef.current ? sortedPrintedToday(rows) : rows);
+    if (modeRef.current) {
+      const y = new Date();
+      y.setDate(y.getDate() - 1);
+      const yesterday = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, "0")}-${String(y.getDate()).padStart(2, "0")}`;
+      const [todayRes, yesterdayRes] = await Promise.all([
+        fetch("/api/tickets?printedToday=1"),
+        fetch(`/api/tickets?printedDate=${yesterday}`),
+      ]);
+      if (todayRes.ok) setHistoryToday(sortedPrintedToday(await todayRes.json()));
+      if (yesterdayRes.ok) setHistoryYesterday(await yesterdayRes.json());
+    } else {
+      const r = await fetch("/api/tickets?paid=1&limit=12");
+      if (r.ok) setHistoryToday(await r.json());
     }
   };
 
@@ -498,6 +539,20 @@ export default function CashierDashboard() {
     loadHistory();
   };
 
+  // ── QR HOLD FLOW: release a HELD bill to the crews. Her plain accept of a
+  // guest's QR order only acknowledged it (the alarms stopped everywhere, the
+  // crews saw nothing — the guest may still add items). THIS tap sends the
+  // whole bill to the kitchen/barista/buna makers; afterwards the card becomes
+  // a normal ✓ PRINTED card, exactly like a waiter-sent order.
+  const confirmAndSend = async (t: Ticket) => {
+    await fetch("/api/tickets", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: t.id, send: true, confirmedBy: staffName || "(cashier)" }),
+    });
+    loadAll();
+  };
+
   // Rare path: something is wrong with the order (item unavailable, wrong
   // table…) — reveals the correction tools (remove item / cancel order).
   const toggleProblem = (id: number) => {
@@ -587,13 +642,21 @@ export default function CashierDashboard() {
   const payCount = tickets.filter((t) => t.status === "ready_for_payment" || t.status === "completed").length;
 
   // ── GROUP 9 (print-queue): what the cashier's queue is made of ──
-  // Orders a waiter has confirmed but nobody keyed into the EFD yet, plus
-  // already-printed bills that received ADDITIONS since the last print
+  // Orders that were SENT to the crews but nobody keyed into the EFD yet,
+  // plus already-printed bills that received ADDITIONS since the last print
   // (the old paper world's "print a second receipt" — now one re-print).
+  // QR HOLD FLOW: a confirmed bill with NO release stamp is HELD — accepted
+  // (alarms stopped) but not sent, because the guest may still add items.
+  // Held bills sit in their own section with a CONFIRM & SEND button and are
+  // NOT printable until they are sent.
   const waitingConfirm = tickets.filter((t) => t.status === "pending_waiter");
-  const toPrint = tickets.filter((t) => t.status === "confirmed");
+  const heldCards = tickets.filter((t) => t.status === "confirmed" && !t.confirmedAt && !t.printedAt);
+  const toPrint = tickets.filter((t) => t.status === "confirmed" && (!!t.confirmedAt || !!t.printedAt));
   const addedCards = tickets.filter((t) => t.status === "printed" && (t.unprintedSubmissions || 0) > 0);
   const printQueue = [...addedCards, ...toPrint];
+
+  // Which archive list renders below the tables: today's prints or yesterday's.
+  const history = historyDay === "today" ? historyToday : historyYesterday;
 
   // Board tile labels mean different things per mode. In print-queue mode the
   // board is the cashier's ambient awareness: rose = an order is waiting to be
@@ -687,6 +750,8 @@ export default function CashierDashboard() {
             onArm={pocket.arm}
             onTest={pocket.test}
             onToast={showToast}
+            notificationsEnabled={pocket.notificationsEnabled}
+            onSetNotificationsEnabled={pocket.setNotificationsEnabled}
           />
           {/* RING BELL enable button — click once on each cashier device */}
           <button
@@ -711,6 +776,11 @@ export default function CashierDashboard() {
               {waitingConfirm.length > 0 && (
                 <span className="bg-violet-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full flex items-center gap-1">
                   <BellRing className="w-3 h-3" /> {waitingConfirm.length} WAITER
+                </span>
+              )}
+              {heldCards.length > 0 && (
+                <span className="bg-sky-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full flex items-center gap-1">
+                  <Clock className="w-3 h-3" /> {heldCards.length} HELD
                 </span>
               )}
             </>
@@ -837,12 +907,116 @@ export default function CashierDashboard() {
                       <button
                         onClick={() => setStatus(t.id, "confirmed")}
                         className="shrink-0 bg-violet-600 hover:bg-violet-500 text-white text-[10px] font-black px-3 py-2.5 rounded-xl"
-                        title="Only if the waiter already verified it with the guest. Normally the waiter does this"
+                        title="Only if the waiter already verified it with the guest. Normally the waiter does this. The bill is then HELD until you tap CONFIRM & SEND"
                       >
-                        ✓ Confirm myself
+                        ✓ Accept (holds it)
                       </button>
                     </div>
                   ))}
+                </div>
+              </section>
+            )}
+
+            {/* ═══ QR HOLD FLOW — accepted but NOT sent yet ═══
+                The cashier acknowledged the guest's QR order (the alarms stopped
+                on every device), but the crews see NOTHING from this bill: the
+                guest may still add items from their phone, and every addition
+                lands here too. When they finish, her CONFIRM & SEND releases
+                the whole bill at once — and only then does the normal
+                ✓ PRINTED step appear on the card. */}
+            {heldCards.length > 0 && (
+              <section>
+                <h2 className="text-xs font-bold uppercase tracking-widest text-sky-300/80 mb-3 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-sky-400" /> Held • accepted, waiting for your CONFIRM & SEND ({heldCards.length})
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {heldCards.map((t) => {
+                    const items = t.items || [];
+                    const visible = items.filter((i) => !i.removed);
+                    const problem = problemOpen.has(t.id);
+                    return (
+                      <div key={t.id} className="bg-[#241714] border-2 border-sky-500/70 rounded-2xl p-4 space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="space-y-0.5">
+                            <p className="font-serif font-bold text-xl text-amber-100">
+                              {t.tableName}
+                              {t.orderNumber && (
+                                <span className="ml-2 align-middle text-[10px] font-black bg-stone-800 border border-[#C9A227]/40 text-[#C9A227] px-2 py-0.5 rounded-full">
+                                  #{t.orderNumber}
+                                </span>
+                              )}
+                            </p>
+                            <p className="text-xs font-bold text-stone-300 flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5 text-[#C9A227]" /> arrived {formatClock(t.createdAt)} • waiting {waitingLabel(t.createdAt)}
+                            </p>
+                            <p className="text-xs font-bold text-stone-300 truncate">by {t.createdBy || "Customer (QR)"}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="inline-block text-[11px] font-black px-2.5 py-1 rounded-full bg-sky-500 text-black">⏸ HELD</span>
+                            <p className="font-serif font-black text-2xl text-[#C9A227] mt-1">{t.totalAmount} ETB</p>
+                            <p className="text-[11px] font-bold text-stone-300">{visible.reduce((s, i) => s + i.quantity, 0)} items • nothing sent yet</p>
+                          </div>
+                        </div>
+
+                        <p className="text-xs font-bold text-sky-300 bg-sky-950/40 border border-sky-700/40 rounded-xl px-3 py-2">
+                          Accepted. The kitchen, barista and buna makers do NOT have this order yet. If the guest is still ordering, wait; when they finish tap CONFIRM & SEND.
+                        </p>
+
+                        <div className="bg-[#3D2314] rounded-xl divide-y divide-stone-800">
+                          {visible.map((i) => (
+                            <div key={i.id} className="p-2.5 text-xs flex items-center justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-bold text-amber-100 truncate">
+                                  {i.name} <span className="text-stone-300 font-bold">({i.price} ETB)</span>
+                                </p>
+                                {i.notes && <p className="text-[11px] font-semibold text-amber-300 italic">📝 {i.notes}</p>}
+                              </div>
+                              <span className="font-extrabold text-amber-100 shrink-0">× {i.quantity}</span>
+                              {problem && !i.removed ? (
+                                <button
+                                  onClick={() => removeItem(i.id)}
+                                  className="px-2 py-1 bg-rose-900/60 text-rose-300 rounded text-[10px] font-bold hover:bg-rose-700 hover:text-white shrink-0"
+                                  title="Remove (unavailable)"
+                                >
+                                  Remove
+                                </button>
+                              ) : null}
+                            </div>
+                          ))}
+                          {visible.length === 0 && <p className="p-3 text-center text-xs text-stone-500">All items removed.</p>}
+                        </div>
+
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            onClick={() => confirmAndSend(t)}
+                            className="flex-1 bg-sky-600 hover:bg-sky-500 text-white text-sm font-black py-4 rounded-xl flex items-center justify-center gap-2"
+                            title="Sends this order to the kitchen/barista/buna makers now. Afterwards key it into the EFD and tap ✓ PRINTED"
+                          >
+                            <CheckCircle2 className="w-5 h-5" /> ✓ CONFIRM & SEND
+                          </button>
+                          <button
+                            onClick={() => toggleProblem(t.id)}
+                            className={`px-4 py-4 rounded-xl text-xs font-bold flex items-center gap-1.5 shrink-0 ${
+                              problem ? "bg-rose-600 text-white" : "bg-rose-900/60 text-rose-300 hover:bg-rose-700 hover:text-white"
+                            }`}
+                          >
+                            <AlertTriangle className="w-4 h-4" /> Problem
+                          </button>
+                        </div>
+                        {problem && (
+                          <div className="bg-rose-950/40 border border-rose-800 rounded-xl px-3 py-2 text-[11px] text-rose-200 space-y-2">
+                            <p>Use <strong>Remove</strong> on an item above if it is unavailable, or cancel the whole order:</p>
+                            <button
+                              onClick={() => cancelTicket(t.id)}
+                              className="bg-rose-700 hover:bg-rose-600 text-white text-[11px] font-black px-3 py-2 rounded-xl"
+                            >
+                              ✗ Cancel whole order
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </section>
             )}
@@ -1211,12 +1385,39 @@ export default function CashierDashboard() {
         )}
 
         {/* HISTORY — print-queue mode: "Printed Today" fills the moment she
-            prints (cross-check vs the EFD receipt count); full mode: "Recently
-            Paid". Every card opens the full bill (items, qty, prices, total). */}
+            prints (cross-check vs the EFD receipt count), and "Printed
+            Yesterday" keeps last night's pile one tap away for the morning
+            re-check; full mode: "Recently Paid". Every card opens the full
+            bill (items, qty, prices, total). */}
         <section>
-          <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3 flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-500" /> {printQueueMode ? `Printed Today (${history.length})` : `Recently Paid (${history.length})`}
-          </h2>
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            {printQueueMode ? (
+              <>
+                <button
+                  onClick={() => setHistoryDay("today")}
+                  className={`text-[10px] font-black px-3 py-1.5 rounded-full flex items-center gap-1.5 transition ${
+                    historyDay === "today" ? "bg-emerald-600 text-white" : "bg-[#2C1B17] border border-stone-700 text-stone-300 hover:bg-white/10"
+                  }`}
+                >
+                  <Printer className="w-3 h-3" /> PRINTED TODAY ({historyToday.length})
+                </button>
+                <button
+                  onClick={() => setHistoryDay("yesterday")}
+                  className={`text-[10px] font-black px-3 py-1.5 rounded-full flex items-center gap-1.5 transition ${
+                    historyDay === "yesterday" ? "bg-emerald-600 text-white" : "bg-[#2C1B17] border border-stone-700 text-stone-300 hover:bg-white/10"
+                  }`}
+                  title="Every bill printed yesterday, in case the morning needs to re-check last night's receipts"
+                >
+                  🕘 PRINTED YESTERDAY ({historyYesterday.length})
+                </button>
+              </>
+            ) : (
+              <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400">
+                Recently Paid ({history.length})
+              </h2>
+            )}
+          </div>
           {history.length === 0 ? (
             <p className="text-xs font-bold text-stone-500">
               {printQueueMode ? "Bills appear here the moment you tap ✓ PRINTED. Tap any card to check the whole bill against the EFD receipt." : "Paid bills will appear here after you mark them Paid."}

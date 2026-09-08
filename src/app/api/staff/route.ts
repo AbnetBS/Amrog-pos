@@ -26,9 +26,11 @@ export async function GET(request: Request) {
       // Never expose PINs on the public login picker
       return NextResponse.json(list.map((s) => ({ id: s.id, name: s.name, role: s.role })));
     }
-    // Admin list: never return the PIN or its hash — only whether one is set.
+    // Admin list: never return the PIN or its hash - only whether one is set.
+    // alertsOff shows whose pocket alerts are switched off (off duty), so the
+    // owner can see at a glance why a phone stayed silent.
     return NextResponse.json(
-      list.map((s) => ({ id: s.id, name: s.name, role: s.role, pinSet: Boolean(s.pin) }))
+      list.map((s) => ({ id: s.id, name: s.name, role: s.role, pinSet: Boolean(s.pin), alertsOff: s.notificationsEnabled === false }))
     );
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });

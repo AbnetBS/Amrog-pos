@@ -1,6 +1,6 @@
 import webpush from "web-push";
 import { db } from "@/db";
-import { siteSettings, pushSubscriptions } from "@/db/schema";
+import { siteSettings, pushSubscriptions, staffUsers } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
 
 /**
@@ -105,15 +105,54 @@ export const CUSTOMER_ALERT_RING = { urgent: true as const, repeat: 3, gapMs: 11
 
 type PushSub = typeof pushSubscriptions.$inferSelect;
 
+/**
+ * POCKET OFF-DUTY SWITCH (owner's decision, Sept 2026): staff phones kept
+ * ringing at home after the shift ended. A staff member who tapped "Off duty"
+ * in their app must not be rung anywhere. The switch is per PERSON
+ * (staff_users.notifications_enabled), so every device subscribed under their
+ * name goes silent with that one tap.
+ *
+ * FAIL-OPEN ON PURPOSE: a subscription with no name (very old rows), a name
+ * that matches no staff record, or a database hiccup still rings. A missed
+ * order alarm is far worse than one extra ring - only a person who
+ * EXPLICITLY switched off is skipped.
+ */
+async function dropMutedSubs(subs: PushSub[]): Promise<PushSub[]> {
+  try {
+    const muted = await db
+      .select({ name: staffUsers.name })
+      .from(staffUsers)
+      .where(eq(staffUsers.notificationsEnabled, false));
+    if (muted.length === 0) return subs;
+    const off = new Set(
+      muted
+        .map((m) => (m.name || "").trim().toLowerCase())
+        .filter((n) => n.length > 0)
+    );
+    if (off.size === 0) return subs;
+    return subs.filter((s) => {
+      const n = (s.name || "").trim().toLowerCase();
+      // A device we cannot attribute to a person can never be muted.
+      return !n || !off.has(n);
+    });
+  } catch {
+    // Never let this switch become a silence outage for the whole cafe.
+    return subs;
+  }
+}
+
 /** Deliver one payload to an already-fetched subscription list. */
 async function deliverToSubs(subs: PushSub[], payload: PushPayload): Promise<void> {
   try {
+    // Off-duty staff first: their devices must hear nothing at home.
+    const live = await dropMutedSubs(subs);
+    if (live.length === 0) return;
     const keys = await getVapidKeys();
     if (!keys) return;
     webpush.setVapidDetails("mailto:owner@fanacafe.example", keys.publicKey, keys.privateKey);
 
     await Promise.all(
-      subs.map(async (sub) => {
+      live.map(async (sub) => {
         try {
           await webpush.sendNotification(
             {
@@ -199,6 +238,20 @@ export async function sendPushToNamedStaff(
   const name = (staffName || "").trim();
   if (!name) return sendPushToRoles([role], payload);
   try {
+    // OFF-DUTY OWNER: this person switched their alerts off for the day, and
+    // ringing them is exactly the at-home noise the switch exists to stop.
+    // But their tables may still need serving, so the ROLE is rung instead
+    // (dropMutedSubs inside strips everyone else who is off duty too). Same
+    // philosophy as the unknown-name fallback: a missed "food ready" is
+    // worse than an extra ring.
+    const owner = await db
+      .select({ enabled: staffUsers.notificationsEnabled })
+      .from(staffUsers)
+      .where(eq(staffUsers.name, name))
+      .limit(1);
+    if (owner.length > 0 && owner[0].enabled === false) {
+      return sendPushToRoles([role], payload);
+    }
     const matches = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.name, name));
     if (matches.length === 0) return sendPushToRoles([role], payload);
     await deliverToSubs(matches, payload);

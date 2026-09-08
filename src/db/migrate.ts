@@ -16,7 +16,7 @@ import { sql } from "drizzle-orm";
  * once and stamps the new version. Existing DBs self-heal on the first
  * request after a deploy — no manual action needed.
  */
-const SCHEMA_VERSION = "2026-09-06-1";
+const SCHEMA_VERSION = "2026-09-08-2";
 
 /**
  * UNIVERSAL self-healing schema manager — works on ANY Postgres database
@@ -266,6 +266,9 @@ const RMS_COLUMNS: Record<string, Record<string, ColSpec>> = {
     name: { type: "text", def: "'Staff'" },
     role: { type: "text", def: "'waiter'" },
     pin: { type: "text", def: "'0000'" },
+    // POCKET OFF-DUTY SWITCH: false = this person's devices stay silent
+    // (they tapped "Off duty" at the end of their shift).
+    notifications_enabled: { type: "boolean", def: "true" },
     created_at: { type: "timestamp", def: "now()", dropNotNull: true },
   },
   cafe_tables: {
@@ -357,6 +360,9 @@ const TABLE_COLUMNS: Record<string, Record<string, ColSpec>> = {
     is_popular: { type: "boolean", def: "false" },
     is_available: { type: "boolean", def: "true" },
     is_buna: { type: "boolean", def: "false" },
+    // Per-item station override ("barista" | "kitchen" | "buna") — wins over
+    // the category routing, for mixed-crew categories like "Extra Things".
+    station_override: { type: "text" },
     dietary_tags: { type: "text" },
     prep_time: { type: "text", def: "'10-15 min'" },
     badge: { type: "text" },
@@ -625,6 +631,35 @@ async function runFullMigrate(force: boolean) {
   await run(`UPDATE tickets SET payment_status = 'paid_cbe' WHERE (payment_status IS NULL OR payment_status = 'unpaid') AND status IN ('paid','completed') AND payment_method = 'cbe'`);
   // Whatever remains (active bills, unknown methods) is definitively unpaid.
   await run(`UPDATE tickets SET payment_status = 'unpaid' WHERE payment_status IS NULL`);
+
+  //  • QR HOLD FLOW backfill (Sept 2026). confirmed_at is now written when an
+  //    order is SENT to the crews, not merely accepted: a cashier accepting a
+  //    guest's QR order only holds the bill (no stamp) until she taps
+  //    CONFIRM & SEND. Bills released under the OLD rule ("acceptance
+  //    releases") must keep behaving as sent, so stamp them once — precisely:
+  //    • every bill that already moved past "confirmed" (preparing, printed,
+  //      closed…) passed through a release, whatever created it;
+  //    • a "confirmed" bill created by STAFF was sent by the waiter at
+  //      submission time (the old POST never stamped it).
+  //    A held QR bill (status confirmed, created by "Customer (QR)", no stamp)
+  //    never matches, so this stays safe to re-run on every migration.
+  await run(`
+    UPDATE tickets SET confirmed_at = COALESCE(confirmed_at, updated_at, created_at)
+    WHERE confirmed_at IS NULL
+      AND (
+        status IN ('preparing','ready_for_payment','completed','printed','closed')
+        OR (status = 'confirmed' AND COALESCE(created_by, '') <> 'Customer (QR)')
+      )
+  `);
+
+  //  • POCKET OFF-DUTY SWITCH backfill (Sept 2026). staff_users.notifications
+  //    _enabled is the per-person "my shift is over, stop ringing my phone at
+  //    home" switch. The column lands as NULL on existing rows (ADD COLUMN
+  //    does not apply the default retroactively), and NULL would read as
+  //    "unknown" in code. Every existing staff member obviously wants alerts
+  //    ON until they personally switch them off, so stamp true once. Re-run
+  //    safe: nobody who DID switch off has NULL (they have false).
+  await run(`UPDATE staff_users SET notifications_enabled = true WHERE notifications_enabled IS NULL`);
 
   //  • OWNER REQUEST — remove the default categories they marked unnecessary
   //    (Ethiopian Traditional … Pastry & Cakes). This is a ONE-TIME prune:

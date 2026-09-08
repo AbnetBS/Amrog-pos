@@ -94,9 +94,10 @@ const i18n = read("src/lib/i18n.ts");
   pass("the migration adds the new ticket column", /receipt_requested_at/.test(migrate));
   pass("the submission key is UNIQUE at the database level", /CREATE UNIQUE INDEX IF NOT EXISTS order_submissions_idempotency_key_key/.test(migrate));
   pass("submissions are indexed per ticket", /CREATE INDEX IF NOT EXISTS order_submissions_ticket_id_idx/.test(migrate));
-  // Bumped to 2026-09-06-1 when menu_items.is_buna was added: an existing
-  // production database only runs the migration when this constant moves.
-  pass("the schema version was bumped so deployments migrate", /SCHEMA_VERSION = "2026-09-06-1"/.test(migrate));
+  // Bumped to 2026-09-08-1 when menu_items.station_override + the QR-hold
+  // confirmed_at semantics were added: an existing production database only
+  // runs the migration when this constant moves.
+  pass("the schema version was bumped so deployments migrate", /SCHEMA_VERSION = "2026-09-08-2"/.test(migrate));
 }
 
 /* ── 3. duplicate lines merge in the DATABASE, not just on screen ─────────── */

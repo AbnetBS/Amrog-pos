@@ -293,7 +293,7 @@ const urgentFor = (alerts: RoleAlert[], role: string) =>
   const tickets = read("src/app/api/tickets/route.ts");
   pass("the station vocabulary holds all three crews", /export type StationName = "kitchen" \| "barista" \| "buna"/.test(stationsLib));
   pass("a flagged item goes to the buna station whatever its category", /if \(isBunaItem\) return "buna"/.test(stationsLib));
-  pass("the order route uses that rule", /stationForOrder\(routing, catSlug, bunaById\.get/.test(tickets));
+  pass("the order route uses that rule (buna flag + per-item override + category routing)", /stationForOrder\(\s*routing,\s*catSlug,\s*bunaById\.get/.test(tickets) && /overrideById\.get/.test(tickets));
   pass("the release push keeps the buna lane apart from the kitchen", /stations\.length === 1 && stations\[0\] === "buna"/.test(tickets));
   pass("food ready still finds its owner by NAME, whatever role they hold",
     /\.where\(eq\(pushSubscriptions\.name, name\)\)/.test(read("src/lib/push.ts")));
@@ -311,6 +311,38 @@ const urgentFor = (alerts: RoleAlert[], role: string) =>
     !/closedQuiet[\s\S]{0,200}playAlarm/.test(station) && !/closedQuiet[\s\S]{0,300}triggerDesktopNotification/.test(station));
 }
 
+/* ── 10. Off duty: a staff member who switched off hears nothing at home ─── */
+{
+  const push = read("src/lib/push.ts");
+  const login = read("src/app/api/staff/login/route.ts");
+  const chip = read("src/components/rms/PocketAlertsChip.tsx");
+  const switchRoute = read("src/app/api/staff/notifications/route.ts");
+  const testRoute = read("src/app/api/push/test/route.ts");
+  const staffApi = read("src/app/api/staff/route.ts");
+  const staffTab = read("src/components/rms/StaffTab.tsx");
+
+  pass("a push never reaches a person who switched off for the day",
+    /dropMutedSubs/.test(push) && /notificationsEnabled, false/.test(push) && /return !n \|\| !off\.has\(n\)/.test(push));
+  pass("the mute fails OPEN (a database hiccup can never silence the cafe)",
+    /muted\.length === 0\) return subs;/.test(push) && /catch \{\s*\n\s*\/\/ Never let this switch become a silence outage/.test(push));
+  pass("an unnamed device is never muted (we cannot know whose it is)",
+    /A device we cannot attribute to a person can never be muted/.test(push));
+  pass("an off-duty owner's events still reach whoever is on shift (role fallback)",
+    /owner\[0\]\.enabled === false/.test(push) && /enabled === false\) \{\s*\n\s*return sendPushToRoles\(\[role\], payload\);/.test(push));
+  pass("signing back in switches the phone back on (a shift never starts silent)",
+    /notificationsEnabled: true/.test(login));
+  pass("the switch is the person's own (session-guarded, per staff id, strict boolean)",
+    /requireStaff\(\)/.test(switchRoute) && /eq\(staffUsers\.id, staff\.staffId\)/.test(switchRoute) && /typeof body\?\.notificationsEnabled !== "boolean"/.test(switchRoute));
+  pass("every staff app offers the off-duty switch",
+    /Off duty: silence my phone/.test(chip) && /Back on duty: ring my phone/.test(chip) && /notificationsEnabled/.test(chip));
+  pass("the chip tells an off-duty person the truth without crying wolf",
+    /state === "offduty"\s*\n\s*\? "bg-amber-500\/15/.test(chip) && /animate-pulse/.test(chip) && !/offduty"[^"]*animate-pulse/.test(chip));
+  pass("a test ring while off duty explains itself instead of looking broken",
+    /Your alerts are switched OFF \(off duty\)/.test(testRoute));
+  pass("the owner can see whose alerts are off (admin staff list)",
+    /alertsOff/.test(staffApi) && /Off duty \(alerts silent\)/.test(staffTab));
+}
+
 if (failures.length > 0) {
   console.error("\n❌ ROLE-ALERT COVERAGE TEST FAILED\n");  for (const f of failures) console.error("  • " + f);
   process.exit(1);
@@ -322,3 +354,5 @@ console.log("   • every event rings EXACTLY ONCE (repeat 0); the only repeat l
 console.log("     the shared CUSTOMER_ALERT_RING burst, whose quick rings are one");
 console.log("     ~3 second alarm, not repeats");
 console.log("   • the person who performed the action is never rung by their own tap");
+console.log("   • a staff member who tapped OFF DUTY hears nothing at home, and their");
+console.log("     next PIN sign-in wakes their phone again");

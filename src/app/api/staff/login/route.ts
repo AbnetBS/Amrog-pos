@@ -56,6 +56,20 @@ export async function POST(request: Request) {
         );
       }
 
+      // POCKET OFF-DUTY SWITCH: signing in IS starting a shift. If this
+      // person switched their alerts off yesterday evening, switch them back
+      // on now - a shift must never start silent because somebody forgot.
+      // (The phone that stayed at home never signs in again, so it stays
+      // quiet until its owner is truly back at work.)
+      try {
+        await db
+          .update(staffUsers)
+          .set({ notificationsEnabled: true })
+          .where(eq(staffUsers.id, staff.id));
+      } catch (e) {
+        console.warn("[staff-login] Could not re-enable pocket alerts:", e);
+      }
+
       const response = NextResponse.json({
         success: true,
         staff: { id: staff.id, name: staff.name, role: staff.role },

@@ -9,6 +9,12 @@ export interface MenuItem {
   isAvailable: boolean;
   /** Traditional buna → routed to the buna makers instead of the barista. */
   isBuna?: boolean;
+  /**
+   * Per-item station override ("barista" | "kitchen" | "buna"). Wins over the
+   * category routing, for mixed-crew categories like "Extra Things".
+   * Null/undefined = follow the category routing.
+   */
+  stationOverride?: string | null;
   dietaryTags?: string | null;
   prepTime?: string | null;
   badge?: string | null;
@@ -121,6 +127,8 @@ export interface StaffUser {
   pin?: string;
   /** True when a PIN is set (the raw PIN/hash is never returned). */
   pinSet?: boolean;
+  /** True when this person switched their pocket alerts off (off duty). */
+  alertsOff?: boolean;
 }
 
 export type TableStatus = "available" | "waiting" | "occupied" | "preparing" | "ready-for-payment";
@@ -191,6 +199,13 @@ export interface Ticket {
   updatedAt?: string;
   orderNumber?: string | null;
   confirmedBy?: string | null;
+  /**
+   * When the order was SENT to the crews (the release stamp). A confirmed
+   * bill with a null confirmedAt is HELD: the cashier accepted the guest's QR
+   * order (alarms stopped) but nothing goes to the kitchen/barista/buna
+   * makers until she taps CONFIRM & SEND.
+   */
+  confirmedAt?: string | null;
   verifiedBy?: string | null;
   verifiedAt?: string | null;
   /** Print-queue mode: cashier keyed the bill into the EFD/POS and printed it. */
@@ -226,4 +241,16 @@ export interface ReportData {
   receipts: Array<{ id: number; tableName: string; method: string; receiptImage?: string; totalAmount: number; closedAt?: string | null }>;
   hourlySales?: Array<{ hour: number; orders: number; revenue: number }>;
   peakHour?: { hour: number; orders: number; revenue: number } | null;
+  /**
+   * CROSS-CHECK BY STATION (today) — the paper world's three stacks: everything
+   * the barista, the kitchen and the buna makers each sold today, so the
+   * cross-checker can add the three piles and compare with the EFD receipts.
+   */
+  stationSales?: Array<{ station: string; orders: number; quantity: number; revenue: number }>;
+  /** Full per-station item breakdown for today (name, units, ETB). */
+  stationItems?: Array<{ station: string; name: string; quantity: number; revenue: number }>;
+  /** Total of today's printed (EFD) bills — the number to compare against the receipt pile. */
+  printedTodayTotal?: number;
+  /** Every bill printed today (any status except cancelled), newest first, with items. */
+  printedToday?: Ticket[];
 }
