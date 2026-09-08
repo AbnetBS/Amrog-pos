@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { pushSubscriptions } from "@/db/schema";
+import { pushSubscriptions, staffUsers } from "@/db/schema";
 import { ensureTablesExist } from "@/db/migrate";
 import { eq } from "drizzle-orm";
 import { requireStaff } from "@/lib/session";
@@ -25,6 +25,25 @@ export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
     const delaySeconds = Math.max(0, Math.min(60, Number(body?.delaySeconds) || 0));
+
+    // OFF-DUTY staff would hear NOTHING from a test (their pushes are muted
+    // server-side), which looks exactly like a broken phone. Say it plainly
+    // instead of letting them chase a problem that is just the switch.
+    const me = await db
+      .select({ notificationsEnabled: staffUsers.notificationsEnabled })
+      .from(staffUsers)
+      .where(eq(staffUsers.id, staff.staffId))
+      .limit(1);
+    if (me.length > 0 && me[0].notificationsEnabled === false) {
+      return NextResponse.json(
+        {
+          success: false,
+          sent: 0,
+          error: "Your alerts are switched OFF (off duty). Tap 'Back on duty' first, then test again.",
+        },
+        { status: 409 }
+      );
+    }
 
     const subs = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.role, staff.role));
     if (subs.length === 0) {

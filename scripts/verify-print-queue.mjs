@@ -74,6 +74,7 @@ function pass(name, cond) {
   pass("printedToday is ordered by the print stamp, newest first", /orderBy\(desc\(tickets\.printedAt\)\)/.test(tickets));
   pass("printedToday cards carry items (cards expand to the full bill)", /const needItems = !paidOnly && !finishedOnly/.test(tickets));
   pass("cashier loads Printed Today from the print endpoint in print-queue mode", /\/api\/tickets\?printedToday=1/.test(cashier));
+  pass("cashier also loads Printed Yesterday (?printedDate=) beside Printed Today", /\/api\/tickets\?printedDate=/.test(cashier) && /PRINTED YESTERDAY/.test(cashier) && /PRINTED TODAY/.test(cashier));
   pass("Printed Today card is clickable (opens the bill detail modal)", /setBillModal\(t\)/.test(cashier) && /billModal/.test(cashier));
   pass("cleared bill stays in Printed Today with a cleared state", /CLEARED|cleared/.test(cashier) && /t\.status === "closed"/.test(cashier));
   pass("Printed Today shows the print time and who printed", /printedAt/.test(cashier) && /printedBy/.test(cashier));
@@ -120,10 +121,10 @@ function pass(name, cond) {
   pass("the queue = confirmed orders + printed bills with additions", /t\.status === "confirmed"/.test(cashier) && /isAdditionCard/.test(cashier) && /t\.status === "printed" && \(t\.unprintedSubmissions \|\| 0\) > 0/.test(cashier));
   pass("additions are flagged clearly (no 'key everything again' wording)", /NEW item.*on existing bill/.test(cashier) && !/ADDED — PRINT AGAIN/.test(cashier));
   pass("queue header keeps her one-click workflow instruction", /key into EFD → print → tap ✓/.test(cashier));
-  pass("unverified QR orders are NOT printable (waiter strip + confirm fallback)", /Waiting for waiter confirmation/.test(cashier) && /✓ Confirm myself/.test(cashier));
+  pass("unverified QR orders are NOT printable (waiter strip + accept-hold fallback)", /Waiting for waiter confirmation/.test(cashier) && /✓ Accept \(holds it\)/.test(cashier));
   pass("problem path exists (remove item / cancel order)", /toggleProblem/.test(cashier) && /Cancel whole order/.test(cashier));
   pass("full-payment screens (Mark PAID) only render in full mode", /printQueueMode \?/.test(cashier) && /\{!printQueueMode && \(/.test(cashier) && /Mark PAID & Release Table/.test(cashier));
-  pass("history uses the printed-today endpoint in print-queue mode", cashier.includes('modeRef.current ? "/api/tickets?printedToday=1" : "/api/tickets?paid=1&limit=12"'));
+  pass("history uses the print endpoints in print-queue mode (today + yesterday), paid endpoint in full mode", /\/api\/tickets\?printedToday=1/.test(cashier) && /\/api\/tickets\?printedDate=/.test(cashier) && /\/api\/tickets\?paid=1&limit=12/.test(cashier));
 }
 
 /* ── 5. Waiter screen: Table cleared is the closing action ────────────────── */
@@ -141,11 +142,12 @@ function pass(name, cond) {
 }
 
 /* ── 7. THE RELEASE RULE (replaces the old print gate) ───────────────────── */
-/* Owner's decision, Sept 2026: ACCEPTANCE releases the food, not the print.
- * One tap by the waiter (or the cashier on a QR order) reaches the kitchen,
- * the barista and the cashier in the same second. The cashier still keys the
- * bill into the EFD and prints it, but nobody is waiting for that tap, and
- * neither the waiter nor the cashier has an extra button to press. */
+/* Owner's decision, Sept 2026: the SEND releases the food, not the print.
+ * One tap by the waiter (or the cashier's CONFIRM & SEND on a held QR order)
+ * reaches the kitchen, the barista and the cashier in the same second. The
+ * cashier still keys the bill into the EFD and prints it, but nobody is
+ * waiting for that tap. A cashier's plain ACCEPT of a QR order only HOLDS
+ * the bill (see section 8). */
 {
   pass("the crew sees an order as soon as it is ACCEPTED (confirmed)", /notInArray\(tickets\.status, \["paid", "cancelled", "closed", "pending_waiter"\]\)/.test(stationsApi));
   pass("orders nobody accepted yet stay off the crew's list", /"pending_waiter"/.test(stationsApi));
@@ -166,6 +168,29 @@ function pass(name, cond) {
   pass("the cashier still records the EFD print (audit + daily count)", /body\.status === "printed"/.test(tickets) && /updates\.printedAt = new Date\(\)/.test(tickets));
 }
 
+/* ── 8. QR HOLD FLOW (owner's decision, Sept 2026) ───────────────────────── */
+/* A guest keeps adding items from their phone after the cashier accepts the
+ * QR order, so her accept must not send food to the crews yet:
+ *   accept        = acknowledge (alarms stop on EVERY device, bill held)
+ *   CONFIRM & SEND = release the whole bill to the crews; only then does the
+ *                    normal ✓ PRINTED step appear on the card
+ * A waiter's accept still sends immediately (she verified with the guest in
+ * person), and full-payment mode is untouched. */
+{
+  pass("held = a confirmed bill without a release stamp (confirmedAt)", /heldCards = tickets\.filter\(\(t\) => t\.status === "confirmed" && !t\.confirmedAt/.test(cashier));
+  pass("held bills are NOT in the print queue (nothing to key into the EFD yet)", /const toPrint = tickets\.filter\(\(t\) => t\.status === "confirmed" && \(\!\!t\.confirmedAt \|\| \!\!t\.printedAt\)\)/.test(cashier));
+  pass("held cards have their own section with the CONFIRM & SEND button", /✓ CONFIRM & SEND/.test(cashier) && /confirmAndSend/.test(cashier));
+  pass("CONFIRM & SEND hits the send action with her name", /body: JSON\.stringify\(\{ id: t\.id, send: true, confirmedBy: staffName \|\| "\(cashier\)" \}\)/.test(cashier));
+  pass("the route stamps the release on send but NOT on a cashier's plain accept", /const sendRequested = body\.send === true;/.test(tickets) && /holdAfterConfirm/.test(tickets) && /if \(!holdAfterConfirm\) updates\.confirmedAt = new Date\(\);/.test(tickets));
+  pass("the send fires the release alerts; a held accept fires nobody", /const releasedBySend = sendRequested && !cur\.confirmedAt && !cur\.printedAt;/.test(tickets) && /alertStatus && !\(alertStatus === "confirmed" && holdAfterConfirm\)/.test(tickets));
+  pass("a held bill releases NOTHING to the crews (no stamp → no cutoff)", /if \(cutoff === null\) return \[\];/.test(stationsApi));
+  pass("staff submissions are SENT at creation (release stamp lands after the items)", /if \(!isCustomer && activeTickets\.length === 0\)/.test(tickets) && /\.set\(\{ confirmedAt: new Date\(\) \}\)/.test(tickets));
+  pass("guest additions to a HELD bill tell the cashier, not the crews", /held bill is now/.test(tickets));
+  pass("migration backfills pre-hold released bills so in-flight work stays visible", /QR HOLD FLOW backfill/.test(migrate) && /COALESCE\(created_by, ''\) <> 'Customer \(QR\)'/m.test(migrate));
+  pass("another device answering dismisses the full-page alarm everywhere", /ANOTHER DEVICE ANSWERED/.test(cashier) && /cur\.ticketId == null/.test(cashier));
+  pass("the waiter's bill view tells held from sent", /held until the cashier sends it/.test(waiter));
+}
+
 if (failures.length > 0) {
   console.error("\n❌ PRINT-QUEUE REGRESSION TEST FAILED\n");
   for (const f of failures) console.error("  • " + f);
@@ -175,8 +200,8 @@ console.log("\n✅ Print-queue regression test PASSED");
 console.log("   • cashier: key into EFD → print → tap ✓ PRINTED (one click per order)");
 console.log("   • waiter: guests leave → clear table → table turns green");
 console.log("   • payments stay in the EFD/POS — full mode still available via Settings");
-console.log("   • the ORIGINAL order is released by ACCEPTANCE: one waiter tap reaches");
-console.log("     the crews that have items on it (kitchen / barista / buna) and the");
-console.log("     cashier at once, and nobody else");
+console.log("   • the ORIGINAL order is released by the SEND: one waiter tap (or the");
+console.log("     cashier's CONFIRM & SEND on a held QR order) reaches the crews that");
+console.log("     have items on it (kitchen / barista / buna) and the cashier at once");
 console.log("   • food ADDED later keeps the print-and-send flow: cashier sees only the");
 console.log("     new items, her print sends them to that table's order for the crew");

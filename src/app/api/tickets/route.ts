@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { tickets, ticketItems, cafeTables, menuItems, announcements, orderSubmissions } from "@/db/schema";
+import { tickets, ticketItems, cafeTables, menuItems, announcements, orderSubmissions, siteSettings } from "@/db/schema";
 import { ensureTablesExist } from "@/db/migrate";
 import { DEFAULT_CATEGORY_ROUTING } from "@/lib/initial-data";
 import { effectivePrice } from "@/lib/price";
-import { eq, asc, desc, and, notInArray, inArray, sql, gt, gte, isNotNull } from "drizzle-orm";
+import { eq, asc, desc, and, notInArray, inArray, sql, gt, gte, lt, isNotNull } from "drizzle-orm";
 import { deleteOrphanedCdnImages, persistImageRef } from "@/lib/image-store";
 import { requireStaffOrAdmin, requireAdmin, readStaffSession } from "@/lib/session";
 import { publish, CHANNELS } from "@/lib/realtime";
@@ -106,6 +106,9 @@ const PAYMENT_METHODS = ["cash", "telebirr", "cbe", "card", "online"] as const;
 //      EFD receipt count, so it must count HER action (the print) — a bill
 //      enters the list the moment she taps ✓ PRINTED, not when the waiter
 //      clears the table, and cleared bills STAY (they were printed today).
+//      ?printedDate=YYYY-MM-DD → the same list for ANY OTHER day, so the
+//      cashier can also open "Printed Yesterday" (late-night cross-checks,
+//      morning shift hand-over) — same rules, just a different calendar day.
 //      ?finished=1&limit=N → legacy finished-bills query (paid OR closed by
 //      table-clear); kept for older clients/tests.
 // TRAFFIC FIX: list responses EXCLUDE receipt photos (they're heavy base64 polygons).
@@ -124,6 +127,8 @@ export async function GET(request: Request) {
     // the cashier's daily cross-check, and a bill printed today stays today even
     // after the waiter clears the table (it is still printed; it is not lost).
     const printedTodayOnly = searchParams.get("printedToday") === "1";
+    // "Printed Yesterday" (or any past day): same window, different date.
+    const printedDateParam = searchParams.get("printedDate");
     const limit = Math.min(200, Math.max(1, Number(searchParams.get("limit") || 100)));
 
     let list;
@@ -132,15 +137,21 @@ export async function GET(request: Request) {
     } else if (paidOnly) {
       // Only the most recent paid bills — no items, no receipt, small response.
       list = await db.select().from(tickets).where(eq(tickets.status, "paid")).orderBy(desc(tickets.updatedAt)).limit(limit);
-    } else if (printedTodayOnly) {
-      // Every bill printed TODAY, any status (printed → later closed), newest
-      // print first. Cards carry items so a tap expands the full bill.
+    } else if (printedTodayOnly || printedDateParam) {
+      // Every bill printed on the given day (default: today), any status
+      // (printed → later closed), newest print first. Cards carry items so a
+      // tap expands the full bill.
       const startOfToday = new Date();
       startOfToday.setHours(0, 0, 0, 0);
+      // ?printedDate=YYYY-MM-DD moves the window to that calendar day
+      // ("Printed Yesterday"); an invalid date simply keeps today.
+      const dateMatch = printedDateParam ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(printedDateParam) : null;
+      if (dateMatch) startOfToday.setFullYear(Number(dateMatch[1]), Number(dateMatch[2]) - 1, Number(dateMatch[3]));
+      const endOfDay = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
       list = await db
         .select()
         .from(tickets)
-        .where(and(isNotNull(tickets.printedAt), gte(tickets.printedAt, startOfToday)))
+        .where(and(isNotNull(tickets.printedAt), gte(tickets.printedAt, startOfToday), lt(tickets.printedAt, endOfDay)))
         .orderBy(desc(tickets.printedAt));
     } else if (finishedOnly) {
       // Print-queue history: closed bills (table cleared) + paid bills, newest first.
@@ -408,6 +419,10 @@ export async function POST(request: Request) {
     // Which ordered items are TRADITIONAL BUNA: those leave the category
     // routing entirely and are made by the buna makers at their own place.
     const bunaById = new Map(menuRows.map((m) => [m.id, Boolean(m.isBuna)]));
+    // Per-item station override (owner's "Extra Things" fix, Sept 2026): a
+    // coffee cup is the barista's, a take away bag is the kitchen's — the
+    // override wins over the category routing, null = follow the routing.
+    const overrideById = new Map(menuRows.map((m) => [m.id, (m.stationOverride as string | null) ?? null]));
 
     // ── DAILY PROMOTION INTEGRITY ──
     // The browser may name a Daily Board promotion, but it can never choose its
@@ -544,9 +559,15 @@ export async function POST(request: Request) {
         const it = ticketRows[idx];
         const catSlug = String(it.category || "").toLowerCase();
         // A menu item flagged "Traditional Buna" always goes to the BUNA crew,
-        // whatever category it sits in; everything else follows the owner's
+        // whatever category it sits in; an item with a per-item override (e.g.
+        // "Extra Things") goes to ITS crew; everything else follows the owner's
         // category routing (barista | kitchen), defaulting to the kitchen.
-        const stationName = stationForOrder(routing, catSlug, bunaById.get(Number(it.menuItemId)) === true);
+        const stationName = stationForOrder(
+          routing,
+          catSlug,
+          bunaById.get(Number(it.menuItemId)) === true,
+          overrideById.get(Number(it.menuItemId))
+        );
         const incoming = {
           ticketId,
           menuItemId: it.menuItemId,
@@ -610,6 +631,16 @@ export async function POST(request: Request) {
     }
 
     const total = await recomputeTotal(tx, ticketId);
+
+    // A STAFF submission is SENT the moment it is placed: the waiter stood at
+    // the table and read the order back to the guest, so there is nothing to
+    // hold. The release stamp is written AFTER the item rows exist so every
+    // line lands before the cutoff. (A customer QR submission gets NO stamp —
+    // it waits for an accept, and in print-queue mode the cashier's accept
+    // only holds it until her CONFIRM & SEND.)
+    if (!isCustomer && activeTickets.length === 0) {
+      await tx.update(tickets).set({ confirmedAt: new Date() }).where(eq(tickets.id, ticketId));
+    }
 
     const finalTicket = await tx.select().from(tickets).where(eq(tickets.id, ticketId));
     return { ticket: finalTicket[0], total, merged: activeTickets.length > 0 };
@@ -678,6 +709,18 @@ export async function POST(request: Request) {
             title: "⚠ Items ADDED",
             body: `${pushed.tableName} • new items on the bill, print receipt #2`,
             tag: `fana-add-${pushed.id}`,
+            ...(isCustomer ? CUSTOMER_ALERT_RING : {}),
+            ticketId: pushed.id,
+          }).catch(() => {});
+        } else if (pushed.status === "confirmed" && !pushed.confirmedAt && !pushed.printedAt) {
+          // The bill is HELD: the cashier accepted the guest's QR order but has
+          // not sent it yet. The guest adding more just grows the pile she will
+          // release ONCE — nothing to print yet, and the crews still see none
+          // of it, so only she is told.
+          void sendPushToRoles(["cashier"], {
+            title: "🍽 Guest added items",
+            body: `${pushed.tableName} • held bill is now ${transactionResult.total} ETB • CONFIRM & SEND when they finish`,
+            tag: `fana-hold-add-${pushed.id}`,
             ...(isCustomer ? CUSTOMER_ALERT_RING : {}),
             ticketId: pushed.id,
           }).catch(() => {});
@@ -808,14 +851,49 @@ export async function PUT(request: Request) {
     let persistedReceipt: string | undefined;
     if (body.receiptImage !== undefined) persistedReceipt = String(body.receiptImage);
     if (body.status === "paid" || body.status === "cancelled" || body.status === "closed") updates.closedAt = new Date();
+
+    // ── QR HOLD FLOW (owner's decision, Sept 2026) ──
+    // When the CASHIER accepts a guest's QR order in print-queue mode she only
+    // ACKNOWLEDGES it: the alarms stop on every device, but nothing goes to the
+    // crews yet because the guest may still add more items. Her CONFIRM & SEND
+    // tap (body.send) releases the bill; only then does the normal ✓ PRINTED
+    // step appear. Everyone else who confirms — a waiter or a buna maker who
+    // verified the order with the guest in person, or any confirmation while
+    // the owner runs full-payment mode — still sends immediately, like before.
+    const sendRequested = body.send === true;
+    let holdAfterConfirm = false;
+    if (body.status === "confirmed" && body.status !== cur.status && !sendRequested) {
+      let cashierMode = "print-queue";
+      try {
+        const modeRows = await db.select().from(siteSettings).where(eq(siteSettings.key, "cashier_mode"));
+        cashierMode = modeRows[0]?.value || "print-queue";
+      } catch {
+        /* unreadable setting → the default (print-queue) */
+      }
+      holdAfterConfirm = cashierMode === "print-queue" && actor?.role === "cashier";
+    }
+
     // Record WHO confirmed the order (waiter or cashier accepting a customer QR
     // order). Only the confirmed transition stamps this, so it never overwrites
     // the original createdBy or the later verifiedBy.
     if (body.status === "confirmed") {
       updates.confirmedBy = body.confirmedBy ? String(body.confirmedBy).slice(0, 100) : cur.confirmedBy || "(staff)";
       // The crew's release stamp: everything on the bill right now goes to the
-      // kitchen and barista. Items added after this moment wait for the print.
+      // kitchen and barista. A HELD accept (cashier, print-queue) deliberately
+      // skips it — the bill waits for her CONFIRM & SEND below.
+      if (!holdAfterConfirm) updates.confirmedAt = new Date();
+    }
+    // CONFIRM & SEND — the cashier's release tap on a held bill. Stamps the
+    // release moment (and the acceptor, if nobody was recorded yet). Idempotent
+    // by design: a bill that was already sent or printed keeps its original
+    // stamp, and additions to a PRINTED bill still follow print-and-send.
+    if (sendRequested && !cur.confirmedAt && !cur.printedAt) {
       updates.confirmedAt = new Date();
+      if (!updates.confirmedBy) {
+        updates.confirmedBy = body.confirmedBy ? String(body.confirmedBy).slice(0, 100) : cur.confirmedBy || "(staff)";
+      }
+      // Sending an order nobody had accepted yet also accepts it.
+      if (!updates.status && cur.status === "pending_waiter") updates.status = "confirmed";
     }
     // GROUP 9 (print-queue): the cashier keyed the bill into the EFD/POS and
     // printed the order paper. Re-printing after additions simply refreshes the
@@ -914,14 +992,22 @@ export async function PUT(request: Request) {
     // guest was ready to pay, or that an order had been CANCELLED while the
     // kitchen was still cooking it. The matrix in @/lib/alerts covers the whole
     // workflow; the actor's own role is skipped so nobody rings themselves.
-    if (body.status && body.status !== cur.status) {
+    //
+    // QR HOLD FLOW: the SEND tap rings exactly the roles an acceptance used to
+    // ring (the crews with lines on the bill, the cashier, the waiter). A HELD
+    // accept rings NOBODY — there is nothing for anyone to do yet; every screen
+    // updates and the guest alarm stops because the pending event is answered.
+    const statusChanged = Boolean(body.status && body.status !== cur.status);
+    const releasedBySend = sendRequested && !cur.confirmedAt && !cur.printedAt;
+    const alertStatus = statusChanged ? String(body.status) : releasedBySend ? "confirmed" : null;
+    if (alertStatus && !(alertStatus === "confirmed" && holdAfterConfirm)) {
       try {
         // WHICH CREWS DOES THIS BILL ACTUALLY INVOLVE? Accepting used to wake
         // every crew at once, so the kitchen was woken for a drinks-only table
         // and the buna makers for every macchiato. The release alert is now
         // built per crew that really has a line on the ticket.
         let billStations: StationName[] = [];
-        if (String(body.status) === "confirmed") {
+        if (alertStatus === "confirmed") {
           const crewRows = await db
             .select({ stationName: ticketItems.stationName })
             .from(ticketItems)
@@ -929,7 +1015,7 @@ export async function PUT(request: Request) {
           billStations = [...new Set(crewRows.map((r) => stationOf(r.stationName)))];
         }
         const alerts = withoutActor(
-          ticketStatusAlerts(String(body.status), {
+          ticketStatusAlerts(alertStatus, {
             id: updated[0].id,
             tableName: updated[0].tableName,
             totalAmount: updated[0].totalAmount,

@@ -923,7 +923,11 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
       ? s === "pending_waiter"
         ? "Waiting for your confirmation"
         : s === "confirmed"
-        ? "Sent • cashier will print it in the EFD"
+        ? // QR HOLD FLOW: a confirmed bill without a release stamp is HELD —
+          // the cashier accepted it but has not sent it to the crews yet.
+          activeTicket?.confirmedAt
+          ? "Sent • cashier will print it in the EFD"
+          : "Accepted • held until the cashier sends it"
         : s === "printed"
         ? "Printed • crew is preparing"
         : s === "preparing"
@@ -1047,6 +1051,8 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
             onArm={pocket.arm}
             onTest={pocket.test}
             onToast={showToast}
+            notificationsEnabled={pocket.notificationsEnabled}
+            onSetNotificationsEnabled={pocket.setNotificationsEnabled}
           />
           <button
             onClick={enableAlerts}
@@ -1492,9 +1498,15 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
               {/* Group 9: no payment screens for the waiter — the EFD/POS at the
                   counter is the money system. Her only closing job is physical. */}
               {activeTicket.status === "confirmed" && (
-                <div className="w-full bg-[#2C1B17] border border-emerald-500/40 rounded-xl px-4 py-3 text-center text-xs font-bold text-emerald-300">
-                  ✓ Sent • the kitchen and barista are cooking, the cashier is printing
-                </div>
+                activeTicket.confirmedAt ? (
+                  <div className="w-full bg-[#2C1B17] border border-emerald-500/40 rounded-xl px-4 py-3 text-center text-xs font-bold text-emerald-300">
+                    ✓ Sent • the kitchen and barista are cooking, the cashier is printing
+                  </div>
+                ) : (
+                  <div className="w-full bg-[#2C1B17] border border-sky-500/40 rounded-xl px-4 py-3 text-center text-xs font-bold text-sky-300">
+                    ⏸ Accepted • the cashier is holding it until the guest finishes ordering
+                  </div>
+                )
               )}
               {/* Closing a bill stays a FLOOR job: the buna makers take orders
                   and make buna, but the waiter is the one who clears the table. */}

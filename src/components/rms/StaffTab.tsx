@@ -102,7 +102,14 @@ export default function StaffTab() {
               </div>
               <div>
                 <p className="text-sm font-bold text-amber-100">{s.name}</p>
-                <p className="text-[10px] text-stone-400 uppercase font-extrabold">{s.role} • PIN: {s.pinSet ? "•••• (set)" : "not set"}</p>
+                <p className="text-[10px] text-stone-400 uppercase font-extrabold">
+                  {s.role} • PIN: {s.pinSet ? "•••• (set)" : "not set"}
+                </p>
+                {s.alertsOff && (
+                  <p className="text-[10px] font-bold text-amber-300 mt-0.5" title="They tapped 'Off duty' in their app. Signing in with their PIN switches alerts back on.">
+                    🔕 Off duty (alerts silent)
+                  </p>
+                )}
               </div>
             </div>
             <button onClick={() => removeStaff(s.id)} className="p-2 bg-rose-500/20 text-rose-300 hover:bg-rose-500 hover:text-white rounded-lg transition" title="Remove">

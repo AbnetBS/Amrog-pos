@@ -662,6 +662,7 @@ export default function AdminPanel({
                     isPopular: false,
                     isAvailable: true,
                     isBuna: false,
+                    stationOverride: null,
                     dietaryTags: "",
                     prepTime: "10 min",
                     badge: "",
@@ -697,6 +698,16 @@ export default function AdminPanel({
                               {item.isBuna && (
                                 <span className="text-[9px] font-black uppercase bg-amber-900/60 text-amber-300 border border-amber-700 rounded px-1.5 py-0.5">
                                   🫖 Buna Makers
+                                </span>
+                              )}
+                              {item.stationOverride === "barista" && (
+                                <span className="text-[9px] font-black uppercase bg-amber-900/40 text-amber-300 border border-amber-700/60 rounded px-1.5 py-0.5">
+                                  ☕ Barista
+                                </span>
+                              )}
+                              {item.stationOverride === "kitchen" && (
+                                <span className="text-[9px] font-black uppercase bg-emerald-900/40 text-emerald-300 border border-emerald-700/60 rounded px-1.5 py-0.5">
+                                  🍳 Kitchen
                                 </span>
                               )}
                             </p>
@@ -958,7 +969,7 @@ export default function AdminPanel({
                 </div>
               </div>
 
-              <div className="flex items-center gap-4 pt-2">
+              <div className="flex flex-wrap items-center gap-4 pt-2">
                 <label className="flex items-center gap-2 text-xs font-bold text-amber-100 cursor-pointer">
                   <input type="checkbox" checked={editingItem.isAvailable ?? true} onChange={(e) => setEditingItem({ ...editingItem, isAvailable: e.target.checked })} className="w-4 h-4 accent-[#C9A227]" />
                   <span>In Stock</span>
@@ -967,21 +978,39 @@ export default function AdminPanel({
                   <input type="checkbox" checked={editingItem.isPopular ?? false} onChange={(e) => setEditingItem({ ...editingItem, isPopular: e.target.checked })} className="w-4 h-4 accent-[#C9A227]" />
                   <span>Popular Highlights</span>
                 </label>
-                <label className="flex items-center gap-2 text-xs font-bold text-amber-100 cursor-pointer">
-                  <input type="checkbox" checked={editingItem.isBuna ?? false} onChange={(e) => setEditingItem({ ...editingItem, isBuna: e.target.checked })} className="w-4 h-4 accent-[#C9A227]" />
-                  <span>🫖 Traditional Buna</span>
-                </label>
               </div>
 
-              {/* WHY THIS SWITCH EXISTS: the buna makers have their own place, so a
-                  traditional coffee must leave the barista's lane and land on
-                  theirs — whatever category the item sits in. */}
-              <p className="text-[11px] text-stone-400 leading-relaxed">
-                <strong className="text-amber-200">Traditional Buna</strong> sends this item to the{" "}
-                <strong className="text-amber-200">Buna Makers</strong> instead of the barista, and rings only
-                their phones. Use it for jebena buna and the other traditional coffee. It works from any
-                category, so it can sit next to the macchiato in <em>Coffee</em>.
-              </p>
+              {/* WHO PREPARES IT — the per-item station switch. "Automatic" follows
+                  the category routing from the Stations tab; the other three point
+                  this ONE item at a specific crew, whatever its category says. */}
+              <div className="bg-[#3D2314] p-4 rounded-2xl border border-[#C9A227]/30 space-y-2">
+                <label className="block text-xs font-bold text-amber-200">👨‍🍳 Prepared by (which crew makes it)</label>
+                <select
+                  value={editingItem.isBuna ? "buna" : editingItem.stationOverride || "auto"}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setEditingItem({
+                      ...editingItem,
+                      // "buna" keeps using the per-item isBuna flag; the two
+                      // other crews use the station override; "auto" clears both.
+                      isBuna: v === "buna",
+                      stationOverride: v === "barista" || v === "kitchen" ? v : null,
+                    });
+                  }}
+                  className="w-full bg-[#2C1B17] border border-stone-700 rounded-xl p-2.5 text-xs text-white"
+                >
+                  <option value="auto">Automatic (follow the category, Stations tab)</option>
+                  <option value="barista">☕ Barista (drinks, coffee cup, juices...)</option>
+                  <option value="kitchen">🍳 Kitchen / Chef (food, take away bag...)</option>
+                  <option value="buna">🫖 Buna Makers (traditional buna)</option>
+                </select>
+                <p className="text-[11px] text-stone-400 leading-relaxed">
+                  Use this when one category mixes crews, like <strong className="text-amber-200">Extra Things</strong>:
+                  a coffee cup goes to the <strong className="text-amber-200">Barista</strong>, a take away bag goes to the{" "}
+                  <strong className="text-amber-200">Kitchen</strong>, whatever the category routing says. Traditional buna
+                  always goes to the Buna Makers and rings only their phones.
+                </p>
+              </div>
 
               <button type="submit" disabled={isMenuSubmitting} className="w-full bg-gradient-to-r from-[#C9A227] to-[#B8921F] text-[#2C1B17] font-black text-xs uppercase tracking-wider py-3.5 rounded-xl shadow-xl transition mt-4">
                 {isMenuSubmitting ? "Saving..." : "Save Dish"}

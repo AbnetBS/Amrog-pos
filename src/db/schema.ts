@@ -29,6 +29,13 @@ export const menuItems = pgTable("menu_items", {
   // flag on purpose — "Jebena Buna" lives in the Coffee category next to the
   // macchiato, and only the traditional one leaves the barista's lane.
   isBuna: boolean("is_buna").default(false),
+  // PER-ITEM STATION OVERRIDE (owner's decision, Sept 2026): "Extra Things"
+  // items belong to different crews — a coffee cup is the barista's, a take
+  // away bag is the kitchen's — even though they share one category. When set
+  // ("barista" | "kitchen" | "buna") it wins over the category routing, so the
+  // owner can point any single item at the crew that actually prepares it.
+  // Null = follow the category routing from the Stations tab (the default).
+  stationOverride: varchar("station_override", { length: 20 }),
   dietaryTags: text("dietary_tags"),
   prepTime: varchar("prep_time", { length: 50 }).default("10-15 min"),
   badge: varchar("badge", { length: 50 }),
@@ -81,6 +88,14 @@ export const staffUsers = pgTable("staff_users", {
   name: varchar("name", { length: 100 }).notNull(),
   role: varchar("role", { length: 20 }).notNull().default("waiter"), // waiter | cashier
   pin: varchar("pin", { length: 100 }).notNull(), // bcrypt hash (60 chars) or legacy plaintext
+  // POCKET OFF-DUTY SWITCH (owner's decision, Sept 2026): staff phones kept
+  // ringing at home long after the shift ended. Each person can switch their
+  // own alerts off from their app when they finish work ("Off duty") and back
+  // on when they return. It is per PERSON, not per device: every phone and
+  // tablet subscribed under their name goes silent with that one tap. The
+  // next PIN sign-in switches it back on, so a shift can never start silent
+  // because somebody forgot. Pushes are filtered on this flag in push.ts.
+  notificationsEnabled: boolean("notifications_enabled").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -105,9 +120,18 @@ export const tickets = pgTable("tickets", {
   totalAmount: integer("total_amount").notNull().default(0),
   createdBy: varchar("created_by", { length: 100 }), // waiter name / "Customer (QR)"
   confirmedBy: varchar("confirmed_by", { length: 100 }), // who confirmed the order (waiter/cashier)
-  // WHEN it was accepted. This is the crew's release stamp: everything on the
-  // bill at that moment goes to the kitchen/barista immediately. Anything
-  // added AFTER it waits for the cashier's next print, exactly like before.
+  // WHEN it was SENT to the crews. This is the release stamp: everything on
+  // the bill at that moment goes to the kitchen/barista/buna makers
+  // immediately. Anything added AFTER it waits for the cashier's next print,
+  // exactly like before.
+  //
+  // QR HOLD FLOW (owner's decision, Sept 2026): when the CASHIER accepts a
+  // guest's QR order she only ACKNOWLEDGES it (confirmedBy is stamped, the
+  // alarms stop everywhere) but this stamp is NOT written yet — the guest may
+  // still add more items. Her "CONFIRM & SEND" tap (or a waiter's accept,
+  // which verifies with the guest in person) writes it and releases the food.
+  // A confirmed bill with a null confirmed_at is therefore a HELD bill: the
+  // crews see nothing from it until it is sent or printed.
   confirmedAt: timestamp("confirmed_at"),
   closedAt: timestamp("closed_at"),
   createdAt: timestamp("created_at").defaultNow(),

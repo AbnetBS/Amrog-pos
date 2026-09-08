@@ -6,6 +6,19 @@ import { eq, asc } from "drizzle-orm";
 import { PUBLIC_CACHE_CONTROL } from "@/lib/cache";
 import { deleteOrphanedCdnImages, persistImageRef } from "@/lib/image-store";
 import { requireAdmin } from "@/lib/session";
+import { isStationName } from "@/lib/stations";
+
+/**
+ * Per-item station override: null/"" = follow the category routing;
+ * otherwise one of the three crews. Invalid values are rejected so a bad
+ * client can never write a station nobody screens.
+ */
+function parseStationOverride(value: unknown): string | null {
+  if (value === null || value === undefined || value === "") return null;
+  const s = String(value);
+  if (!isStationName(s)) throw new Error("Invalid station override");
+  return s;
+}
 
 export async function GET() {
   await ensureTablesExist();
@@ -38,6 +51,9 @@ export async function POST(request: Request) {
         // Traditional buna: the item is made by the buna makers, so its order
         // lines are routed to the "buna" station instead of the barista.
         isBuna: Boolean(body.isBuna),
+        // Per-item station override (e.g. Extra Things: coffee cup → barista,
+        // take away bag → kitchen). Null = follow the category routing.
+        stationOverride: parseStationOverride(body.stationOverride),
         dietaryTags: body.dietaryTags || "",
         prepTime: body.prepTime || "10-15 min",
         badge: body.badge || "",
@@ -79,6 +95,8 @@ export async function PUT(request: Request) {
         isPopular: body.isPopular !== undefined ? Boolean(body.isPopular) : cur.isPopular,
         isAvailable: body.isAvailable !== undefined ? Boolean(body.isAvailable) : cur.isAvailable,
         isBuna: body.isBuna !== undefined ? Boolean(body.isBuna) : cur.isBuna,
+        stationOverride:
+          body.stationOverride !== undefined ? parseStationOverride(body.stationOverride) : cur.stationOverride,
         dietaryTags: body.dietaryTags ?? cur.dietaryTags,
         prepTime: body.prepTime ?? cur.prepTime,
         badge: body.badge ?? cur.badge,
