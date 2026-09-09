@@ -34,14 +34,14 @@ export const DEFAULT_TABLES = Array.from({ length: 10 }, (_, i) => ({
   sortOrder: i + 1,
 }));
 
-export const DEFAULT_CATEGORY_ROUTING: Record<string, "barista" | "kitchen"> = {
-  // drinks & juices go to BARISTA
+export const DEFAULT_CATEGORY_ROUTING: Record<string, "barista" | "kitchen" | "juice"> = {
+  // machine coffee & cold drinks go to BARISTA; fresh juices go to the JUICE maker
   "hot-drinks": "barista",
   "soft-drinks": "barista",
-  juices: "barista",
-  "juices-fresh": "barista",
+  juices: "juice",
+  "juices-fresh": "juice",
   coffee: "barista",
-  "juices-fresh-punches": "barista",
+  "juices-fresh-punches": "juice",
   // everything food-tier goes to KITCHEN (chef)
   "ethiopian-traditional-meals": "kitchen",
   sandwich: "kitchen",

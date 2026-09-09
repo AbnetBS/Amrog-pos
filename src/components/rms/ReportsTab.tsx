@@ -1,24 +1,77 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { TrendingUp, ShoppingBag, CreditCard, Banknote, Smartphone, RefreshCw, ImageIcon, Award, PieChart, Coffee, CookingPot, Printer, XCircle } from "lucide-react";
+import { TrendingUp, ShoppingBag, RefreshCw, ImageIcon, PieChart, Coffee, CookingPot, Printer, XCircle } from "lucide-react";
 import { ReportData, Ticket } from "@/types";
 import { formatClock, formatDateTime } from "@/lib/order-lines";
 
+type Period = "today" | "yesterday" | "week" | "month";
+
+const PERIOD_LABELS: Record<Period, string> = {
+  today: "Today",
+  yesterday: "Yesterday",
+  week: "Last 7 Days",
+  month: "Last 30 Days",
+};
+
+/** Plain-language empty-state suffix per period ("No sales …"). */
+const PERIOD_EMPTY: Record<Period, string> = {
+  today: "yet today",
+  yesterday: "yesterday",
+  week: "in the last 7 days",
+  month: "in the last 30 days",
+};
+
+/** How the printed paper names the period it covers ("This paper covers …"). */
+const PERIOD_COVER: Record<Period, string> = {
+  today: "today's sales",
+  yesterday: "yesterday's sales",
+  week: "the last 7 days of sales",
+  month: "the last 30 days of sales",
+};
+
 export default function ReportsTab() {
   const [data, setData] = useState<ReportData | null>(null);
+  // The selected period: the four cards above are the switch, and EVERY section
+  // below (cross-check, KPIs, peak hours, highest-selling, categories, printed
+  // bills, receipts) describes only this period. The server computes it all —
+  // the client just re-fetches with ?period=.
+  const [period, setPeriod] = useState<Period>("today");
   const [receiptModal, setReceiptModal] = useState<string | null>(null);
-  // The printed-today archive card that is expanded into the full bill.
+  // The printed-bills archive card that is expanded into the full bill.
   const [billModal, setBillModal] = useState<Ticket | null>(null);
+  // Cafe letterhead (name, address, phone, logo) for the printed paper.
+  const [brand, setBrand] = useState<Record<string, string>>({});
+  const [expired, setExpired] = useState(false);
 
-  const load = async () => {
-    const r = await fetch("/api/reports");
-    if (r.ok) setData(await r.json());
+  const load = async (p: Period) => {
+    const r = await fetch(`/api/reports?period=${p}`);
+    // The admin cookie lives 7 days; when it dies this tab would show stale
+    // figures forever. Say so instead, with the way back.
+    if (r.status === 401) {
+      setExpired(true);
+      return;
+    }
+    if (r.ok) {
+      setExpired(false);
+      setData(await r.json());
+    }
   };
 
   useEffect(() => {
-    load();
+    load("today");
+    // The printed paper needs the cafe's real name, address and phone.
+    fetch("/api/settings")
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((s) => setBrand(s || {}))
+      .catch(() => {});
   }, []);
+
+  const switchPeriod = (p: Period) => {
+    if (p === period) return;
+    setPeriod(p);
+    load(p);
+  };
 
   const fmt = (n: number) => n.toLocaleString("en-US") + " ETB";
 
@@ -26,74 +79,159 @@ export default function ReportsTab() {
     barista: { label: "Barista", icon: <Coffee className="w-5 h-5 text-amber-300" />, cls: "border-amber-700/60" },
     kitchen: { label: "Kitchen (Chef)", icon: <CookingPot className="w-5 h-5 text-emerald-300" />, cls: "border-emerald-700/60" },
     buna: { label: "Buna Makers", icon: <span className="text-xl leading-none">🫖</span>, cls: "border-orange-700/60" },
+    juice: { label: "Juice Maker", icon: <span className="text-xl leading-none">🧃</span>, cls: "border-lime-700/60" },
   };
 
+  const label = data?.periodLabel || PERIOD_LABELS[period];
+  const emptySuffix = PERIOD_EMPTY[period];
+  // KPI numbers follow the selected period (the four summary fields are always
+  // all-period, so the client picks the matching pair here).
+  const kpiRevenue =
+    period === "yesterday" ? data?.yesterdayRevenue || 0
+    : period === "week" ? data?.weeklyRevenue || 0
+    : period === "month" ? data?.monthlyRevenue || 0
+    : data?.todayRevenue || 0;
+  const kpiOrders =
+    period === "yesterday" ? data?.yesterdayOrders || 0
+    : period === "week" ? data?.weekOrders || 0
+    : period === "month" ? data?.monthOrders || 0
+    : data?.todayOrders || 0;
+  const kpiAvg = kpiOrders > 0 ? Math.round(kpiRevenue / kpiOrders) : 0;
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-serif font-bold text-amber-100">Today&rsquo;s Reports &amp; Analytics</h2>
-          <p className="text-xs text-stone-400">
-            Live numbers from today&rsquo;s sales: every bill keyed into the EFD (printed) or marked paid, refreshed from the database.
+    <div id="fana-report" className="space-y-6">
+      {/* PRINT STYLES: the owner prints this report on the EFD-connected office
+          computer. Screen-only controls hide; the dark cafe theme flattens to
+          black-on-white so it reads on paper; bar fills stay visible; capped
+          scroll areas expand so nothing is cut off. */}
+      <style>{`
+        .print-only { display: none; }
+        @media print {
+          @page { margin: 12mm; }
+          body { background: #fff !important; }
+          #fana-admin { background: #fff !important; padding: 0 !important; }
+          .no-print { display: none !important; }
+          .print-only { display: block !important; }
+          #fana-report, #fana-report * {
+            background-color: #fff !important;
+            background-image: none !important;
+            color: #000 !important;
+            border-color: #888 !important;
+            box-shadow: none !important;
+            text-shadow: none !important;
+          }
+          #fana-report .print-bar { background-color: #333 !important; }
+          #fana-report .print-scroll { max-height: none !important; overflow: visible !important; }
+        }
+      `}</style>
+
+      {/* OFFICIAL LETTERHEAD, print only: this paper leaves the office, so it
+          carries the logo and the full PLC name in English and Amharic. The
+          address and phone are left BLANK: the person who writes the report
+          fills in their own name, phone and address by hand. */}
+      <div className="print-only" style={{ borderBottom: "3px double #000", paddingBottom: 10, marginBottom: 12 }}>
+        <div style={{ textAlign: "center" }}>
+          <img src={brand.logo_url || "/logo.png"} alt="Fana Cafe and Restaurant logo" style={{ height: 60, margin: "0 auto 6px" }} />
+          <h1 style={{ fontSize: "22px", fontWeight: 900 }}>Fana Cafe and Restaurant PLC</h1>
+          <p style={{ fontSize: "15px", fontWeight: 700 }}>ፋና ካፌ እና ሬስቶራንት ኃ.የተ.የ.ግ.ማ.</p>
+        </div>
+        <div style={{ fontSize: "12px", marginTop: 8, lineHeight: 2.2 }}>
+          <p>Prepared by (name): ................................................................</p>
+          <p>Phone: .................................... Address: ........................................................</p>
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <p style={{ fontSize: "14px", fontWeight: 800, marginTop: 8 }}>Sales Report ({label})</p>
+          <p style={{ fontSize: "11px" }}>
+            This paper covers {PERIOD_COVER[period]} and was printed {new Date().toLocaleString()}. Every amount on it
+            comes from bills keyed into the EFD or marked paid.
           </p>
         </div>
-        <button onClick={load} className="p-2 bg-white/10 hover:bg-white/20 text-amber-200 rounded-xl" title="Refresh">
-          <RefreshCw className="w-4 h-4" />
-        </button>
+      </div>
+
+      {expired && (
+        <div className="bg-rose-900/60 border border-rose-500 text-rose-200 text-xs p-3 rounded-xl font-bold no-print">
+          Your admin session ended. Reload the page and log in again to see fresh figures.
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-serif font-bold text-amber-100">Sales Reports &amp; Analytics</h2>
+          <p className="text-xs text-stone-400">
+            Showing <strong className="text-amber-200">{label}</strong> • every bill keyed into the EFD (printed) or marked paid. Tap a period card below to switch.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 no-print">
+          <button
+            onClick={() => window.print()}
+            className="bg-[#C9A227] hover:bg-amber-400 text-[#2C1B17] font-black text-xs uppercase px-4 py-2.5 rounded-xl flex items-center gap-2"
+            title={`Print the ${label} report on this computer (EFD office PC)`}
+          >
+            <Printer className="w-4 h-4" /> Print Report
+          </button>
+          <button onClick={() => load(period)} className="p-2.5 bg-white/10 hover:bg-white/20 text-amber-200 rounded-xl" title="Refresh">
+            <RefreshCw className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {!data ? (
         <div className="p-10 text-center text-stone-500 text-sm">Loading reports...</div>
       ) : (
         <>
-          {/* TIME INTERVAL cards — Today / Yesterday / Last Week / Last Month */}
+          {/* TIME INTERVAL cards — Today / Yesterday / Last 7 Days / Last 30 Days.
+              These are the PERIOD SWITCH: tapping one reloads every section below
+              for that period (the selected card is gold). */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {(
               [
-                { label: "Today", rev: data.todayRevenue, cnt: data.todayOrders, hl: true },
-                { label: "Yesterday", rev: data.yesterdayRevenue || 0, cnt: data.yesterdayOrders || 0, hl: false },
-                { label: "Last 7 Days", rev: data.weeklyRevenue || 0, cnt: data.weekOrders || 0, hl: false },
-                { label: "Last 30 Days", rev: data.monthlyRevenue || 0, cnt: data.monthOrders || 0, hl: false },
+                { key: "today", label: "Today", rev: data.todayRevenue, cnt: data.todayOrders },
+                { key: "yesterday", label: "Yesterday", rev: data.yesterdayRevenue || 0, cnt: data.yesterdayOrders || 0 },
+                { key: "week", label: "Last 7 Days", rev: data.weeklyRevenue || 0, cnt: data.weekOrders || 0 },
+                { key: "month", label: "Last 30 Days", rev: data.monthlyRevenue || 0, cnt: data.monthOrders || 0 },
               ] as const
             ).map((p) => (
-              <div
-                key={p.label}
-                className={`rounded-2xl p-4 ${
-                  p.hl
+              <button
+                key={p.key}
+                onClick={() => switchPeriod(p.key)}
+                title={`Show every section below for ${p.label}`}
+                className={`rounded-2xl p-4 text-left transition active:scale-[0.98] ${
+                  period === p.key
                     ? "bg-gradient-to-br from-[#C9A227] to-[#8C6D18] text-[#2C1B17]"
-                    : "bg-[#2C1B17] border border-stone-800 text-white"
+                    : "bg-[#2C1B17] border border-stone-800 text-white hover:border-[#C9A227]/60"
                 }`}
               >
-                <p className={`text-[10px] font-extrabold uppercase tracking-wider ${p.hl ? "opacity-80" : "text-stone-400"}`}>
+                <p className={`text-[10px] font-extrabold uppercase tracking-wider ${period === p.key ? "opacity-80" : "text-stone-400"}`}>
                   {p.label}
                 </p>
                 <p className="font-serif font-black text-xl">{fmt(p.rev)}</p>
-                <p className={`text-[10px] font-bold mt-0.5 ${p.hl ? "opacity-70" : "text-stone-500"}`}>{p.cnt} order(s)</p>
-              </div>
+                <p className={`text-[10px] font-bold mt-0.5 ${period === p.key ? "opacity-70" : "text-stone-500"}`}>{p.cnt} order(s)</p>
+              </button>
             ))}
           </div>
 
-          {/* ═══ CROSS-CHECK BY STATION — the paper world's three piles ═══
+          {/* ═══ CROSS-CHECK BY STATION — the paper world's four piles ═══
               Before this system the cross-checker collected the kitchen's, the
-              barista's and the buna makers' order papers, added each pile and
-              compared the total with the cashier's EFD receipts. These three
-              cards ARE those piles: today's sales split by who prepared them. */}
+              barista's, the buna makers' and the juice maker's order papers, added
+              each pile and compared the total with the cashier's EFD receipts.
+              These four cards ARE those piles: the period's sales split by who
+              prepared them. */}
           <div className="bg-[#2C1B17] rounded-2xl border border-[#C9A227]/40 p-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h3 className="text-sm font-bold text-amber-200 uppercase tracking-wider">📋 Cross-Check by Station (Today)</h3>
+                <h3 className="text-sm font-bold text-amber-200 uppercase tracking-wider">📋 Cross-Check by Station ({label})</h3>
                 <p className="text-[11px] text-stone-400 mt-0.5">
-                  Each crew&rsquo;s pile of today&rsquo;s sales, split per item. Add the three totals and compare with the EFD receipt pile below.
+                  Each crew&rsquo;s pile of the period&rsquo;s sales, split per item. Add the four totals and compare with the EFD receipt pile below.
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-extrabold uppercase text-stone-400">Barista + Kitchen + Buna</p>
+                <p className="text-[10px] font-extrabold uppercase text-stone-400">Barista + Kitchen + Buna + Juice</p>
                 <p className="font-serif font-black text-xl text-[#C9A227]">
                   {fmt((data.stationSales || []).reduce((s, x) => s + (x.revenue || 0), 0))}
                 </p>
               </div>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
               {(data.stationSales || []).map((s) => {
                 const meta = stationMeta[s.station] || stationMeta.kitchen;
                 const items = (data.stationItems || []).filter((i) => i.station === s.station);
@@ -115,9 +253,9 @@ export default function ReportsTab() {
                         <p className="font-serif font-black text-2xl text-[#C9A227]">{fmt(s.revenue)}</p>
                       </div>
                     </div>
-                    <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                    <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1 print-scroll">
                       {items.length === 0 ? (
-                        <p className="text-xs text-stone-500">Nothing sold from this station today.</p>
+                        <p className="text-xs text-stone-500">Nothing sold from this station {emptySuffix}.</p>
                       ) : (
                         items.map((i) => (
                           <div key={`${i.station}-${i.name}`} className="flex items-center justify-between gap-2 text-xs bg-black/25 rounded-lg px-2.5 py-1.5">
@@ -134,36 +272,31 @@ export default function ReportsTab() {
             </div>
           </div>
 
-          {/* KPI cards */}
+          {/* KPI cards (selected period). Payment methods were removed by the
+              owner — the EFD is the money system of record, so the third card
+              counts item units sold instead. */}
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="bg-[#2C1B17] rounded-2xl p-5 border border-stone-800">
               <ShoppingBag className="w-5 h-5 mb-2 text-[#C9A227]" />
-              <p className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">Orders Today</p>
-              <p className="font-serif font-black text-2xl text-white">{data.todayOrders}</p>
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">Orders ({label})</p>
+              <p className="font-serif font-black text-2xl text-white">{kpiOrders}</p>
             </div>
             <div className="bg-[#2C1B17] rounded-2xl p-5 border border-stone-800">
               <PieChart className="w-5 h-5 mb-2 text-[#C9A227]" />
               <p className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">Avg. Order Value</p>
-              <p className="font-serif font-black text-2xl text-white">{fmt(data.averageOrderValue)}</p>
+              <p className="font-serif font-black text-2xl text-white">{fmt(kpiAvg)}</p>
             </div>
             <div className="bg-[#2C1B17] rounded-2xl p-5 border border-stone-800">
-              <Award className="w-5 h-5 mb-2 text-[#C9A227]" />
-              <p className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">Payment Methods</p>
-              <div className="flex gap-2 mt-1 flex-wrap">
-                {data.paymentStats.length === 0 && <span className="text-xs text-stone-500">No payments yet</span>}
-                {data.paymentStats.map((p) => (
-                  <span key={p.method} className="text-[11px] font-bold text-white bg-white/10 px-2 py-1 rounded-lg capitalize">
-                    {p.method}: {p.count}
-                  </span>
-                ))}
-              </div>
+              <TrendingUp className="w-5 h-5 mb-2 text-[#C9A227]" />
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">Items Sold ({label})</p>
+              <p className="font-serif font-black text-2xl text-white">{(data.totalItems || 0).toLocaleString("en-US")}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Peak selling hours */}
             <div className="bg-[#2C1B17] rounded-2xl border border-stone-800 p-5">
-              <h3 className="text-sm font-bold text-amber-200 uppercase tracking-wider mb-1">⏰ Peak Selling Hours (Today)</h3>
+              <h3 className="text-sm font-bold text-amber-200 uppercase tracking-wider mb-1">⏰ Peak Selling Hours ({label})</h3>
               {data.peakHour ? (
                 <>
                   <p className="text-[11px] text-emerald-400 font-bold mb-3">
@@ -179,7 +312,7 @@ export default function ReportsTab() {
                             <span className="w-14 font-bold text-stone-400">{h.hour}:00</span>
                             <div className="flex-1 h-3 bg-black/40 rounded-full overflow-hidden">
                               <div
-                                className={`h-full rounded-full ${h.hour === data.peakHour?.hour ? "bg-gradient-to-r from-rose-500 to-[#C9A227]" : "bg-[#C9A227]/60"}`}
+                                className={`h-full rounded-full print-bar ${h.hour === data.peakHour?.hour ? "bg-gradient-to-r from-rose-500 to-[#C9A227]" : "bg-[#C9A227]/60"}`}
                                 style={{ width: `${(h.revenue / max) * 100}%` }}
                               />
                             </div>
@@ -190,15 +323,15 @@ export default function ReportsTab() {
                   </div>
                 </>
               ) : (
-                <p className="text-xs text-stone-500">No sales yet today. Peaks will appear once the first bills close.</p>
+                <p className="text-xs text-stone-500">No sales {emptySuffix}. Peaks will appear once the first bills close.</p>
               )}
             </div>
 
             {/* Popular items */}
             <div className="bg-[#2C1B17] rounded-2xl border border-stone-800 p-5">
-              <h3 className="text-sm font-bold text-amber-200 uppercase tracking-wider mb-4">🏆 Highest-Selling Foods (Today)</h3>
+              <h3 className="text-sm font-bold text-amber-200 uppercase tracking-wider mb-4">🏆 Highest-Selling Foods ({label})</h3>
               {data.popularItems.length === 0 ? (
-                <p className="text-xs text-stone-500">No sales yet today.</p>
+                <p className="text-xs text-stone-500">No sales {emptySuffix}.</p>
               ) : (
                 <div className="space-y-2">
                   {data.popularItems.map((it, idx) => (
@@ -217,9 +350,9 @@ export default function ReportsTab() {
 
             {/* Category sales */}
             <div className="bg-[#2C1B17] rounded-2xl border border-stone-800 p-5">
-              <h3 className="text-sm font-bold text-amber-200 uppercase tracking-wider mb-4">Sales by Category (Today)</h3>
+              <h3 className="text-sm font-bold text-amber-200 uppercase tracking-wider mb-4">Sales by Category ({label})</h3>
               {data.categorySales.length === 0 ? (
-                <p className="text-xs text-stone-500">No sales yet today.</p>
+                <p className="text-xs text-stone-500">No sales {emptySuffix}.</p>
               ) : (
                 <div className="space-y-3">
                   {data.categorySales.map((c) => {
@@ -228,10 +361,11 @@ export default function ReportsTab() {
                       <div key={c.category}>
                         <div className="flex justify-between text-xs mb-1">
                           <span className="font-bold text-amber-100 capitalize">{c.category}</span>
+                          <span className="font-bold text-stone-400">{(c.quantity || 0).toLocaleString("en-US")} sold</span>
                           <span className="font-extrabold text-[#C9A227]">{fmt(c.revenue)}</span>
                         </div>
                         <div className="h-2 bg-black/40 rounded-full overflow-hidden">
-                          <div className="h-full bg-gradient-to-r from-[#C9A227] to-amber-500 rounded-full" style={{ width: `${(c.revenue / maxRev) * 100}%` }} />
+                          <div className="h-full bg-gradient-to-r from-[#C9A227] to-amber-500 rounded-full print-bar" style={{ width: `${(c.revenue / maxRev) * 100}%` }} />
                         </div>
                       </div>
                     );
@@ -241,49 +375,32 @@ export default function ReportsTab() {
             </div>
           </div>
 
-          {/* Payment stats — covers cash / telebirr / cbe / card (and legacy "online") */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {(
-              [
-                { m: "cash", label: "Cash", icon: <Banknote className="w-6 h-6 text-emerald-400" /> },
-                { m: "telebirr", label: "Telebirr", icon: <Smartphone className="w-6 h-6 text-amber-400" /> },
-                { m: "cbe", label: "CBE Birr", icon: <Smartphone className="w-6 h-6 text-violet-400" /> },
-                { m: "card", label: "Card", icon: <CreditCard className="w-6 h-6 text-sky-400" /> },
-                { m: "online", label: "Online (legacy)", icon: <Smartphone className="w-6 h-6 text-amber-400" /> },
-              ] as const
-            ).map(({ m, label, icon }) => {
-              const found = data.paymentStats.find((p) => p.method === m);
-              return (
-                <div key={m} className="bg-[#2C1B17] rounded-2xl border border-stone-800 p-4 flex items-center gap-3">
-                  {icon}
-                  <div>
-                    <p className="text-[10px] uppercase font-extrabold text-stone-400">{label}</p>
-                    <p className="font-serif font-black text-lg text-white">{found ? fmt(found.revenue) : "0 ETB"}</p>
-                    <p className="text-[10px] text-stone-500">{found ? found.count : 0} payment(s)</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* ═══ PRINTED TODAY — the archive registered as history ═══
+          {/* ═══ PRINTED BILLS — the archive registered as history ═══
               The same list the cashier sees below her tables: every bill keyed
-              into the EFD today, open or already cleared. This is the digital
-              receipt pile the cross-checker compares with the station piles
-              above. Tap any card to open the whole bill. */}
-          <div className="bg-[#2C1B17] rounded-2xl border border-stone-800 p-5">
+              into the EFD in the selected period, open or already cleared. This is
+              the digital receipt pile the cross-checker compares with the station
+              piles above. Tap any card to open the whole bill. Screen only: the
+              printed paper carries just the one-line EFD total below instead of
+              this whole archive of bills. */}
+          <div className="bg-[#2C1B17] rounded-2xl border border-stone-800 p-5 no-print">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
               <h3 className="text-sm font-bold text-amber-200 uppercase tracking-wider flex items-center gap-2">
-                <Printer className="w-4 h-4 text-[#C9A227]" /> Printed Today ({(data.printedToday || []).length})
+                <Printer className="w-4 h-4 text-[#C9A227]" /> Printed Bills ({label}) • {(data.printedToday || []).length}
+                {data.archiveCapped ? ` of ${data.archiveTotal}` : ""}
               </h3>
               <div className="text-right">
                 <p className="text-[10px] font-extrabold uppercase text-stone-400">Total printed (compare with the EFD pile)</p>
                 <p className="font-serif font-black text-xl text-emerald-400">{fmt(data.printedTodayTotal || 0)}</p>
               </div>
             </div>
+            {data.archiveCapped && (
+              <p className="text-[11px] font-bold text-amber-300 bg-amber-950/40 border border-amber-700/40 rounded-xl px-3 py-2 mb-4">
+                Showing the newest {(data.printedToday || []).length} of {data.archiveTotal} bills • the total above covers the whole period.
+              </p>
+            )}
             {(data.printedToday || []).length === 0 ? (
               <p className="text-xs text-stone-500">
-                No bills printed yet today. Every bill the cashier taps ✓ PRINTED is registered here for the daily cross-check.
+                No bills printed {emptySuffix}. Every bill the cashier taps ✓ PRINTED is registered here for the cross-check.
               </p>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -319,20 +436,34 @@ export default function ReportsTab() {
             )}
           </div>
 
+          {/* Print-only EFD pile summary: the paper keeps the cross-check total
+              (bill count plus amount) while the whole bill archive above stays
+              on screen, where it belongs. */}
+          <div className="print-only" style={{ border: "1px solid #000", padding: "8px 10px" }}>
+            <p style={{ fontSize: "13px", fontWeight: 800 }}>
+              Bills keyed into the EFD ({label}): {data.archiveTotal || (data.printedToday || []).length} bills • {fmt(data.printedTodayTotal || 0)}
+            </p>
+            <p style={{ fontSize: "11px" }}>
+              The bills themselves live in this screen&apos;s Printed Bills archive and are not listed on this paper. Add
+              the four station pile totals above and compare with this EFD pile total. If they match, the day&apos;s sales
+              are fully accounted for.
+            </p>
+          </div>
+
           {/* Receipt photos */}
           <div className="bg-[#2C1B17] rounded-2xl border border-stone-800 p-5">
             <h3 className="text-sm font-bold text-amber-200 uppercase tracking-wider mb-4 flex items-center gap-2">
-              <ImageIcon className="w-4 h-4 text-[#C9A227]" /> Receipt Photos (Digital Payment Verification)
+              <ImageIcon className="w-4 h-4 text-[#C9A227]" /> Receipt Photos ({label})
             </h3>
             {data.receipts.length === 0 ? (
-              <p className="text-xs text-stone-500">No receipt photos uploaded yet. They appear when waiters photograph card/online receipts.</p>
+              <p className="text-xs text-stone-500">No receipt photos {emptySuffix}.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {data.receipts.map((r) => (
                   <button
                     key={r.id}
                     onClick={async () => {
-                      // load the photo only WHEN the owner click-idle — never bundled in reports
+                      // load the photo only WHEN the owner clicks — never bundled in reports
                       const resp = await fetch(`/api/tickets/receipt?id=${r.id}`);
                       const d = await resp.json();
                       if (d.receiptImage) setReceiptModal(d.receiptImage);
@@ -340,8 +471,8 @@ export default function ReportsTab() {
                     className="group text-left bg-black/30 border border-stone-700 rounded-xl p-3 hover:border-[#C9A227] transition"
                   >
                     <p className="text-[11px] font-bold text-amber-100 truncate">{r.tableName}</p>
-                    <p className="text-[10px] text-stone-500 capitalize">{r.method} • {r.totalAmount} ETB</p>
-                    <span className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-extrabold text-sky-300">
+                    <p className="text-[10px] text-stone-500">{r.totalAmount} ETB</p>
+                    <span className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-extrabold text-sky-300 no-print">
                       📷 View Receipt
                     </span>
                   </button>
@@ -349,14 +480,35 @@ export default function ReportsTab() {
               </div>
             )}
           </div>
+          {/* SIGNATURES, print only: an official paper is signed by the one who
+              prepared it and the one who cross-checked it. */}
+          <div className="print-only" style={{ marginTop: 8, borderTop: "2px solid #000", paddingTop: 10 }}>
+            <p style={{ fontSize: "11px", marginBottom: 18 }}>
+              I have compared the station pile totals on this paper with the EFD receipt pile and found them correct.
+              Any difference is written down and explained below the signatures.
+            </p>
+            <div style={{ display: "flex", gap: 32 }}>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: "12px" }}>Prepared by: ..............................</p>
+                <p style={{ fontSize: "10px" }}>Name and signature</p>
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: "12px" }}>Checked by: ..............................</p>
+                <p style={{ fontSize: "10px" }}>Name and signature</p>
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: "12px" }}>Date: ..............................</p>
+              </div>
+            </div>
+          </div>
         </>
       )}
 
-      {/* BILL DETAIL MODAL — the printed-today archive card expanded: every
+      {/* BILL DETAIL MODAL — the printed-bills archive card expanded: every
           item with name, qty, unit price, line total and the bill total. */}
       {billModal && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 no-print"
           onClick={() => setBillModal(null)}
         >
           <div
@@ -412,7 +564,7 @@ export default function ReportsTab() {
       )}
 
       {receiptModal && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={() => setReceiptModal(null)}>
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 no-print" onClick={() => setReceiptModal(null)}>
           <img src={receiptModal} alt="Receipt" className="max-h-[85vh] max-w-full rounded-2xl border border-[#C9A227]" />
         </div>
       )}

@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Coffee, CookingPot, RefreshCw, Save, CheckCircle2 } from "lucide-react";
+import { Coffee, CookingPot, CupSoda, RefreshCw, Save, CheckCircle2 } from "lucide-react";
 import { DEFAULT_CATEGORY_ROUTING } from "@/lib/initial-data";
 
-type Station = "barista" | "kitchen";
+type Station = "barista" | "kitchen" | "juice";
 
 export default function StationsTab() {
   const [categories, setCategories] = useState<Array<{ id: number; name: string; slug: string }>>([]);
@@ -50,9 +50,9 @@ export default function StationsTab() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-serif font-bold text-amber-100">👨‍🍳 Stations Routing (Barista vs Kitchen)</h2>
+          <h2 className="text-xl font-serif font-bold text-amber-100">👨‍🍳 Stations Routing (Barista vs Kitchen vs Juice)</h2>
           <p className="text-xs text-stone-400">
-            Choose which station each food category goes to. Drinks & juices default to <strong className="text-amber-200">Barista</strong>; food & pastries default to <strong className="text-amber-200">Kitchen (Chef)</strong>.
+            Choose which station each food category goes to. Machine coffee & cold drinks default to <strong className="text-amber-200">Barista</strong>; fresh juices default to <strong className="text-lime-200">Juice Maker</strong>; food & pastries default to <strong className="text-amber-200">Kitchen (Chef)</strong>.
           </p>
         </div>
         <button
@@ -73,15 +73,16 @@ export default function StationsTab() {
       )}
 
       <div className="bg-[#2C1B17] rounded-2xl border border-[#C9A227]/30 p-5 space-y-1">
-        <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center pb-3 border-b border-stone-800 text-[10px] uppercase font-extrabold text-stone-400">
+        <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center pb-3 border-b border-stone-800 text-[10px] uppercase font-extrabold text-stone-400">
           <span>Category</span>
           <span className="flex items-center gap-1.5 text-amber-200"><Coffee className="w-3.5 h-3.5" /> Barista</span>
           <span className="flex items-center gap-1.5 text-emerald-200"><CookingPot className="w-3.5 h-3.5" /> Kitchen</span>
+          <span className="flex items-center gap-1.5 text-lime-200"><CupSoda className="w-3.5 h-3.5" /> Juice</span>
         </div>
 
         <div className="divide-y divide-stone-800">
           {categories.map((c) => (
-            <div key={c.id} className="grid grid-cols-[1fr_auto_auto] gap-3 items-center py-2.5">
+            <div key={c.id} className="grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center py-2.5">
               <span className="text-xs font-bold text-amber-100">{c.name}</span>
               <button
                 onClick={() => setRouting({ ...routing, [c.slug]: "barista" })}
@@ -107,6 +108,18 @@ export default function StationsTab() {
               >
                 {routing[c.slug] === "kitchen" && <span className="w-3 h-3 rounded-full bg-white" />}
               </button>
+              <button
+                onClick={() => setRouting({ ...routing, [c.slug]: "juice" })}
+                className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition ${
+                  routing[c.slug] === "juice"
+                    ? "bg-lime-500 border-lime-400"
+                    : "border-stone-600 hover:border-lime-500"
+                }`}
+                title={`Send "${c.name}" to Juice Maker`}
+                aria-label={`Route ${c.name} to juice`}
+              >
+                {routing[c.slug] === "juice" && <span className="w-3 h-3 rounded-full bg-white" />}
+              </button>
             </div>
           ))}
           {categories.length === 0 && (
@@ -117,9 +130,9 @@ export default function StationsTab() {
 
       <div className="bg-[#2C1B17]/70 border border-stone-800 rounded-xl p-4 text-xs text-stone-400 space-y-1.5">
         <p className="font-bold text-amber-200">🔁 Workflow after cashier accepts an order:</p>
-        <p>1. Items auto-split instantly: drinks & juices → <strong>Barista</strong> | foods & pastries → <strong>Kitchen (Chef)</strong></p>
-        <p>2. Station crews see their own lane (<code className="text-[#C9A227]">/barista</code> & <code className="text-[#C9A227]">/kitchen</code>), press <strong>Accept</strong> to commence, <strong>Done</strong> when finished.</p>
-        <p>3. Cashier sees live station pills ("Barista 2/3 ✓ | Kitchen 1/2 ✓") per table so they know preparation progress at a glance.</p>
+        <p>1. Items auto-split instantly: machine coffee & cold drinks → <strong>Barista</strong> | fresh juices → <strong>Juice Maker</strong> | foods & pastries → <strong>Kitchen (Chef)</strong></p>
+        <p>2. Station crews see their own lane (<code className="text-[#C9A227]">/barista</code>, <code className="text-[#C9A227]">/kitchen</code> & <code className="text-[#C9A227]">/juice</code>), press <strong>Accept</strong> to commence, <strong>Done</strong> when finished.</p>
+        <p>3. Cashier sees live station pills (&quot;Barista 2/3 ✓ | Kitchen 1/2 ✓&quot;) per table so they know preparation progress at a glance.</p>
       </div>
     </div>
   );

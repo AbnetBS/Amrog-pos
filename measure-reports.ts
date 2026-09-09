@@ -57,7 +57,7 @@ async function main() {
   (globalThis as any).__fanaMigrateDone = true;
   const route = await import("./src/app/api/reports/route");
   stmts = []; rowsRead = [];
-  const res = await route.GET();
+  const res = await route.GET({ url: "http://localhost/api/reports" } as any);
   const body = await res.json();
   const totalRows = rowsRead.reduce((a, b) => a + b, 0);
   const bytes = Buffer.byteLength(JSON.stringify(body), "utf8");

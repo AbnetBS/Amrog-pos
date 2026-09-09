@@ -21,7 +21,7 @@ import {
   FIRST_SCREEN_PHOTOS,
 } from "@/lib/image-utils";
 import { ImageBatchProvider, RevealImage, useIdleImagePrefetch } from "@/components/ImageReveal";
-import { OrderStatusProvider, RequestReceiptButton } from "@/components/rms/OrderStatus";
+import { OrderStatusDock, OrderStatusProvider, RequestReceiptButton } from "@/components/rms/OrderStatus";
 import { FACEBOOK_URL, GOOGLE_MAPS_DIRECTIONS_URL, INSTAGRAM_URL, TIKTOK_URL } from "@/lib/business-links";
 
 /**
@@ -478,7 +478,11 @@ export default function CustomerMenuApp() {
   /* ── Submitted confirmation ── */
   if (submitted) {
     return (
+      <OrderStatusProvider tableId={tableId ?? 0} refreshKey={statusRefreshKey}>
       <div className="min-h-screen bg-[#FAF6F0] flex items-center justify-center p-6">
+        {/* The guest just ordered and wants to see WHAT they ordered: the same
+            floating status pill as on the menu, above the language button. */}
+        <OrderStatusDock />
         <div className="bg-white rounded-3xl border-2 border-[#C9A227] p-8 max-w-sm w-full text-center space-y-4 shadow-2xl">
           <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-9 h-9 text-emerald-600" />
@@ -506,6 +510,7 @@ export default function CustomerMenuApp() {
           </button>
         </div>
       </div>
+      </OrderStatusProvider>
     );
   }
 
@@ -624,6 +629,10 @@ export default function CustomerMenuApp() {
     <OrderStatusProvider tableId={tableId ?? 0} refreshKey={statusRefreshKey}>
     <div className="min-h-screen bg-[#FAF6F0] pb-28">
       <LanguageToggle />
+      {/* Floating order-status pill (above the language button): the dish list
+          with live Accepted / Preparing / Ready chips. Renders nothing until
+          this table has an order, whoever sent it. */}
+      <OrderStatusDock />
       {/* Header with logo */}
       <header className="bg-[#2C1B17] text-white sticky top-0 z-40 shadow-xl">
         <div className="px-4 py-2.5 flex items-center justify-between max-w-lg mx-auto">
@@ -645,11 +654,11 @@ export default function CustomerMenuApp() {
         {t("intro")}
       </div>
 
-      {/* the one guest action after ordering: call for the bill/receipt. The
-          live order-status UI (pill, panel, progress bar) is gone for now —
-          once this table has an order the guest sees only this button, and
-          after tapping it, the confirmation. `empty:hidden` keeps the gap
-          away while there is nothing to show. */}
+      {/* the guest action after ordering: call for the bill/receipt. The live
+          order status floats above the language button; once this table has
+          an order the guest sees that pill plus this button, and after
+          tapping it, the confirmation. `empty:hidden` keeps the gap away
+          while there is nothing to show. */}
       <div className="max-w-lg mx-auto px-4 pt-3 empty:hidden">
         <RequestReceiptButton />
       </div>

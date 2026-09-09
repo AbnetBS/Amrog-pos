@@ -19,9 +19,9 @@
  *   5. The waiter screen frees tables with "Table cleared" and warns when the
  *      crew is still preparing items.
  *   6. The owner can switch modes (cashier_mode setting, default print-queue).
- *   7. GROUP 11 release gate: stations only see items the cashier released —
- *      a waiter's order reaches the crew when she taps ✓ PRINTED, additions
- *      wait for the re-print.
+ *   7. INSTANT RELEASE (owner's decision, Sept 2026): the SEND releases the
+ *      food, never the print. A waiter's order AND anything added later land
+ *      on the crew's lists the same second; the print is EFD audit only.
  *
  * Run with: node scripts/verify-print-queue.mjs  (wired into `npm test`)
  */
@@ -64,13 +64,16 @@ function pass(name, cond) {
 
 /* ── 1b. "Printed Today" fills at PRINT time (not table-clear) ────────────── */
 /* The panel is her daily cross-check against the EFD receipt count, so it must
- * count HER action (the print): every bill with printedAt TODAY, any status,
- * newest print first. A cleared bill STAYS in the list; yesterday's never
- * pollute it. The cashier loads exactly this endpoint in print-queue mode. */
+ * count HER action (the print): every bill with printedAt TODAY on the
+ * ETHIOPIAN wall clock, newest print first. A cleared bill STAYS in the
+ * list; yesterday's never pollute it; CANCELLED bills are excluded (a voided
+ * order is not a sale). The cashier loads exactly this endpoint in
+ * print-queue mode. */
 {
   pass("?printedToday=1 endpoint exists", /printedTodayOnly/.test(tickets));
-  pass("printedToday filters by printedAt >= start of today (old bills never pollute)", /startOfToday\.setHours\(0, 0, 0, 0\)/.test(tickets) && /gte\(tickets\.printedAt, startOfToday\)/.test(tickets));
-  pass("printedToday takes any status (printed AND later closed stay)", /isNotNull\(tickets\.printedAt\)/.test(tickets));
+  pass("printedToday window is the ETHIOPIAN day (old bills never pollute)", /etStartOfToday\(\)/.test(tickets) && /etStartOfCalendarDay\(/.test(tickets) && /gte\(tickets\.printedAt, startOfToday\)/.test(tickets));
+  pass("printedToday excludes cancelled bills (a void is not a sale)", /notInArray\(tickets\.status, \["cancelled"\]\)/.test(tickets));
+  pass("printedToday keeps printed AND later closed bills", /isNotNull\(tickets\.printedAt\)/.test(tickets));
   pass("printedToday is ordered by the print stamp, newest first", /orderBy\(desc\(tickets\.printedAt\)\)/.test(tickets));
   pass("printedToday cards carry items (cards expand to the full bill)", /const needItems = !paidOnly && !finishedOnly/.test(tickets));
   pass("cashier loads Printed Today from the print endpoint in print-queue mode", /\/api\/tickets\?printedToday=1/.test(cashier));
@@ -96,16 +99,16 @@ function pass(name, cond) {
 /* ── 3. Additions: ONLY the new items go to her To Print list ─────────────── */
 /* When items land on an already-printed (still open) bill, the cashier must
  * NOT re-key the whole bill into the EFD. Her queue card shows ONLY the
- * not-yet-printed items (same cutoff as the release gate: item.createdAt >
- * printedAt), labeled as an addition to an existing bill; the full bill is one
- * tap away for context. After her ✓ PRINTED the same-status PUT refreshes
- * printedAt (idempotent), the card leaves the queue, the items merge into the
- * existing bill and the Group 11 gate releases them. Closed bills can never
- * receive additions (one-active-per-table + closed terminal). */
+ * not-yet-printed items (her EFD-only cutoff: item.createdAt > printedAt),
+ * labeled as an addition to an existing bill; the full bill is one tap away
+ * for context. The crews ALREADY have these lines (instant release) — after
+ * her ✓ PRINTED the same-status PUT just refreshes printedAt (idempotent)
+ * and the card leaves the queue. Closed bills can never receive additions
+ * (one-active-per-table + closed terminal). */
 {
   pass("additions counted from order_submissions AFTER the last print", /unprintedSubmissions/.test(tickets) && /gt\(orderSubmissions\.createdAt, tickets\.printedAt\)/.test(tickets));
   pass("submissions-count failure degrades gracefully (old DBs keep working)", /unprintedByTicket\.get\(\(t as \{ id: number \}\)\.id\) \|\| 0/.test(tickets));
-  pass("cashier derives the new items with the SAME cutoff the release gate uses (createdAt > printedAt)", /isNewUnprinted/.test(cashier) && /new Date\(item\.createdAt\)\.getTime\(\) > new Date\(item\.printedAt|new Date\(i\.createdAt\)\.getTime\(\) > new Date\(/.test(cashier));
+  pass("cashier derives the new items with her EFD-only cutoff (createdAt > printedAt)", /isNewUnprinted/.test(cashier) && /new Date\(item\.createdAt\)\.getTime\(\) > new Date\(item\.printedAt|new Date\(i\.createdAt\)\.getTime\(\) > new Date\(/.test(cashier));
   pass("additions queue card labels the new items count ('NEW item(s) on existing bill')", /NEW item/.test(cashier) && /on existing bill/.test(cashier));
   pass("additions card defaults to ONLY the new items, with a total of just those", /newItemsOf/.test(cashier) && /newTotal/.test(cashier) && /new items only/.test(cashier));
   pass("additions card can expand to the full bill for context (new items highlighted)", /toggleFullBill/.test(cashier) && /View full bill for context/.test(cashier));
@@ -141,30 +144,44 @@ function pass(name, cond) {
   pass("admin Settings tab can switch the workflow", /Cashier Print-Queue Mode/.test(admin) && /cashier_mode: settingsForm\.cashier_mode === "print-queue" \? "full" : "print-queue"/.test(admin));
 }
 
-/* ── 7. THE RELEASE RULE (replaces the old print gate) ───────────────────── */
-/* Owner's decision, Sept 2026: the SEND releases the food, not the print.
- * One tap by the waiter (or the cashier's CONFIRM & SEND on a held QR order)
- * reaches the kitchen, the barista and the cashier in the same second. The
- * cashier still keys the bill into the EFD and prints it, but nobody is
- * waiting for that tap. A cashier's plain ACCEPT of a QR order only HOLDS
- * the bill (see section 8). */
+/* ── 7. INSTANT RELEASE (the SEND releases the food, never the print) ────── */
+/* Owner's decision, Sept 2026: one tap by the waiter (or the cashier's
+ * CONFIRM & SEND on a held QR order) reaches every crew with lines on the
+ * bill AND the cashier in the same second — and food ADDED later to a sent
+ * bill lands on the crew's lists the same second too, exactly like the
+ * cashier and waiter see it. The cashier still keys every bill into the EFD
+ * and prints it, but nobody is waiting for that tap: the print is audit only.
+ * A cashier's plain ACCEPT of a QR order only HOLDS the bill (see section 8). */
 {
+  const postHalf = tickets.split("export async function PUT")[0] || "";
+  const putHalf = tickets.split("export async function PUT")[1] || "";
   pass("the crew sees an order as soon as it is ACCEPTED (confirmed)", /notInArray\(tickets\.status, \["paid", "cancelled", "closed", "pending_waiter"\]\)/.test(stationsApi));
   pass("orders nobody accepted yet stay off the crew's list", /"pending_waiter"/.test(stationsApi));
-  pass("the ORIGINAL order is released by the acceptance stamp", /confirmedAt: tickets\.confirmedAt/.test(stationsApi) && /releaseCutoff/.test(stationsApi) && /Math\.max\(c \?\? 0, p \?\? 0\)/.test(stationsApi));
-  pass("food ADDED later waits for the print, exactly like before", /new Date\(it\.createdAt\)\.getTime\(\) <= cutoff/.test(stationsApi));
-  pass("legacy items without a timestamp stay visible (old DBs keep working)", /if \(!it\.createdAt\) return true/.test(stationsApi));
+  pass("RELEASE RULE: held = neither stamp (isHeld); a sent bill releases ALL lines",
+    /!confirmedAt && !printedAt/.test(stationsApi) &&
+    /if \(isHeld\(confirmedAt, printedAt\)\) return \[\];/.test(stationsApi) &&
+    /return items;/.test(stationsApi));
+  pass("no per-line cutoff survives anywhere (additions never wait for a print)",
+    !/releaseCutoff/.test(stationsApi) && !/prevStamp/.test(stationsApi) && !/prevStamp/.test(tickets));
+  pass("the gate is bill-level (never looks at line time), so legacy lines stay visible",
+    !/createdAt/.test((stationsApi.split("const releasedItems = (")[1] || "").split("};")[0] || ""));
   pass("the acceptance stamp is written and self-heals on old databases", /updates\.confirmedAt = new Date\(\)/.test(tickets) && /confirmedAt: timestamp\("confirmed_at"\)/.test(schema) && /confirmed_at: \{ type: "timestamp", dropNotNull: true \}/.test(migrate));
   pass("a ticket with zero released items disappears from the station list", /\.filter\(\(t\) => t\.items\.length > 0\)/.test(stationsApi));
   pass("accepting rings ONLY the crews with items on the bill, plus the cashier", /case "confirmed"/.test(alerts) && /t\.stations/.test(alerts) && /fana-cook-\$\{t\.id\}-\$\{station\}/.test(alerts) && /New order to cook/.test(alerts));
   pass("the route tells the matrix which crews the bill actually involves", /stations: billStations/.test(tickets) && /crewRows\.map\(\(r\) => stationOf\(r\.stationName\)\)/.test(tickets));
   pass("the waiter's button says where the order goes", /Accept & Send → Stations & Cashier/.test(waiter));
-  pass("the cashier's button says PRINTED & SEND on an addition card", /added \? "✓ PRINTED & SEND" : "✓ PRINTED"/.test(cashier));
+  pass("the cashier's button says plain ✓ PRINTED (the print sends nothing — instant release)",
+    /<Printer className="w-5 h-5" \/> ✓ PRINTED/.test(cashier) && !/PRINTED & SEND/.test(cashier));
   pass("her addition card still shows ONLY the new items", /isNewUnprinted/.test(cashier) && /new items only/.test(cashier));
-  pass("the print appends the new items to that table's order for the crew", /body\.status === "printed" \|\| \(body\.status === "preparing"/.test(tickets) && /fana-station-/.test(tickets));
-  pass("only the stations that got NEW items are rung (no idle re-ring)", /prevStamp === null \|\| !r\.createdAt \|\| new Date\(r\.createdAt\)\.getTime\(\) > prevStamp/.test(tickets) && /\[cur\.printedAt, cur\.confirmedAt\]/.test(tickets));
-  pass("adding food never wakes the crew directly (it goes to the cashier)", !/New items to cook/.test(tickets));
-  pass("kitchen and barista only ever see their OWN items", /eq\(ticketItems\.stationName, station\)/.test(stationsApi));
+  pass("the print NEVER pushes the crews (EFD audit only — they already have the lines)",
+    !/sendPushToRoles\(stations/.test(putHalf) && !/fana-station-/.test(putHalf));
+  pass("only the stations with NEW lines in the submission are rung (no idle re-ring)",
+    /submissionStations/.test(postHalf) && /newStations\.length > 0/.test(postHalf));
+  pass("the crew push fires only for a SENT bill (pending and held bills stay silent)",
+    /billSent/.test(postHalf) && /pushed\.status !== "pending_waiter"/.test(postHalf));
+  pass("each submission rings as its own event (distinct station tag)", /fana-station-add-\$\{pushed\.id\}/.test(postHalf));
+  pass("adding food to a sent bill wakes the crews with new lines (instant release)", /fana-station-add-/.test(postHalf));
+  pass("every crew only ever sees its OWN items", /eq\(ticketItems\.stationName, station\)/.test(stationsApi));
   pass("the cashier still records the EFD print (audit + daily count)", /body\.status === "printed"/.test(tickets) && /updates\.printedAt = new Date\(\)/.test(tickets));
 }
 
@@ -183,7 +200,7 @@ function pass(name, cond) {
   pass("CONFIRM & SEND hits the send action with her name", /body: JSON\.stringify\(\{ id: t\.id, send: true, confirmedBy: staffName \|\| "\(cashier\)" \}\)/.test(cashier));
   pass("the route stamps the release on send but NOT on a cashier's plain accept", /const sendRequested = body\.send === true;/.test(tickets) && /holdAfterConfirm/.test(tickets) && /if \(!holdAfterConfirm\) updates\.confirmedAt = new Date\(\);/.test(tickets));
   pass("the send fires the release alerts; a held accept fires nobody", /const releasedBySend = sendRequested && !cur\.confirmedAt && !cur\.printedAt;/.test(tickets) && /alertStatus && !\(alertStatus === "confirmed" && holdAfterConfirm\)/.test(tickets));
-  pass("a held bill releases NOTHING to the crews (no stamp → no cutoff)", /if \(cutoff === null\) return \[\];/.test(stationsApi));
+  pass("a held bill releases NOTHING to the crews (neither stamp → empty)", /if \(isHeld\(confirmedAt, printedAt\)\) return \[\];/.test(stationsApi));
   pass("staff submissions are SENT at creation (release stamp lands after the items)", /if \(!isCustomer && activeTickets\.length === 0\)/.test(tickets) && /\.set\(\{ confirmedAt: new Date\(\) \}\)/.test(tickets));
   pass("guest additions to a HELD bill tell the cashier, not the crews", /held bill is now/.test(tickets));
   pass("migration backfills pre-hold released bills so in-flight work stays visible", /QR HOLD FLOW backfill/.test(migrate) && /COALESCE\(created_by, ''\) <> 'Customer \(QR\)'/m.test(migrate));
@@ -200,8 +217,9 @@ console.log("\n✅ Print-queue regression test PASSED");
 console.log("   • cashier: key into EFD → print → tap ✓ PRINTED (one click per order)");
 console.log("   • waiter: guests leave → clear table → table turns green");
 console.log("   • payments stay in the EFD/POS — full mode still available via Settings");
-console.log("   • the ORIGINAL order is released by the SEND: one waiter tap (or the");
-console.log("     cashier's CONFIRM & SEND on a held QR order) reaches the crews that");
-console.log("     have items on it (kitchen / barista / buna) and the cashier at once");
-console.log("   • food ADDED later keeps the print-and-send flow: cashier sees only the");
-console.log("     new items, her print sends them to that table's order for the crew");
+console.log("   • INSTANT RELEASE: one waiter tap (or the cashier's CONFIRM & SEND on");
+console.log("     a held QR order) reaches the crews that have items on it (kitchen /");
+console.log("     barista / buna / juice) and the cashier at once — and food ADDED");
+console.log("     later lands on the crew's lists the same second too");
+console.log("   • the print is EFD audit only: it keys receipt #2 for new items but");
+console.log("     never gates or re-rings the crews");

@@ -5,22 +5,10 @@ import { ensureTablesExist } from "@/db/migrate";
 import { inArray, or, gt } from "drizzle-orm";
 import { requireAdmin } from "@/lib/session";
 import { stationOf, STATION_NAMES, type StationName } from "@/lib/stations";
+import { isTodayET, isYesterdayET, etHour } from "@/lib/timezone";
 
-function isToday(d: Date | string | null | undefined): boolean {
-  if (!d) return false;
-  const date = new Date(d);
-  const now = new Date();
-  return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
-}
-
-function isYesterday(d: Date | string | null | undefined): boolean {
-  if (!d) return false;
-  const date = new Date(d);
-  const y = new Date();
-  y.setDate(y.getDate() - 1);
-  return date.getFullYear() === y.getFullYear() && date.getMonth() === y.getMonth() && date.getDate() === y.getDate();
-}
-
+// Day boundaries follow the ETHIOPIAN wall clock (see @/lib/timezone), never
+// the server's: the office PC and the report must agree on what "today" is.
 function isWithinDays(d: Date | string | null | undefined, days: number): boolean {
   if (!d) return false;
   const date = new Date(d);
@@ -52,10 +40,24 @@ function isSold(t: { status: string; printedAt: Date | string | null }): boolean
   return (t.status === "printed" || t.status === "closed") && !!t.printedAt;
 }
 
-export async function GET() {
+/**
+ * PERIOD REPORTS (owner, Sept 2026): ?period=today (default) | yesterday |
+ * week | month. The four summary cards are ALWAYS all-period (they are the
+ * selector), but every section below them — station cross-check, KPIs, peak
+ * hours, highest-selling, categories, receipts and the printed-bills archive —
+ * describes ONLY the selected period. Callers without ?period= get exactly the
+ * old today-based response (the order-history feed never takes a period).
+ */
+const PERIOD_LABELS = { today: "Today", yesterday: "Yesterday", week: "Last 7 Days", month: "Last 30 Days" } as const;
+type Period = keyof typeof PERIOD_LABELS;
+
+export async function GET(request: Request) {
   const __auth = await requireAdmin();
   if (!__auth.ok) return __auth.response;
   await ensureTablesExist();
+  const rawPeriod = new URL(request.url).searchParams.get("period");
+  const period: Period =
+    rawPeriod === "yesterday" || rawPeriod === "week" || rawPeriod === "month" ? rawPeriod : "today";
   try {
     // PERFORMANCE: every figure in this report only spans the last 30 days —
     // scope the tickets query in SQL (instead of loading the entire table forever)
@@ -80,8 +82,8 @@ export async function GET() {
     // workflow: printed / closed) or marked paid/completed (full mode).
     const revenueTickets = allTickets.filter(isSold);
 
-    const todayTickets = revenueTickets.filter((t) => isToday(soldAt(t)));
-    const yesterdayTickets = revenueTickets.filter((t) => isYesterday(soldAt(t)));
+    const todayTickets = revenueTickets.filter((t) => isTodayET(soldAt(t)));
+    const yesterdayTickets = revenueTickets.filter((t) => isYesterdayET(soldAt(t)));
     const weekTickets = revenueTickets.filter((t) => isWithinDays(soldAt(t), 7));
     const monthTickets = revenueTickets.filter((t) => isWithinDays(soldAt(t), 30));
 
@@ -92,28 +94,46 @@ export async function GET() {
     const todayOrders = todayTickets.length;
     const averageOrderValue = todayOrders > 0 ? Math.round(todayRevenue / todayOrders) : 0;
 
+    // Every section below describes ONLY the selected period. The four summary
+    // sets above stay all-period (they feed the selector cards).
+    const scopeTickets =
+      period === "yesterday" ? yesterdayTickets
+      : period === "week" ? weekTickets
+      : period === "month" ? monthTickets
+      : todayTickets;
+    const inScopeDay =
+      period === "yesterday" ? isYesterdayET
+      : period === "week" ? (d: Date | string | null | undefined) => isWithinDays(d, 7)
+      : period === "month" ? (d: Date | string | null | undefined) => isWithinDays(d, 30)
+      : isTodayET;
+
     // GROUP 4 / ITEM 2 — scope item reads to what the report ACTUALLY uses:
     //  • popular-items, category-sales & the STATION CROSS-CHECK need items of
-    //    TODAY'S sold tickets only
+    //    the SELECTED PERIOD'S sold tickets only
     //  • order history needs items of the newest 200 closed tickets only
-    //  • the "Printed Today" archive (the admin's copy of the cashier's daily
-    //    cross-check list) needs items of every bill printed today
-    const todayTicketIds = new Set(todayTickets.map((t) => t.id));
+    //  • the printed-bills archive (the admin's copy of the cashier's daily
+    //    cross-check list) needs items of every bill printed in the period
+    const scopeTicketIds = new Set(scopeTickets.map((t) => t.id));
 
-    // ── PRINTED TODAY (the paper world's receipt pile, registered as history) ──
-    // Every bill the cashier keyed into the EFD today, whatever happened to it
-    // afterwards (still open, later cleared). Cancelled bills are excluded: a
-    // voided order is not a sale. Same rule as the cashier's own "Printed Today"
-    // panel, so the two lists always agree.
-    const printedTodayTickets = allTickets
-      .filter((t) => t.status !== "cancelled" && t.printedAt && isToday(t.printedAt))
+    // ── PRINTED ARCHIVE (the paper world's receipt pile, registered as history) ──
+    // Every bill the cashier keyed into the EFD in the selected period, whatever
+    // happened to it afterwards (still open, later cleared). Cancelled bills are
+    // excluded: a voided order is not a sale. Same rule as the cashier's own
+    // "Printed Today" panel, so the two lists always agree on the today period.
+    // Long periods cap the CARD list (a month of bills would bury the page and
+    // the payload) but the TOTAL below always covers the whole period.
+    const ARCHIVE_CAP = 60;
+    const printedPeriodTickets = allTickets
+      .filter((t) => t.status !== "cancelled" && t.printedAt && inScopeDay(t.printedAt))
       .sort((a, b) => new Date(b.printedAt || 0).getTime() - new Date(a.printedAt || 0).getTime());
+    const archiveCapped = printedPeriodTickets.length > ARCHIVE_CAP;
+    const printedTodayTickets = archiveCapped ? printedPeriodTickets.slice(0, ARCHIVE_CAP) : printedPeriodTickets;
     const printedTodayIds = printedTodayTickets.map((t) => t.id);
-    const printedTodayTotal = printedTodayTickets.reduce((s, t) => s + (t.totalAmount || 0), 0);
+    const printedTodayTotal = printedPeriodTickets.reduce((s, t) => s + (t.totalAmount || 0), 0);
 
     // Full-payment deployments that never print: their paid/completed bills of
-    // today are still today's sales, so include them in the archive too.
-    const paidTodayIds = todayTickets.filter((t) => !printedTodayIds.includes(t.id)).map((t) => t.id);
+    // the period are still sales, so include them in the archive too.
+    const paidTodayIds = scopeTickets.filter((t) => !printedTodayIds.includes(t.id)).map((t) => t.id);
 
     const orderHistoryTickets = allTickets
       .filter((t) => t.status === "paid" || t.status === "completed" || t.status === "cancelled" || t.status === "closed")
@@ -121,7 +141,7 @@ export async function GET() {
       .slice(0, 200);
     const historyTicketIds = orderHistoryTickets.map((t) => t.id);
 
-    const itemTicketIds = [...new Set([...todayTicketIds, ...printedTodayIds, ...paidTodayIds, ...historyTicketIds])];
+    const itemTicketIds = [...new Set([...scopeTicketIds, ...printedTodayIds, ...paidTodayIds, ...historyTicketIds])];
     type ItemRow = typeof ticketItems.$inferSelect;
     const emptyItems: ItemRow[] = [];
     const [scopedItems, historyItems] = await Promise.all([
@@ -138,15 +158,15 @@ export async function GET() {
       itemsByTicket.get(it.ticketId)!.push(it);
     }
 
-    // Peak selling hours — orders grouped by hour of the day (today)
+    // Peak selling hours — the period's orders grouped by hour of the day.
+    // Hours are read on the ETHIOPIAN wall clock, like the office PC shows.
     const hourAgg: Array<{ hour: number; orders: number; revenue: number }> = Array.from({ length: 24 }, (_, h) => ({
       hour: h,
       orders: 0,
       revenue: 0,
     }));
-    for (const t of todayTickets) {
-      const d = new Date(soldAt(t) as Date);
-      const h = d.getHours();
+    for (const t of scopeTickets) {
+      const h = etHour(soldAt(t) as Date);
       hourAgg[h].orders += 1;
       hourAgg[h].revenue += t.totalAmount || 0;
     }
@@ -154,8 +174,9 @@ export async function GET() {
     const peakHour =
       hourlySales.length > 0 ? hourlySales.reduce((a, b) => (b.revenue > a.revenue ? b : a), hourlySales[0]) : null;
 
-    // Popular items (from today's sold tickets, non-removed)
-    const todayItems = [...todayTicketIds].flatMap((id) => (itemsByTicket.get(id) || []).filter((it) => !it.removed));
+    // Popular items (from the period's sold tickets, non-removed)
+    const todayItems = [...scopeTicketIds].flatMap((id) => (itemsByTicket.get(id) || []).filter((it) => !it.removed));
+    const totalItems = todayItems.reduce((s, it) => s + (Number(it.quantity) || 0), 0);
     const itemAgg = new Map<string, { quantity: number; revenue: number }>();
     for (const it of todayItems) {
       const cur = itemAgg.get(it.name) || { quantity: 0, revenue: 0 };
@@ -172,22 +193,26 @@ export async function GET() {
       .sort((a, b) => b.quantity - a.quantity)
       .slice(0, 8);
 
-    // Sales by category
-    const catAgg = new Map<string, number>();
+    // Sales by category — units AND revenue, so the printed report can show
+    // both the amount sold and the total price per category.
+    const catAgg = new Map<string, { quantity: number; revenue: number }>();
     for (const it of todayItems) {
       const cName = itemToCatName(it.category);
-      catAgg.set(cName, (catAgg.get(cName) || 0) + it.price * it.quantity);
+      const cur = catAgg.get(cName) || { quantity: 0, revenue: 0 };
+      cur.quantity += it.quantity;
+      cur.revenue += it.price * it.quantity;
+      catAgg.set(cName, cur);
     }
     const categorySales = Array.from(catAgg.entries())
-      .map(([category, revenue]) => ({ category, revenue }))
+      .map(([category, v]) => ({ category, quantity: v.quantity, revenue: v.revenue }))
       .sort((a, b) => b.revenue - a.revenue);
 
-    // ── CROSS-CHECK BY STATION (the paper world's three stacks) ──
+    // ── CROSS-CHECK BY STATION (the paper world's four stacks) ──
     // Before this system, the cross-checker collected the kitchen's, the
-    // barista's and the buna makers' order papers, added each pile, and compared
-    // the total with the cashier's EFD receipts. This is the same three piles
-    // from today's sold bills: per station the number of bills it had lines on,
-    // the units it made and the ETB those lines add up to.
+    // barista's, the buna makers' and the juice maker's order papers, added each
+    // pile, and compared the total with the cashier's EFD receipts. This is the
+    // same four piles from the period's sold bills: per station the number of
+    // bills it had lines on, the units it made and the ETB those lines add up to.
     type StationAgg = { orders: Set<number>; quantity: number; revenue: number };
     type StationItemAgg = Map<string, { quantity: number; revenue: number }>;
     const stationAgg = new Map<StationName, StationAgg>();
@@ -216,9 +241,10 @@ export async function GET() {
         .sort((a, b) => b.quantity - a.quantity)
     );
 
-    // Payment method statistics
+    // Payment method statistics (kept for historical bills; the report UI no
+    // longer shows methods — the EFD is the money system of record)
     const payAgg = new Map<string, { count: number; revenue: number }>();
-    for (const t of todayTickets) {
+    for (const t of scopeTickets) {
       const m = t.paymentMethod || "cash";
       const cur = payAgg.get(m) || { count: 0, revenue: 0 };
       cur.count += 1;
@@ -232,7 +258,7 @@ export async function GET() {
     }));
 
     // Receipt METADATA list only — photos load on demand via /api/tickets/receipt?id=
-    const receipts = revenueTickets
+    const receipts = scopeTickets
       .filter((t) => t.receiptImage)
       .map((t) => ({
         id: t.id,
@@ -243,16 +269,17 @@ export async function GET() {
       }))
       .slice(0, 30);
 
-    // The "Printed Today" archive for the owner — the same bills the cashier
+    // The printed-bills archive for the owner — the same bills the cashier
     // sees below her tables, WITH items so each card opens the full bill for
-    // the end-of-day cross-check. (Full-mode paid bills of today are appended
-    // so the archive is complete whatever workflow the owner runs.)
+    // the cross-check. (Full-mode paid bills of the period are appended so the
+    // archive is complete whatever workflow the owner runs. Long periods show
+    // the newest ARCHIVE_CAP bills; the total above still covers everything.)
     const printedToday = printedTodayTickets.map((t) => ({
       ...t,
       items: itemsByTicket.get(t.id) || [],
     }));
     for (const id of paidTodayIds) {
-      const t = todayTickets.find((x) => x.id === id);
+      const t = scopeTickets.find((x) => x.id === id);
       if (t) printedToday.push({ ...t, items: itemsByTicket.get(id) || [] });
     }
 
@@ -281,12 +308,18 @@ export async function GET() {
       orderHistory,
       hourlySales,
       peakHour,
-      // Cross-check by station (today): the barista / kitchen / buna piles.
+      // Cross-check by station (selected period): the four station piles.
       stationSales,
       stationItems,
-      // The printed-today archive + its total (compare with the EFD receipt pile).
+      // The printed-bills archive + its total (compare with the EFD receipt pile).
       printedTodayTotal,
       printedToday,
+      // Which period the sections above describe + helpers for the UI.
+      period,
+      periodLabel: PERIOD_LABELS[period],
+      totalItems,
+      archiveCapped,
+      archiveTotal: printedPeriodTickets.length + paidTodayIds.length,
     });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });

@@ -1,19 +1,21 @@
 #!/usr/bin/env tsx
 /**
- * Render-level smoke test for the guest's receipt button
+ * Render-level smoke test for the guest's order status
  * (`src/components/rms/OrderStatus.tsx`) — the piece of the guest flow that
  * static source inspection cannot prove: it is real React that a phone will
  * run, so this actually mounts it in jsdom, feeds it the payload shape that
  * `/api/table-status` returns, and CLICKS through the whole flow:
  *
- *   no order → nothing rendered · order appears → ONE receipt button (no pill,
- *   no panel, no progress bar) → tap → POST /api/table-status with only the
- *   table id → disabled with "Sending…" while in flight (a double-tap cannot
- *   send twice) → replaced by the confirmation with the time → the button
- *   never comes back (more polls, refreshKey bumps) → paid/cancelled bills
- *   show nothing → a drinks-only bill still gets the button → no table id
- *   never polls → a 500 from the endpoint is swallowed and the next poll
- *   recovers.
+ *   no order → nothing rendered · order appears → ONE receipt button → tap →
+ *   POST /api/table-status with only the table id → disabled with "Sending…"
+ *   while in flight (a double-tap cannot send twice) → replaced by the
+ *   confirmation with the time → the button never comes back (more polls,
+ *   refreshKey bumps) → paid/cancelled bills show no button → a drinks-only
+ *   bill still gets the button → no table id never polls → a 500 from the
+ *   endpoint is swallowed and the next poll recovers → the floating status
+ *   pill appears above the language button, expands to the dish list with
+ *   Accepted / Preparing / Ready chips (buna always reads Accepted), and the
+ *   refresh button re-polls.
  *
  * Requires the `jsdom` devDependency (no browser, no database, no server).
  * Run with: npx tsx scripts/verify-order-status-ui.tsx   (wired into `npm test`)
@@ -87,7 +89,7 @@ const fakeFetch = async (url: string, init?: RequestInit) => {
   if (mode === "drinks") {
     return ok(
       payload({
-        phase: "drinks_only",
+        phase: "confirmed",
         lines: [{ name: "Macchiato", quantity: 2, notes: "", station: "barista", stationStatus: "pending" }],
       })
     );
@@ -115,7 +117,7 @@ async function main() {
   const React = (await import("react")).default;
   const { createRoot } = await import("react-dom/client");
   const { act } = await import("react");
-  const { OrderStatusProvider, RequestReceiptButton } = await import(
+  const { OrderStatusProvider, OrderStatusDock, RequestReceiptButton } = await import(
     "../src/components/rms/OrderStatus"
   );
   type Root = ReturnType<typeof createRoot>;
@@ -151,6 +153,18 @@ async function main() {
           OrderStatusProvider,
           { tableId, refreshKey },
           React.createElement(RequestReceiptButton)
+        )
+      );
+    });
+
+  /** (Re)mount the floating status dock for one table. */
+  const mountDock = (root: Root, tableId: number, refreshKey: number) =>
+    act(async () => {
+      root.render(
+        React.createElement(
+          OrderStatusProvider,
+          { tableId, refreshKey },
+          React.createElement(OrderStatusDock)
         )
       );
     });
@@ -275,9 +289,71 @@ async function main() {
 
   await act(async () => root2.unmount());
 
+  // ── 9. the floating status dock: pill → tap → dish list with chips ───────
+  const dockFetch = async (url: string, init?: RequestInit) => {
+    calls.push({ url: String(url), init });
+    return ok(
+      payload({
+        phase: "preparing",
+        lines: [
+          { name: "Beyaynet", quantity: 2, notes: "", station: "kitchen", stationStatus: "done" },
+          { name: "Soup", quantity: 1, notes: "No pepper", station: "kitchen", stationStatus: "accepted" },
+          { name: "Macchiato", quantity: 2, notes: "", station: "barista", stationStatus: "pending" },
+          { name: "Jebena Buna", quantity: 1, notes: "", station: "buna", stationStatus: "pending" },
+        ],
+      })
+    );
+  };
+  (dom.window as unknown as { fetch: unknown }).fetch = dockFetch;
+  g.fetch = dockFetch;
+  const hostDock = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(hostDock);
+  const rootDock = createRoot(hostDock);
+  const dockText = () => `${hostDock.textContent || ""}`;
+  calls.length = 0;
+  await mountDock(rootDock, 5, 0);
+  await flush();
+  const pill = byText("Your order", hostDock);
+  pass("the floating pill appears once the table has an order", pill !== null);
+  pass("the pill floats above the language button", (pill as HTMLElement)?.parentElement?.className.includes("bottom-[76px]") === true);
+  pass("collapsed, the dish list stays hidden", !/Beyaynet/.test(dockText()));
+  await click(pill);
+  await flush(0);
+  pass("one tap opens the panel with the dishes", /Beyaynet/.test(dockText()) && /Soup/.test(dockText()) && /Macchiato/.test(dockText()));
+  pass("the guest note rides along (No pepper)", /No pepper/.test(dockText()));
+  pass("the phase sentence is shown", /being prepared/.test(dockText()));
+  pass("a done line reads Ready", /Beyaynet[\s\S]{0,300}Ready/.test(hostDock.innerHTML));
+  pass("an accepted line reads Preparing", /Soup[\s\S]{0,300}Preparing/.test(hostDock.innerHTML));
+  pass("a pending drink reads Accepted", /Macchiato[\s\S]{0,300}Accepted/.test(hostDock.innerHTML));
+  pass("a pending BUNA line reads Accepted too (buna makers have no phones)", /Jebena Buna[\s\S]{0,300}Accepted/.test(hostDock.innerHTML));
+  pass("the arrival time and the running total are shown", /Arrived \d{2}:\d{2}/.test(dockText()) && /240 ETB/.test(dockText()));
+  calls.length = 0;
+  await click(byText("Refresh now", hostDock));
+  await flush();
+  pass("the refresh button re-polls immediately", calls.some((c) => c.url === "/api/table-status?table=5"));
+  await click(byText("Your order", hostDock));
+  await flush(0);
+  pass("tapping the pill again collapses the panel", !/Beyaynet/.test(dockText()));
+  await act(async () => rootDock.unmount());
+
+  // The dock renders nothing at all without an order.
+  const emptyDockFetch = async (url: string, init?: RequestInit) => {
+    calls.push({ url: String(url), init });
+    return ok({ tableId: 5, ticket: null });
+  };
+  (dom.window as unknown as { fetch: unknown }).fetch = emptyDockFetch;
+  g.fetch = emptyDockFetch;
+  const hostDockEmpty = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(hostDockEmpty);
+  const rootDockEmpty = createRoot(hostDockEmpty);
+  await mountDock(rootDockEmpty, 5, 0);
+  await flush();
+  pass("no order → no pill, no panel", hostDockEmpty.querySelectorAll("button").length === 0);
+  await act(async () => rootDockEmpty.unmount());
+
   console.log(
     failures === 0
-      ? "\n✅ Guest receipt-button UI smoke test PASSED"
+      ? "\n✅ Guest order-status UI smoke test PASSED"
       : `\n❌ ${failures} UI smoke assertions FAILED`
   );
   process.exit(failures === 0 ? 0 : 1);

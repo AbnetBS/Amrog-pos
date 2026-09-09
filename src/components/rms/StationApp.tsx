@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Coffee, CookingPot, RefreshCw, LogOut, CheckCircle2, BellRing, Clock, History, X } from "lucide-react";
+import { Coffee, CookingPot, CupSoda, RefreshCw, LogOut, CheckCircle2, BellRing, Clock, History, X } from "lucide-react";
 import { unlockAudio, playAlarm, playDing } from "@/lib/sound";
 import { formatClock, formatDayMonthYear, minutesSince, waitingLabel } from "@/lib/order-lines";
 import { triggerDesktopNotification } from "@/lib/notifications";
@@ -11,7 +11,7 @@ import PocketAlertsChip from "@/components/rms/PocketAlertsChip";
 import { usePocketAlerts } from "@/lib/use-pocket-alerts";
 import Link from "next/link";
 
-type Station = "barista" | "kitchen";
+type Station = "barista" | "kitchen" | "juice";
 
 interface StaffLite {
   id: number;
@@ -27,6 +27,10 @@ interface StationItem {
   quantity: number;
   notes?: string | null;
   stationStatus: "pending" | "accepted" | "done";
+  /** WHO last pressed Accept/Done on this line (crew-action audit). */
+  stationStatusBy?: string | null;
+  /** WHEN they pressed it (crew-action audit). */
+  stationStatusAt?: string | null;
   /** When THIS line arrived — a later "2 Tea" is newer work than the first one. */
   createdAt?: string | null;
 }
@@ -48,8 +52,8 @@ interface StationTicket {
 /**
  * One order in "Today's History" — every line this crew RECEIVED today, from
  * bills that are still open or already cleared. `releasedAt` is when the work
- * reached them (the send for the original order, the print for additions),
- * which is also the day the history list groups by.
+ * reached them (the send, or the moment an addition landed), which is also
+ * the day the history list groups by.
  */
 interface HistoryTicket {
   id: number;
@@ -69,13 +73,16 @@ interface HistoryTicket {
     quantity: number;
     notes?: string | null;
     stationStatus: string;
+    stationStatusBy?: string | null;
+    stationStatusAt?: string | null;
     createdAt?: string | null;
   }>;
 }
 
 const STATION_META = {
-  barista: { label: "Barista", icon: Coffee, color: "amber", slug: "barista" as Station, desc: "Drinks, juices, coffees & cold beverages" },
+  barista: { label: "Barista", icon: Coffee, color: "amber", slug: "barista" as Station, desc: "Machine coffee & cold beverages" },
   kitchen: { label: "Kitchen (Chef)", icon: CookingPot, color: "emerald", slug: "kitchen" as Station, desc: "Foods, pastries, meals & snacks" },
+  juice: { label: "Juice Maker", icon: CupSoda, color: "lime", slug: "juice" as Station, desc: "Fresh juices, spris & punches" },
 };
 
 export default function StationApp({ station }: { station: Station }) {
@@ -111,6 +118,7 @@ export default function StationApp({ station }: { station: Station }) {
     setHistoryLoading(true);
     try {
       const r = await fetch(`/api/station-items?station=${station}&history=1`);
+      if (r.status === 401) return expireSession();
       if (r.ok) setHistoryTickets(await r.json());
     } catch {
       /* a failed history load keeps the previous list */
@@ -202,11 +210,24 @@ export default function StationApp({ station }: { station: Station }) {
     setPin("");
   };
 
+  // The staff cookie lives 12 hours (one shift). When it dies mid-service the
+  // API answers 401 — going back to the login screen WITH an explanation beats
+  // a silently frozen list showing yesterday's orders as today's work.
+  const expireSession = () => {
+    try {
+      sessionStorage.removeItem(`fana_${station}`);
+    } catch {}
+    setPin("");
+    setLoginError("Your session ended. Log in again to keep receiving orders.");
+    setStaffName("");
+  };
+
   const load = async () => {
     // GROUP 10 FIX: used to skip while the tab was hidden — but the kitchen
     // tablet dims its screen! SSE messages only arrive on change, so always
     // process them: the alarm rings even with a dimmed screen.
     const r = await fetch(`/api/station-items?station=${station}`);
+    if (r.status === 401) return expireSession();
     if (!r.ok) return;
     const data: StationTicket[] = await r.json();
 
@@ -541,7 +562,7 @@ export default function StationApp({ station }: { station: Station }) {
       <div className="max-w-4xl mx-auto px-4 md:px-6 mt-5 space-y-4">
         {tickets.length === 0 ? (
           <div className="bg-[#2C1B17] border border-stone-800 rounded-2xl p-10 text-center text-stone-500 text-xs">
-            All clear • no incoming items for the {meta.label} right now. New orders appear here instantly when the cashier accepts them.
+            All clear • no incoming items for the {meta.label} right now. New orders and added items appear here instantly when they are sent.
           </div>
         ) : (
           tickets.map((t) => (
@@ -610,6 +631,14 @@ export default function StationApp({ station }: { station: Station }) {
                       {i.notes && (
                         <p className={`text-sm font-semibold mt-1 px-2 py-1 rounded-lg bg-amber-950/50 border border-amber-700/40 ${i.stationStatus === "done" ? "text-stone-500 line-through" : "text-amber-200"}`}>
                           📝 {i.notes}
+                        </p>
+                      )}
+                      {/* WHO pressed it: a "done" nobody remembers is always
+                          traceable to a person and a minute, never a mystery. */}
+                      {(i.stationStatus === "done" || i.stationStatus === "accepted") && i.stationStatusBy && (
+                        <p className="text-[11px] font-bold text-stone-400 mt-0.5">
+                          {i.stationStatus === "done" ? "✓ Done" : "▶ Started"} by {i.stationStatusBy}
+                          {i.stationStatusAt ? ` • ${formatClock(i.stationStatusAt)}` : ""}
                         </p>
                       )}
                     </div>
@@ -748,6 +777,12 @@ export default function StationApp({ station }: { station: Station }) {
                                 {i.name} <span className="text-[#C9A227]">x{i.quantity}</span>
                               </p>
                               {i.notes && <p className="text-[11px] text-amber-200/80 italic mt-0.5">📝 {i.notes}</p>}
+                              {(i.stationStatus === "done" || i.stationStatus === "accepted") && i.stationStatusBy && (
+                                <p className="text-[11px] font-bold text-stone-400 mt-0.5">
+                                  {i.stationStatus === "done" ? "✓ Done" : "▶ Started"} by {i.stationStatusBy}
+                                  {i.stationStatusAt ? ` • ${formatClock(i.stationStatusAt)}` : ""}
+                                </p>
+                              )}
                             </div>
                             {i.stationStatus === "done" ? (
                               <span className="shrink-0 text-[10px] font-black text-emerald-400 bg-emerald-950/60 px-2.5 py-1 rounded-full uppercase border border-emerald-700">

@@ -4,9 +4,11 @@ import { requireAdmin } from "@/lib/session";
 import { cleanupOldReceipts } from "@/lib/receipt-cleanup";
 
 /**
- * POST: manually clears receipt PHOTOS for paid bills older than N days
- * (the "Clean Old Receipts" button in the admin Order History tab).
- * Default 30 days (?days=60 to change). The order record is always kept.
+ * POST: permanently deletes old RECEIPTS (bill photos) for finished bills
+ * older than N days (the "Clean Old Receipts" button in the admin Order
+ * History tab). Default 30 days (?days=60 to change). Finished means
+ * completed, closed, paid or cancelled — open tickets are never touched.
+ * The order record itself (items, amounts, method) is always kept.
  *
  * This same cleanup also runs automatically every 24h via src/instrumentation.ts,
  * so this endpoint is a manual override only.

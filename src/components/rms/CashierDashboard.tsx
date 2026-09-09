@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import {
-  Coffee, RefreshCw, LogOut, BellRing, CheckCircle2, XCircle, CreditCard,
-  Banknote, Smartphone, Users, Clock, Image as ImageIcon, Monitor, Printer, AlertTriangle,
+  Coffee, RefreshCw, LogOut, BellRing, CheckCircle2, XCircle,
+  Users, Clock, Image as ImageIcon, Monitor, Printer, AlertTriangle,
 } from "lucide-react";
 import { Ticket, TicketItem, CafeTable, StaffUser } from "@/types";
 import { triggerDesktopNotification } from "@/lib/notifications";
@@ -42,6 +42,8 @@ export default function CashierDashboard() {
   // Additions cards have two views: ONLY the new items (default) or the full
   // bill for context; this is the set of cards currently showing the full bill.
   const [fullBillOpen, setFullBillOpen] = useState<Set<number>>(new Set());
+  // The queue line being fixed in the item editor (note / qty / remove).
+  const [editTarget, setEditTarget] = useState<{ item: TicketItem } | null>(null);
   const prevCountRef = useRef(0);
 
   // ── GROUP 9: PRINT-QUEUE MODE ──
@@ -170,6 +172,19 @@ export default function CashierDashboard() {
     return m[t.status] || null;
   };
 
+  // The staff cookie lives 12 hours (one shift). When it dies mid-service the
+  // API answers 401 — going back to the login screen WITH an explanation beats
+  // a silently frozen queue showing bills that already moved on. Declared up
+  // here so every loader below can call it.
+  const expireSession = () => {
+    try {
+      sessionStorage.removeItem("fana_cashier");
+    } catch {}
+    setPin("");
+    setLoginError("Your session ended. Log in again to keep the queue live.");
+    setStaffName("");
+  };
+
   const loadAll = async () => {
     // GROUP 10 FIX: this used to return early while the tab was hidden (screen
     // off, tablet on the counter) — exactly when the alarm matters most — so it
@@ -177,6 +192,9 @@ export default function CashierDashboard() {
     // process them; the sound and vibration fire even with the screen off.
     try {
       const [tRes, tkRes] = await Promise.all([fetch("/api/tables"), fetch("/api/tickets?active=1")]);
+      // A 401 is not "offline" — the shift session ended, and waiting changes
+      // nothing. Back to the login screen instead of a frozen queue.
+      if (tRes.status === 401 || tkRes.status === 401) return expireSession();
       // Connection indicator: ONLINE only when the backend actually answered both
       // polled endpoints; a failed/thrown fetch flips it to OFFLINE immediately.
       const backendOk = tRes.ok && tkRes.ok;
@@ -322,10 +340,12 @@ export default function CashierDashboard() {
         fetch("/api/tickets?printedToday=1"),
         fetch(`/api/tickets?printedDate=${yesterday}`),
       ]);
+      if (todayRes.status === 401 || yesterdayRes.status === 401) return expireSession();
       if (todayRes.ok) setHistoryToday(sortedPrintedToday(await todayRes.json()));
       if (yesterdayRes.ok) setHistoryYesterday(await yesterdayRes.json());
     } else {
       const r = await fetch("/api/tickets?paid=1&limit=12");
+      if (r.status === 401) return expireSession();
       if (r.ok) setHistoryToday(await r.json());
     }
   };
@@ -449,7 +469,7 @@ export default function CashierDashboard() {
   };
 
   const setStatus = async (id: number, status: string) => {
-    await fetch("/api/tickets", {
+    const r = await fetch("/api/tickets", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -459,6 +479,14 @@ export default function CashierDashboard() {
         confirmedBy: staffName,
       }),
     });
+    // A tap that did nothing must SAY so: another staff member may have moved
+    // the bill a second earlier (409), or the session ended (401). The reload
+    // below then shows the true state either way.
+    if (r.status === 401) return expireSession();
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      showToast(d?.error || "That tap did not go through. Try again.");
+    }
     loadAll();
   };
 
@@ -467,16 +495,26 @@ export default function CashierDashboard() {
   });
 
   const removeItem = async (itemId: number) => {
-    await fetch(`/api/tickets/items?id=${itemId}`, { method: "DELETE" });
+    const r = await fetch(`/api/tickets/items?id=${itemId}`, { method: "DELETE" });
+    if (r.status === 401) return expireSession();
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      showToast(d?.error || "Could not remove that item. Try again.");
+    }
     loadAll();
   };
 
   const updateItemQty = async (item: TicketItem, qty: number) => {
-    await fetch("/api/tickets/items", {
+    const r = await fetch("/api/tickets/items", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ itemId: item.id, quantity: qty }),
     });
+    if (r.status === 401) return expireSession();
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      showToast(d?.error || "Could not update that item. Try again.");
+    }
     loadAll();
   };
 
@@ -495,19 +533,11 @@ export default function CashierDashboard() {
   };
 
   const markPaid = async (t: Ticket) => {
-    // Release the table AND record the payment status. If it wasn't set yet
-    // (legacy bills / cash verified at the counter), derive it from the method.
+    // Release the table AND record that it is paid. No payment-method options
+    // (owner's decision): keep any historical paid_* status, otherwise "paid".
     const derived =
-      t.paymentStatus && t.paymentStatus !== "unpaid"
-        ? t.paymentStatus
-        : t.paymentMethod === "cash"
-        ? "paid_cash"
-        : t.paymentMethod === "card"
-        ? "paid_card"
-        : t.paymentMethod === "cbe"
-        ? "paid_cbe"
-        : "paid_telebirr"; // online / telebirr / unknown digital
-    await fetch("/api/tickets", {
+      t.paymentStatus && t.paymentStatus !== "unpaid" ? t.paymentStatus : "paid";
+    const r = await fetch("/api/tickets", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -518,6 +548,11 @@ export default function CashierDashboard() {
         verifiedBy: staffName || "(cashier)",
       }),
     });
+    if (r.status === 401) return expireSession();
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      showToast(d?.error || "Could not mark this bill paid. Try again.");
+    }
     loadAll();
   };
 
@@ -530,11 +565,16 @@ export default function CashierDashboard() {
   // and this tap moves the card out of her queue. Payment is not recorded here
   // by design — the EFD/POS remains the financial system of record.
   const markPrinted = async (t: Ticket) => {
-    await fetch("/api/tickets", {
+    const r = await fetch("/api/tickets", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: t.id, status: "printed", printedBy: staffName || "(cashier)" }),
     });
+    if (r.status === 401) return expireSession();
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      showToast(d?.error || "Could not mark this bill printed. Try again.");
+    }
     loadAll();
     loadHistory();
   };
@@ -542,14 +582,19 @@ export default function CashierDashboard() {
   // ── QR HOLD FLOW: release a HELD bill to the crews. Her plain accept of a
   // guest's QR order only acknowledged it (the alarms stopped everywhere, the
   // crews saw nothing — the guest may still add items). THIS tap sends the
-  // whole bill to the kitchen/barista/buna makers; afterwards the card becomes
-  // a normal ✓ PRINTED card, exactly like a waiter-sent order.
+  // whole bill to the kitchen/barista/buna/juice makers; afterwards the card
+  // becomes a normal ✓ PRINTED card, exactly like a waiter-sent order.
   const confirmAndSend = async (t: Ticket) => {
-    await fetch("/api/tickets", {
+    const r = await fetch("/api/tickets", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: t.id, send: true, confirmedBy: staffName || "(cashier)" }),
     });
+    if (r.status === 401) return expireSession();
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      showToast(d?.error || "Could not send this bill. Try again.");
+    }
     loadAll();
   };
 
@@ -564,11 +609,12 @@ export default function CashierDashboard() {
     });
   };
 
-  // GROUP 12: additions to an already-printed bill. The release gate uses one
-  // cutoff rule — item.createdAt <= ticket.printedAt was on the printed
-  // receipt; everything newer is NOT printed yet. Her TO PRINT card shows ONLY
-  // those new items (she keys just the new items into the EFD and prints the
-  // second receipt), never the whole bill again. Same rule as station-items.
+  // GROUP 12: additions to an already-printed bill. One EFD-only cutoff rule —
+  // item.createdAt <= ticket.printedAt was on the printed receipt; everything
+  // newer is NOT printed yet. Her TO PRINT card shows ONLY those new items
+  // (she keys just the new items into the EFD and prints the second receipt),
+  // never the whole bill again. The crews ALREADY have these items on their
+  // lists (instant release) — this cutoff only decides what SHE keys in.
   const isNewUnprinted = (item: TicketItem, t: Ticket): boolean => {
     if (item.removed) return false;
     if (!item.createdAt || !t.printedAt) return false;
@@ -683,23 +729,15 @@ export default function CashierDashboard() {
     completed: { label: "✓ Paid (verify)", cls: "bg-emerald-600 text-white" },
   };
 
-  const methodIcon = (m?: string | null) =>
-    m === "card" ? <CreditCard className="w-4 h-4 text-sky-400" />
-    : m === "online" || m === "telebirr" ? <Smartphone className="w-4 h-4 text-amber-400" />
-    : m === "cbe" ? <Smartphone className="w-4 h-4 text-violet-400" />
-    : <Banknote className="w-4 h-4 text-emerald-400" />;
-
+  // No payment-method options (owner's decision): a bill is either paid or it
+  // isn't. Historical paid_cash / paid_telebirr / ... statuses still read as paid.
   const paymentStatusLabel = (s?: string | null) =>
-    s === "paid_cash" ? "✓ PAID • CASH"
-    : s === "paid_telebirr" ? "✓ PAID • TELEBIRR"
-    : s === "paid_cbe" ? "✓ PAID • CBE BIRR"
-    : s === "paid_card" ? "✓ PAID • CARD"
-    : "✗ UNPAID";
+    s && s !== "unpaid" ? "✓ PAID" : "✗ UNPAID";
 
   const paymentStatusCls = (s?: string | null) =>
     s && s !== "unpaid" ? "bg-emerald-600 text-white" : "bg-rose-600 text-white";
 
-  // Cashier can correct/record how the bill was paid (separate from order status).
+  // Cashier can correct/record whether the bill was paid (separate from order status).
   const setPaymentStatus = async (id: number, paymentStatus: string) => {
     await fetch("/api/tickets", {
       method: "PUT",
@@ -959,7 +997,7 @@ export default function CashierDashboard() {
                         </div>
 
                         <p className="text-xs font-bold text-sky-300 bg-sky-950/40 border border-sky-700/40 rounded-xl px-3 py-2">
-                          Accepted. The kitchen, barista and buna makers do NOT have this order yet. If the guest is still ordering, wait; when they finish tap CONFIRM & SEND.
+                          Accepted. The kitchen, barista, buna and juice makers do NOT have this order yet. If the guest is still ordering, wait; when they finish tap CONFIRM & SEND.
                         </p>
 
                         <div className="bg-[#3D2314] rounded-xl divide-y divide-stone-800">
@@ -972,6 +1010,15 @@ export default function CashierDashboard() {
                                 {i.notes && <p className="text-[11px] font-semibold text-amber-300 italic">📝 {i.notes}</p>}
                               </div>
                               <span className="font-extrabold text-amber-100 shrink-0">× {i.quantity}</span>
+                              {!i.removed && (
+                                <button
+                                  onClick={() => setEditTarget({ item: i })}
+                                  className="px-2 py-1 bg-[#C9A227]/15 text-[#C9A227] border border-[#C9A227]/40 rounded text-[10px] font-black hover:bg-[#C9A227] hover:text-black shrink-0"
+                                  title="Fix this item's note or quantity, or remove it. Saving never prints • the card stays in your queue."
+                                >
+                                  ✎ Edit
+                                </button>
+                              )}
                               {problem && !i.removed ? (
                                 <button
                                   onClick={() => removeItem(i.id)}
@@ -990,7 +1037,7 @@ export default function CashierDashboard() {
                           <button
                             onClick={() => confirmAndSend(t)}
                             className="flex-1 bg-sky-600 hover:bg-sky-500 text-white text-sm font-black py-4 rounded-xl flex items-center justify-center gap-2"
-                            title="Sends this order to the kitchen/barista/buna makers now. Afterwards key it into the EFD and tap ✓ PRINTED"
+                            title="Sends this order to the kitchen/barista/buna/juice makers now. Afterwards key it into the EFD and tap ✓ PRINTED"
                           >
                             <CheckCircle2 className="w-5 h-5" /> ✓ CONFIRM & SEND
                           </button>
@@ -1090,7 +1137,7 @@ export default function CashierDashboard() {
 
                         {added && (
                           <p className="text-xs font-bold text-amber-300 bg-amber-950/40 border border-amber-700/40 rounded-xl px-3 py-2">
-                            This bill was already printed. Key ONLY the new item{newCount === 1 ? "" : "s"} below into the EFD and print receipt #2. The crew gets them when you tap ✓.
+                            This bill was already printed. Key ONLY the new item{newCount === 1 ? "" : "s"} below into the EFD and print receipt #2. The crews already have them • your ✓ only records the print.
                           </p>
                         )}
 
@@ -1133,6 +1180,15 @@ export default function CashierDashboard() {
                                   {i.notes && <p className="text-[11px] font-semibold text-amber-300 italic">📝 {i.notes}</p>}
                                 </div>
                                 <span className="font-extrabold text-amber-100 shrink-0">× {i.quantity}</span>
+                                {!i.removed && (
+                                  <button
+                                    onClick={() => setEditTarget({ item: i })}
+                                    className="px-2 py-1 bg-[#C9A227]/15 text-[#C9A227] border border-[#C9A227]/40 rounded text-[10px] font-black hover:bg-[#C9A227] hover:text-black shrink-0"
+                                    title="Fix this item's note or quantity, or remove it. Saving never prints • the card stays in your queue."
+                                  >
+                                    ✎ Edit
+                                  </button>
+                                )}
                                 {problem && !i.removed ? (
                                   <button
                                     onClick={() => removeItem(i.id)}
@@ -1166,11 +1222,11 @@ export default function CashierDashboard() {
                             className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black py-4 rounded-xl flex items-center justify-center gap-2"
                             title={
                               added
-                                ? "Prints receipt #2 and sends the NEW items to the kitchen/barista for this table"
-                                : "Records that the EFD receipt is printed. The crew received this order when it was accepted"
+                                ? "Prints receipt #2 for the NEW items only. The crews already have them • this tap only records the EFD print"
+                                : "Records that the EFD receipt is printed. The crews received this order when it was sent"
                             }
                           >
-                            <Printer className="w-5 h-5" /> {added ? "✓ PRINTED & SEND" : "✓ PRINTED"}
+                            <Printer className="w-5 h-5" /> ✓ PRINTED
                           </button>
                           <button
                             onClick={() => toggleProblem(t.id)}
@@ -1298,32 +1354,28 @@ export default function CashierDashboard() {
                       {visible.length === 0 && <p className="p-3 text-center text-xs text-stone-500">All items removed.</p>}
                     </div>
 
-                    {/* payment info — method + payment status (separate from order status) */}
+                    {/* payment info — paid or not (separate from order status).
+                        No method options: historical paid_cash / paid_telebirr /
+                        ... statuses read as paid and stay untouched unless changed. */}
                     {(t.status === "ready_for_payment" || t.status === "completed") && (
                       <div className="bg-black/30 rounded-xl p-3 border border-stone-700 space-y-2">
                         <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 text-xs">
-                            {methodIcon(t.paymentMethod)}
-                            <span className="font-bold capitalize">{t.paymentMethod ? `${t.paymentMethod} payment` : "Awaiting payment method"}</span>
-                          </div>
+                          <span className="font-bold text-xs text-stone-200">Payment collected at the counter</span>
                           <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${paymentStatusCls(t.paymentStatus)}`}>
                             {paymentStatusLabel(t.paymentStatus)}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <select
-                            value={t.paymentStatus || "unpaid"}
+                            value={t.paymentStatus && t.paymentStatus !== "unpaid" ? "paid" : "unpaid"}
                             onChange={(e) => setPaymentStatus(t.id, e.target.value)}
                             className="bg-[#2C1B17] border border-stone-700 rounded-lg px-2 py-1.5 text-[11px] font-bold text-white flex-1"
-                            title="Record how this bill was paid (order status is separate)"
+                            title="Record whether this bill was paid (order status is separate)"
                           >
                             <option value="unpaid">Unpaid</option>
-                            <option value="paid_cash">Paid • Cash</option>
-                            <option value="paid_telebirr">Paid • Telebirr</option>
-                            <option value="paid_cbe">Paid • CBE Birr</option>
-                            <option value="paid_card">Paid • Card</option>
+                            <option value="paid">Paid</option>
                           </select>
-                          {t.status === "completed" && t.paymentMethod !== "cash" && (
+                          {t.status === "completed" && (
                             <button
                               onClick={async () => {
                                 // fetch receipt photo ON DEMAND — saves ~70KB × 100s of polling transfers per day
@@ -1427,6 +1479,16 @@ export default function CashierDashboard() {
               {history.map((t) => {
                 const waiting = printQueueMode && (t.unprintedSubmissions || 0) > 0;
                 const cleared = t.status === "closed";
+                // A line on this bill was corrected AFTER the EFD receipt went
+                // out: the EFD total no longer matches the system total until
+                // she re-keys it. Independent of new-item additions ("waiting"
+                // above) — a corrected line is not a new submission, so it
+                // needs its own flag or the drift goes unnoticed.
+                const editedAfterPrint =
+                  printQueueMode &&
+                  t.status === "printed" &&
+                  !!t.printedAt && !!t.itemsEditedAt &&
+                  new Date(t.itemsEditedAt).getTime() > new Date(t.printedAt).getTime();
                 return (
                   <button
                     key={t.id}
@@ -1443,7 +1505,7 @@ export default function CashierDashboard() {
                           <Printer className="w-3 h-3 text-[#C9A227] shrink-0" /> printed {formatClock(t.printedAt)} • {t.printedBy || "cashier"}
                         </p>
                       ) : (
-                        <p className="text-[11px] font-bold text-stone-300 capitalize flex items-center gap-1">{methodIcon(t.paymentMethod)} {t.paymentMethod || "cash"}</p>
+                        <p className="text-[11px] font-bold text-stone-300 flex items-center gap-1">✓ Paid</p>
                       )}
                       {/* Group 8: table, date, time and waiter on every history card. */}
                       <p className="text-[11px] font-bold text-stone-300 truncate">🕒 {formatDateTime(printQueueMode ? (t.printedAt || t.createdAt) : (t.closedAt || t.updatedAt || t.createdAt))}</p>
@@ -1456,6 +1518,9 @@ export default function CashierDashboard() {
                         ) : (
                           <p className="text-[10px] font-black text-emerald-400 uppercase">● open</p>
                         )
+                      )}
+                      {printQueueMode && editedAfterPrint && (
+                        <p className="text-[10px] font-black text-sky-300 uppercase">✎ edited after print • re-key EFD</p>
                       )}
                     </div>
                     <div className="text-right shrink-0">
@@ -1536,12 +1601,129 @@ export default function CashierDashboard() {
         </div>
       )}
 
+      {/* ITEM EDITOR — fix a wrong QR/waiter line on the queue card. Saving
+          only corrects the bill; it never prints (hold without printing). */}
+      {editTarget && (
+        <EditItemModal
+          item={editTarget.item}
+          onClose={() => setEditTarget(null)}
+          onSaved={() => {
+            setEditTarget(null);
+            loadAll();
+            loadHistory();
+          }}
+        />
+      )}
+
       {/* receipt image modal */}
       {receiptModal && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={() => setReceiptModal(null)}>
           <img src={receiptModal} alt="Payment receipt" className="max-h-[85vh] max-w-full rounded-2xl border border-[#C9A227]" />
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * CASHIER ITEM EDITOR (owner, Sept 2026) — fix a wrong QR/waiter line right on
+ * the queue card: the note, the quantity, or remove the line entirely. Save
+ * writes the correction and recomputes the bill; it NEVER prints — the card
+ * simply stays in her queue until she taps ✓ PRINTED herself. (Holding without
+ * printing is the default here: there is no print path out of this dialog.)
+ */
+function EditItemModal({ item, onClose, onSaved }: { item: TicketItem; onClose: () => void; onSaved: () => void }) {
+  const [qty, setQty] = useState(item.quantity);
+  const [notes, setNotes] = useState(item.notes || "");
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    const quantity = Math.max(1, Math.min(100, Math.floor(Number(qty) || 1)));
+    setSaving(true);
+    try {
+      const r = await fetch("/api/tickets/items", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId: item.id, quantity, notes: notes.slice(0, 500) }),
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        alert(d?.error || "Could not update item");
+        return;
+      }
+      onSaved();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!confirm(`Remove "${item.name}" x${item.quantity} from the bill?\n\nThe bill total updates at once. The crew is told only if they already started it.`)) return;
+    setSaving(true);
+    try {
+      await fetch(`/api/tickets/items?id=${item.id}`, { method: "DELETE" });
+      onSaved();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        className="bg-[#2C1B17] border-2 border-[#C9A227]/50 rounded-2xl w-full max-w-sm p-5 space-y-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div>
+          <h3 className="font-serif font-black text-lg text-amber-100">✎ Fix item</h3>
+          <p className="text-xs font-bold text-stone-300 mt-0.5">{item.name} • {item.price} ETB each</p>
+        </div>
+        <div className="flex items-center gap-3 bg-[#3D2314] rounded-xl p-3">
+          <span className="text-xs font-bold text-stone-300 flex-1">Quantity</span>
+          <button onClick={() => setQty(Math.max(1, qty - 1))} className="w-9 h-9 bg-white/10 rounded-xl text-lg font-black">−</button>
+          <span className="text-lg font-black text-[#C9A227] w-8 text-center">{qty}</span>
+          <button onClick={() => setQty(Math.min(100, qty + 1))} className="w-9 h-9 bg-[#C9A227] text-black rounded-xl text-lg font-black">+</button>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-amber-200 mb-1">Note for the crew</label>
+          <input
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="No Sugar, Extra Mayo, Less Spicy..."
+            className="w-full bg-[#3D2314] border border-stone-700 rounded-xl p-3 text-xs text-white"
+          />
+        </div>
+        <div className="bg-[#3D2314] border border-[#C9A227]/40 rounded-xl px-4 py-2.5 flex items-center justify-between">
+          <span className="text-xs font-black text-stone-200">Line total</span>
+          <span className="font-serif font-black text-xl text-[#C9A227]">{item.price * qty} ETB</span>
+        </div>
+        <p className="text-[11px] font-bold text-stone-400">
+          Saving only fixes the bill • it never prints. The card stays in your queue until you tap ✓ PRINTED.
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={save}
+            disabled={saving}
+            className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black py-3 rounded-xl disabled:opacity-40"
+          >
+            {saving ? "Saving..." : "✓ Save (hold • no print)"}
+          </button>
+          <button
+            onClick={onClose}
+            disabled={saving}
+            className="px-4 py-3 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 text-sm font-black disabled:opacity-40"
+          >
+            Cancel
+          </button>
+        </div>
+        <button
+          onClick={remove}
+          disabled={saving}
+          className="w-full py-2.5 rounded-xl bg-rose-900/60 text-rose-300 text-xs font-black hover:bg-rose-700 hover:text-white disabled:opacity-40"
+        >
+          ✗ Remove this item from the bill
+        </button>
+      </div>
     </div>
   );
 }

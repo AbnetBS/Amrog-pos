@@ -61,7 +61,8 @@ const i18n = read("src/lib/i18n.ts");
   const payloadSrc = payloadStart >= 0 && payloadEnd > payloadStart ? status.slice(payloadStart, payloadEnd) : status;
   pass("the payload leaks no staff names or receipt photos", !/createdBy|confirmedBy|waiterName|staffName|receiptImage|pinHash/.test(payloadSrc));
   pass("recently-paid bills stay visible for the thank-you/review window", /RECENTLY_CLOSED_GRACE_MS/.test(status) && /30 \* 60 \* 1000/.test(status));
-  pass("the payload carries the customer phase + per-station progress", /phase: customerOrderPhase\(ticket, lines\)/.test(status) && /kitchen: stationProgress\(lines, "kitchen"\)/.test(status) && /barista: stationProgress\(lines, "barista"\)/.test(status));
+  pass("the payload carries the customer phase + per-station progress", /phase: customerOrderPhase\(ticket, lines\)/.test(status) && /kitchen: stationProgress\(lines, "kitchen"\)/.test(status) && /barista: stationProgress\(lines, "barista"\)/.test(status) && /juice: stationProgress\(lines, "juice"\)/.test(status));
+  pass("guest lines keep their crew state (split rows, full lane name)", /splitByStationStatus: true/.test(status) && /station: stationOf\(line\.stationName\)/.test(status));
   pass("duplicate lines are collapsed before they reach the guest", /groupOrderLines\(lines/.test(status));
 }
 
@@ -94,10 +95,10 @@ const i18n = read("src/lib/i18n.ts");
   pass("the migration adds the new ticket column", /receipt_requested_at/.test(migrate));
   pass("the submission key is UNIQUE at the database level", /CREATE UNIQUE INDEX IF NOT EXISTS order_submissions_idempotency_key_key/.test(migrate));
   pass("submissions are indexed per ticket", /CREATE INDEX IF NOT EXISTS order_submissions_ticket_id_idx/.test(migrate));
-  // Bumped to 2026-09-08-1 when menu_items.station_override + the QR-hold
-  // confirmed_at semantics were added: an existing production database only
-  // runs the migration when this constant moves.
-  pass("the schema version was bumped so deployments migrate", /SCHEMA_VERSION = "2026-09-08-2"/.test(migrate));
+  // Bumped to 2026-09-09-1 when the crew-action audit (station_status_by/at)
+  // + the bill-edit audit (items_edited_at) were added: an existing
+  // production database only runs the migration when this constant moves.
+  pass("the schema version was bumped so deployments migrate", /SCHEMA_VERSION = "2026-09-09-1"/.test(migrate));
 }
 
 /* ── 3. duplicate lines merge in the DATABASE, not just on screen ─────────── */
@@ -130,11 +131,14 @@ const i18n = read("src/lib/i18n.ts");
   pass("order history shows when the order ARRIVED and who took it", /arrived \{formatDateTime\(o\.createdAt\)\}/.test(history) && /by \{o\.createdBy/.test(history));
 }
 
-/* ── 1. the guest's receipt button (the only order-status UI left) ────────── */
+/* ── 1. the guest's status dock + receipt button ───────────────────────────── */
 {
-  pass("the module ships a provider and the receipt button", /export function OrderStatusProvider/.test(orderStatusUi) && /export function RequestReceiptButton/.test(orderStatusUi));
-  pass("the pill and the full status panel are gone", !/OrderStatusFab/.test(orderStatusUi) && !/OrderStatusSheet/.test(orderStatusUi) && !/open: boolean/.test(orderStatusUi));
-  pass("no status words, timeline or progress bar are left in the module", !/os_phase_/.test(orderStatusUi) && !/os_view/.test(orderStatusUi) && !/kitchenPercent/.test(orderStatusUi) && !/os_line_/.test(orderStatusUi));
+  pass("the module ships a provider, the status dock and the receipt button", /export function OrderStatusProvider/.test(orderStatusUi) && /export function OrderStatusDock/.test(orderStatusUi) && /export function RequestReceiptButton/.test(orderStatusUi));
+  pass("the dock is a floating pill above the language button, tap to expand", /fixed bottom-\[76px\] right-5/.test(orderStatusUi) && /aria-expanded=\{open\}/.test(orderStatusUi) && /useState\(false\)/.test(orderStatusUi));
+  pass("the panel speaks in phases (one sentence per phase, both languages)", /PHASE_SENTENCE/.test(orderStatusUi) && /os_phase_waiting/.test(orderStatusUi) && /os_phase_preparing/.test(orderStatusUi) && /os_phase_ready/.test(orderStatusUi));
+  pass("every dish row carries an Accepted / Preparing / Ready chip", /os_line_accepted/.test(orderStatusUi) && /os_line_preparing/.test(orderStatusUi) && /os_line_done/.test(orderStatusUi));
+  pass("buna lines always read Accepted (the buna makers do not watch phones)", /line\.station === "buna"\) return "accepted"/.test(orderStatusUi));
+  pass("the panel shows the arrival time and the running total", /os_arrived/.test(orderStatusUi) && /os_total/.test(orderStatusUi) && /ETB/.test(orderStatusUi));
   pass("the provider keeps polling /api/table-status while the menu is open", /\/api\/table-status\?table=/.test(orderStatusUi) && /setInterval/.test(orderStatusUi) && /POLL_MS/.test(orderStatusUi));
   pass("a phone left on the table stops hammering the server", /document\.hidden/.test(orderStatusUi) && /visibilitychange/.test(orderStatusUi));
   pass("a failed poll can never break the menu", /catch \{\s*\/\/ A failed poll must never disturb the menu/.test(orderStatusUi));
@@ -146,16 +150,17 @@ const i18n = read("src/lib/i18n.ts");
   pass("a guest who already asked sees the confirmation with the time instead of the button", /billRequested &&[\s\S]{0,400}os_bill_requested/.test(orderStatusUi) && /os_bill_requested_at/.test(orderStatusUi));
   pass("the bill button is disabled while sending", /disabled=\{requesting\}/.test(orderStatusUi));
   pass("the menu page wraps itself in the provider", /<OrderStatusProvider/.test(app) && /tableId=\{tableId \?\? 0\}/.test(app));
-  pass("the menu renders ONLY the receipt button (no pill, no panel)", /<RequestReceiptButton \/>/.test(app) && !/<OrderStatusFab/.test(app) && !/<OrderStatusBanner/.test(app));
+  pass("the menu renders the status dock plus the receipt button", /<OrderStatusDock \/>/.test(app) && /<RequestReceiptButton \/>/.test(app));
+  pass("the sent-confirmation screen has the dock too (what did I just order?)", /if \(submitted\)[\s\S]{0,800}<OrderStatusDock \/>/.test(app));
   pass("nothing is rendered when there is nothing to show", /empty:hidden/.test(app));
   pass("submitting an order refreshes the status immediately", /setStatusRefreshKey\(\(k\) => k \+ 1\)/.test(app) && /refreshKey=\{statusRefreshKey\}/.test(app));
 }
 
 /* ── 5. review as the last step of the flow ───────────────────────────────── */
 {
-  // The removed panel was the only thing that scrolled to the review card, so
-  // the review must stay reachable from the page itself: it is a plain section
-  // of the menu with its stable anchor.
+  // The status dock never links to the review card, so the review must stay
+  // reachable from the page itself: it is a plain section of the menu with
+  // its stable anchor.
   pass("the review card keeps its stable anchor on the page itself", /id="guest-review"/.test(app) && /scroll-mt-24/.test(app));
   pass("the ask appears after the table has ordered", /\{submitted && !reviewSent && \(/.test(app) && /review_cta_title/.test(app));
   pass("a submitted review turns into a thank-you card", /setReviewSent\(true\)/.test(app) && /review_thanks_title/.test(app));
@@ -193,6 +198,47 @@ const i18n = read("src/lib/i18n.ts");
   }
 }
 
+/* ── 6. paper-replacement hardening: audit stamps, edit safety, no silent screens ── */
+{
+  // WHO pressed Accept/Done, and WHEN — a "done" nobody remembers is always
+  // traceable to a person and a minute, never a mystery.
+  const itemsRoute = read("src/app/api/tickets/items/route.ts");
+  const types = read("src/types/index.ts");
+  pass("crew-action audit columns exist in the schema", /stationStatusBy: varchar\("station_status_by"/.test(schema) && /stationStatusAt: timestamp\("station_status_at"\)/.test(schema));
+  pass("the migration adds the crew-action audit columns", /station_status_by/.test(migrate) && /station_status_at/.test(migrate));
+  pass("the crew PUT stamps who pressed it and when", /stationStatusBy: String\(actorName\)/.test(stationItems) && /stationStatusAt: new Date\(\)/.test(stationItems));
+  pass("the crew PUT rejects garbage statuses", /stationStatus must be pending, accepted or done/.test(stationItems));
+  pass("the station screens show who pressed it", /stationStatusBy/.test(stationApp) && /Done.*by \{i\.stationStatusBy\}/.test(stationApp));
+  pass("the shared TicketItem type carries the audit", /stationStatusBy\?: string/.test(types) && /stationStatusAt\?: string/.test(types));
+
+  // A correction AFTER the EFD receipt went out must be re-keyed into the EFD:
+  // the bill carries the correction moment, and the cashier's card flags it.
+  pass("bill-edit audit column exists in the schema", /itemsEditedAt: timestamp\("items_edited_at"\)/.test(schema));
+  pass("the migration adds the bill-edit audit column", /items_edited_at/.test(migrate));
+  pass("item edits AND removals stamp the correction moment", (itemsRoute.match(/itemsEditedAt: new Date\(\)/g) || []).length === 2);
+  pass("the cashier card flags bills edited after print", /editedAfterPrint/.test(cashier) && /re-key EFD/.test(cashier));
+
+  // Orders can only land on a REAL table, with the menu's own names.
+  pass("orders for a deleted/unknown table are rejected", /no longer available/.test(tickets));
+  pass("stored line names come from the menu, not the client cache", /name: menuRow\.name, category: menuRow\.category/.test(tickets));
+
+  // Deletions can never strand live work.
+  pass("a LIVE bill can never be deleted", /Only finished bills can be deleted/.test(tickets));
+  pass("a table with an open bill can never be deleted", /has an open bill/.test(tablesRoute));
+  pass("a category holding items can never be deleted", /still has menu items/.test(read("src/app/api/categories/route.ts")));
+
+  // An expired shift session returns to login WITH an explanation — never a
+  // silently frozen screen showing stale work as live.
+  for (const [name, src] of [["station", stationApp], ["waiter", waiterApp], ["cashier", cashier]]) {
+    pass(`${name} screen returns to login when the session ends`, /expireSession/.test(src) && /status === 401/.test(src));
+  }
+  pass("admin report tabs say the session ended (not stale figures)", /Your admin session ended/.test(read("src/components/rms/ReportsTab.tsx")) && /Your admin session ended/.test(history));
+
+  // A money tap that did nothing must SAY so (a 409 race, not just 401s).
+  pass("cashier taps surface failures instead of swallowing them", /That tap did not go through/.test(cashier));
+  pass("waiter taps surface failures instead of swallowing them", /Could not accept this order/.test(waiterApp));
+}
+
 /* ── Report ───────────────────────────────────────────────────────────────── */
 if (failures.length > 0) {
   console.error("\n❌ ORDER STATUS / MERGE / BILL-REQUEST REGRESSION TEST FAILED\n");
@@ -205,3 +251,5 @@ console.log("     no progress bar) and it can ask for the bill with one tap");
 console.log("   • the crew see when every order arrived and who took it");
 console.log("   • duplicate lines merge in the database and collapse on old bills");
 console.log("   • every new string is translated into Amharic");
+console.log("   • crew taps are audit-stamped, post-print edits flag the EFD re-key,");
+console.log("     deletions cannot strand live work, expired sessions say so");

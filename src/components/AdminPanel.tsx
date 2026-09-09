@@ -206,9 +206,9 @@ export default function AdminPanel({
   ];
 
   return (
-    <div className="bg-[#1C120F] text-white min-h-screen p-4 sm:p-8">
-      {/* Header */}
-      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 pb-6 border-b border-[#C9A227]/30">
+    <div id="fana-admin" className="bg-[#1C120F] text-white min-h-screen p-4 sm:p-8">
+      {/* Header (hidden when the owner prints a report) */}
+      <div className="no-print max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 pb-6 border-b border-[#C9A227]/30">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-[#C9A227] text-[#2C1B17] font-bold flex items-center justify-center">
             <Lock className="w-5 h-5" />
@@ -231,8 +231,8 @@ export default function AdminPanel({
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="max-w-7xl mx-auto my-6 flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+      {/* Tabs (hidden when the owner prints a report) */}
+      <div className="no-print max-w-7xl mx-auto my-6 flex gap-2 overflow-x-auto pb-2 scrollbar-none">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -710,6 +710,11 @@ export default function AdminPanel({
                                   🍳 Kitchen
                                 </span>
                               )}
+                              {item.stationOverride === "juice" && (
+                                <span className="text-[9px] font-black uppercase bg-lime-900/40 text-lime-300 border border-lime-700/60 rounded px-1.5 py-0.5">
+                                  🧃 Juice
+                                </span>
+                              )}
                             </p>
                             <p className="text-[11px] text-stone-400 line-clamp-1 max-w-xs">{item.description}</p>
                           </div>
@@ -991,17 +996,18 @@ export default function AdminPanel({
                     const v = e.target.value;
                     setEditingItem({
                       ...editingItem,
-                      // "buna" keeps using the per-item isBuna flag; the two
+                      // "buna" keeps using the per-item isBuna flag; the three
                       // other crews use the station override; "auto" clears both.
                       isBuna: v === "buna",
-                      stationOverride: v === "barista" || v === "kitchen" ? v : null,
+                      stationOverride: v === "barista" || v === "kitchen" || v === "juice" ? v : null,
                     });
                   }}
                   className="w-full bg-[#2C1B17] border border-stone-700 rounded-xl p-2.5 text-xs text-white"
                 >
                   <option value="auto">Automatic (follow the category, Stations tab)</option>
-                  <option value="barista">☕ Barista (drinks, coffee cup, juices...)</option>
+                  <option value="barista">☕ Barista (machine coffee, cold drinks...)</option>
                   <option value="kitchen">🍳 Kitchen / Chef (food, take away bag...)</option>
+                  <option value="juice">🧃 Juice Maker (fresh juices, spris, punches...)</option>
                   <option value="buna">🫖 Buna Makers (traditional buna)</option>
                 </select>
                 <p className="text-[11px] text-stone-400 leading-relaxed">

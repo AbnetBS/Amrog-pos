@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { categories } from "@/db/schema";
+import { categories, menuItems } from "@/db/schema";
 import { ensureTablesExist } from "@/db/migrate";
 import { eq, asc, sql } from "drizzle-orm";
 import { PUBLIC_CACHE_CONTROL } from "@/lib/cache";
@@ -87,6 +87,16 @@ export async function DELETE(request: Request) {
     const id = searchParams.get("id");
     if (!id) {
       return NextResponse.json({ error: "ID required" }, { status: 400 });
+    }
+    // A category that still holds menu items can never be deleted: its dishes
+    // would lose their crew routing (new orders would silently default to the
+    // kitchen) and fall out of the menu. Move or delete the items first.
+    const doomed = await db.select({ slug: categories.slug }).from(categories).where(eq(categories.id, Number(id))).limit(1);
+    if (doomed.length > 0 && doomed[0].slug) {
+      const used = await db.select({ id: menuItems.id }).from(menuItems).where(eq(menuItems.category, doomed[0].slug)).limit(1);
+      if (used.length > 0) {
+        return NextResponse.json({ error: "This category still has menu items. Move or delete them first." }, { status: 400 });
+      }
     }
     await db.delete(categories).where(eq(categories.id, Number(id)));
 

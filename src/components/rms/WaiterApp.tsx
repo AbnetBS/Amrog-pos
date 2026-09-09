@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useMemo } from "react";
 import {
-  Coffee, Plus, Minus, Send, ArrowLeft, RefreshCw, CreditCard, Banknote,
-  Smartphone, Camera, CheckCircle2, ClipboardList, Search, X, Users, LogOut, BellRing,
+  Coffee, Plus, Minus, Send, ArrowLeft, RefreshCw, CreditCard,
+  Camera, CheckCircle2, ClipboardList, Search, X, Users, LogOut, BellRing,
 } from "lucide-react";
 import { MenuItem, Ticket, TicketItem, CafeTable } from "@/types";
 import PocketAlertsHint from "@/components/rms/PocketAlertsHint";
@@ -114,8 +114,9 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
       ? crypto.randomUUID()
       : `k-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-  // Payment
-  const [payMethod, setPayMethod] = useState<"cash" | "telebirr" | "cbe" | "card" | null>(null);
+  // Payment (full mode only — print-queue mode hides these screens entirely).
+  // The owner removed payment-method options: the EFD receipt is the proof of
+  // payment, so the waiter just collects and confirms, with an optional photo.
   const [receiptImage, setReceiptImage] = useState("");
   const [receiptEnabled, setReceiptEnabled] = useState(true);
   // GROUP 9 (print-queue): payments live in the EFD/POS world — the waiter's
@@ -354,6 +355,20 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
     });
   };
 
+  // The staff cookie lives 12 hours (one shift). When it dies mid-service the
+  // API answers 401 — going back to the login screen WITH an explanation beats
+  // a silently frozen board showing tables that already turned over. Declared
+  // up here so every loader below can call it.
+  const expireSession = () => {
+    try {
+      sessionStorage.removeItem(sessionKey);
+    } catch {}
+    setPin("");
+    setLoginError("Your session ended. Log in again to keep serving tables.");
+    setStaffName("");
+    setView("login");
+  };
+
   const loadTables = async () => {
     // GROUP 10 FIX: this used to return early while the screen was off / the
     // tab hidden — which is exactly when a phone sits in a pocket — so the
@@ -361,6 +376,7 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
     // always process them now; sound and vibration fire even with the screen
     // off as long as the tab is alive.
     const r = await fetch("/api/tables");
+    if (r.status === 401) return expireSession();
     if (r.ok) setTables(await r.json());
 
     // Ring bell when a NEW customer QR order (pending_waiter) appears on any table,
@@ -369,6 +385,7 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
     // the item units — so each ticket's live unit count is diffed against the
     // baseline from the previous refresh.
     const tkRes = await fetch("/api/tickets?active=1");
+    if (tkRes.status === 401) return expireSession();
     if (tkRes.ok) {
       const all: Ticket[] = await tkRes.json();
       const pending = all.filter((t) => t.status === "pending_waiter");
@@ -586,6 +603,7 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
   const loadBunaLane = async () => {
     try {
       const r = await fetch("/api/station-items?station=buna");
+      if (r.status === 401) return expireSession();
       if (!r.ok) return;
       const data = (await r.json()) as Array<{
         id: number;
@@ -750,6 +768,8 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
       showToast(d.duplicate ? "✓ Already sent • not sent twice" : d.merged ? "✓ Items added to the table bill" : "✓ Order sent to cashier");
       await loadTables();
       onGoBack();
+    } else if (r.status === 401) {
+      expireSession();
     } else {
       showToast("Failed to send order. Press Send again, it will not duplicate.");
     }
@@ -830,37 +850,54 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
 
   const requestPayment = async () => {
     if (!activeTicket) return;
-    await fetch("/api/tickets", {
+    const r = await fetch("/api/tickets", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: activeTicket.id, status: "ready_for_payment" }),
     });
+    if (r.status === 401) return expireSession();
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      showToast(d?.error || "Could not move this bill. Try again.");
+      loadTables();
+      return;
+    }
     noteOwnStatus(activeTicket.id, "ready_for_payment");
     setView("payment");
     loadTables();
   };
 
   const confirmPayment = async () => {
-    if (!activeTicket || !payMethod) return;
+    if (!activeTicket) return;
     setSending(true);
-    await fetch("/api/tickets", {
+    const r = await fetch("/api/tickets", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id: activeTicket.id,
         status: "completed",
-        paymentMethod: payMethod,
-        // Payment status is separate from order status: record HOW it was paid now;
-        // the cashier still verifies (for digital) and releases the table.
-        paymentStatus: `paid_${payMethod}` as const,
+        // No payment-method options (owner's decision): paid is paid — the EFD
+        // receipt is the proof. The cashier still verifies and releases the table.
+        paymentMethod: null,
+        paymentStatus: "paid",
         receiptImage: receiptImage || "",
       }),
     });
+    if (r.status === 401) {
+      setSending(false);
+      return expireSession();
+    }
+    if (!r.ok) {
+      setSending(false);
+      const d = await r.json().catch(() => ({}));
+      showToast(d?.error || "Could not complete payment. Try again.");
+      loadTables();
+      return;
+    }
     noteOwnStatus(activeTicket.id, "completed");
     setSending(false);
     setActiveTicket(null);
     setSelectedTable(null);
-    setPayMethod(null);
     setReceiptImage("");
     showToast("✓ Payment completed • cashier will verify and release the table");
     setView("tables");
@@ -887,15 +924,22 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
     );
     if (cooking.length > 0) {
       const okToClear = confirm(
-        `Kitchen/Barista is still preparing ${cooking.length} item(s) for ${activeTicket.tableName}. The station lists will drop them.\n\nClear the table anyway?`
+        `The crews are still preparing ${cooking.length} item(s) for ${activeTicket.tableName}. The station lists will drop them.\n\nClear the table anyway?`
       );
       if (!okToClear) return;
     }
-    await fetch("/api/tickets", {
+    const r = await fetch("/api/tickets", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: activeTicket.id, status: "closed", closedBy: staffName }),
     });
+    if (r.status === 401) return expireSession();
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      showToast(d?.error || "Could not clear this table. Try again.");
+      loadTables();
+      return;
+    }
     noteOwnStatus(activeTicket.id, "closed");
     showToast(`✓ ${activeTicket.tableName} is free for new guests`);
     setActiveTicket(null);
@@ -963,11 +1007,18 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
 
   const confirmOrder = async () => {
     if (!activeTicket) return;
-    await fetch("/api/tickets", {
+    const r = await fetch("/api/tickets", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: activeTicket.id, status: "confirmed", confirmedBy: staffName }),
     });
+    if (r.status === 401) return expireSession();
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      showToast(d?.error || "Could not accept this order. Try again.");
+      loadTables();
+      return;
+    }
     noteOwnStatus(activeTicket.id, "confirmed");
     showToast("✓ Accepted • the crews with items on it, and the cashier, all have it");
     onGoBack();
@@ -1500,7 +1551,7 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
               {activeTicket.status === "confirmed" && (
                 activeTicket.confirmedAt ? (
                   <div className="w-full bg-[#2C1B17] border border-emerald-500/40 rounded-xl px-4 py-3 text-center text-xs font-bold text-emerald-300">
-                    ✓ Sent • the kitchen and barista are cooking, the cashier is printing
+                    ✓ Sent • the crews are cooking, the cashier is printing
                   </div>
                 ) : (
                   <div className="w-full bg-[#2C1B17] border border-sky-500/40 rounded-xl px-4 py-3 text-center text-xs font-bold text-sky-300">
@@ -1560,34 +1611,14 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
             <p className="font-serif font-black text-3xl text-[#C9A227]">{billTotal} ETB</p>
           </div>
 
-          <div className="space-y-2">
-            <p className="text-xs font-bold text-amber-200">Ask the customer • payment method:</p>
-            {([
-              { m: "cash", icon: <Banknote className="w-5 h-5 text-emerald-400" />, label: "Cash" },
-              { m: "telebirr", icon: <Smartphone className="w-5 h-5 text-amber-400" />, label: "Telebirr" },
-              { m: "cbe", icon: <Smartphone className="w-5 h-5 text-violet-400" />, label: "CBE Birr" },
-              { m: "card", icon: <CreditCard className="w-5 h-5 text-sky-400" />, label: "Card" },
-            ] as const).map(({ m, icon, label }) => (
-              <button
-                key={m}
-                onClick={() => setPayMethod(m)}
-                className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition ${
-                  payMethod === m ? "border-[#C9A227] bg-[#C9A227]/10" : "border-stone-700 bg-[#2C1B17]"
-                }`}
-              >
-                {icon}
-                <div className="flex-1">
-                  <p className="text-sm font-bold text-white">{label}</p>
-                  <p className="text-[11px] text-stone-400">
-                    {m === "cash" ? "Collect cash and confirm" : "Take receipt photo after payment (optional)"}
-                  </p>
-                </div>
-                {payMethod === m && <CheckCircle2 className="w-5 h-5 text-[#C9A227]" />}
-              </button>
-            ))}
+          <div className="bg-[#2C1B17] rounded-2xl border border-stone-700 p-4">
+            <p className="text-xs text-stone-300 leading-relaxed">
+              Collect the <strong className="text-white">{billTotal} ETB</strong> from the customer, then confirm below.
+              The cashier verifies and releases the table.
+            </p>
           </div>
 
-          {payMethod && payMethod !== "cash" && receiptEnabled && (
+          {receiptEnabled && (
             <div className="bg-[#2C1B17] rounded-2xl border border-stone-700 p-4 space-y-3">
               <p className="text-xs font-bold text-amber-200 flex items-center gap-1.5">
                 <Camera className="w-4 h-4 text-[#C9A227]" /> Receipt Photo (optional)
@@ -1621,14 +1652,10 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
 
           <button
             onClick={confirmPayment}
-            disabled={!payMethod || sending}
+            disabled={sending}
             className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm uppercase py-4 rounded-xl disabled:opacity-40"
           >
-            {sending
-              ? "Confirming..."
-              : `Confirm ${
-                  payMethod === "cbe" ? "CBE Birr" : payMethod ? payMethod.charAt(0).toUpperCase() + payMethod.slice(1) : ""
-                } Payment`}
+            {sending ? "Confirming..." : "Confirm Payment"}
           </button>
 
           <div className="flex items-center gap-2 text-[11px] text-stone-400 bg-[#2C1B17] rounded-xl p-3">

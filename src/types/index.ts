@@ -180,6 +180,10 @@ export interface TicketItem {
   stationName?: string | null;
   /** Crew progress: pending → accepted → done. */
   stationStatus?: string | null;
+  /** WHO last pressed Accept/Done on this line (crew-action audit). */
+  stationStatusBy?: string | null;
+  /** WHEN they pressed it (crew-action audit). */
+  stationStatusAt?: string | null;
   createdAt?: string;
   idempotencyKey?: string | null;
 }
@@ -221,6 +225,8 @@ export interface Ticket {
   unprintedSubmissions?: number;
   /** Guest asked for the bill/receipt (Group 8). Null until they tap it. */
   receiptRequestedAt?: string | null;
+  /** WHEN a line on this bill was last corrected (bill-edit audit). */
+  itemsEditedAt?: string | null;
   items?: TicketItem[];
 }
 
@@ -236,21 +242,32 @@ export interface ReportData {
   averageOrderValue: number;
   orderHistory?: Ticket[];
   popularItems: Array<{ name: string; quantity: number; revenue: number }>;
-  categorySales: Array<{ category: string; revenue: number }>;
+  categorySales: Array<{ category: string; quantity: number; revenue: number }>;
   paymentStats: Array<{ method: string; count: number; revenue: number }>;
   receipts: Array<{ id: number; tableName: string; method: string; receiptImage?: string; totalAmount: number; closedAt?: string | null }>;
   hourlySales?: Array<{ hour: number; orders: number; revenue: number }>;
   peakHour?: { hour: number; orders: number; revenue: number } | null;
   /**
-   * CROSS-CHECK BY STATION (today) — the paper world's three stacks: everything
-   * the barista, the kitchen and the buna makers each sold today, so the
-   * cross-checker can add the three piles and compare with the EFD receipts.
+   * CROSS-CHECK BY STATION (selected period) — the paper world's four stacks:
+   * everything the barista, the kitchen, the buna makers and the juice maker
+   * each sold in the period, so the cross-checker can add the four piles and
+   * compare with the EFD receipts.
    */
   stationSales?: Array<{ station: string; orders: number; quantity: number; revenue: number }>;
-  /** Full per-station item breakdown for today (name, units, ETB). */
+  /** Full per-station item breakdown for the selected period (name, units, ETB). */
   stationItems?: Array<{ station: string; name: string; quantity: number; revenue: number }>;
-  /** Total of today's printed (EFD) bills — the number to compare against the receipt pile. */
+  /** Total of the selected period's printed (EFD) bills — the number to compare against the receipt pile. */
   printedTodayTotal?: number;
-  /** Every bill printed today (any status except cancelled), newest first, with items. */
+  /** Every bill printed in the selected period (any status except cancelled), newest first, with items. */
   printedToday?: Ticket[];
+  /** Which period this response describes (echoes ?period=, defaults to "today"). */
+  period?: "today" | "yesterday" | "week" | "month";
+  /** Plain-language label for the selected period, e.g. "Today" or "Last 7 Days". */
+  periodLabel?: string;
+  /** Total item units sold in the selected period (non-removed lines). */
+  totalItems?: number;
+  /** True when the printed-bills archive was capped (long periods only). */
+  archiveCapped?: boolean;
+  /** How many printed bills the selected period has in total (before any cap). */
+  archiveTotal?: number;
 }

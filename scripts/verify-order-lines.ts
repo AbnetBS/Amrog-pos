@@ -174,19 +174,32 @@ function line(over: Partial<OrderLine> & { id: number; name: string }): OrderLin
   assert("confirmed, kitchen not started → confirmed", customerOrderPhase({ status: "open" }, [kitchenRow]) === "confirmed");
   assert("kitchen accepted/cooking → preparing", customerOrderPhase({ status: "open" }, [{ ...kitchenRow, stationStatus: "accepted" }]) === "preparing");
   assert("kitchen finished everything → ready", customerOrderPhase({ status: "open" }, [{ ...kitchenRow, stationStatus: "done" }]) === "ready");
-  assert("food + drink follows the FOOD", customerOrderPhase({ status: "open" }, [{ ...kitchenRow, stationStatus: "done" }, drinkRow]) === "ready");
+  assert("food + drink follows the FOOD", customerOrderPhase({ status: "open" }, [{ ...kitchenRow, stationStatus: "done" }, { ...drinkRow, stationStatus: "done" }]) === "ready");
+  assert("  …and waits for the drink too", customerOrderPhase({ status: "open" }, [{ ...kitchenRow, stationStatus: "done" }, drinkRow]) === "preparing");
 
-  // The explicit ask: coffee/juice/cake need no progress bar.
-  assert("a barista-only bill is 'drinks_only' (no progress bar)", customerOrderPhase({ status: "open" }, [drinkRow]) === "drinks_only");
-  assert("  …even with several drinks", customerOrderPhase({ status: "open" }, [drinkRow, { ...drinkRow, id: 92, quantity: 3 }]) === "drinks_only");
+  // The barista and the juice maker drive the guest phase like the kitchen.
+  const juiceRow = line({ id: 93, name: "Avocado Juice", stationName: "juice", stationStatus: "pending" });
+  assert("a barista-only bill starts 'confirmed'", customerOrderPhase({ status: "open" }, [drinkRow]) === "confirmed");
+  assert("  …even with several drinks", customerOrderPhase({ status: "open" }, [drinkRow, { ...drinkRow, id: 92, quantity: 3 }]) === "confirmed");
+  assert("barista accepted → preparing", customerOrderPhase({ status: "open" }, [{ ...drinkRow, stationStatus: "accepted" }]) === "preparing");
+  assert("barista finished everything → ready", customerOrderPhase({ status: "open" }, [{ ...drinkRow, stationStatus: "done" }]) === "ready");
+  assert("juice accepted → preparing", customerOrderPhase({ status: "open" }, [{ ...juiceRow, stationStatus: "accepted" }]) === "preparing");
+  assert("juice finished everything → ready", customerOrderPhase({ status: "open" }, [{ ...juiceRow, stationStatus: "done" }]) === "ready");
+
+  // Buna is excluded from the math: the buna makers do not watch their
+  // phones, so counting their lane would trap orders in "confirmed" forever.
+  const bunaRow = line({ id: 94, name: "Jebena Buna", stationName: "buna", stationStatus: "pending" });
+  assert("a buna-only bill reads 'confirmed' (nothing to track)", customerOrderPhase({ status: "open" }, [bunaRow]) === "confirmed");
+  assert("buna never blocks 'ready'", customerOrderPhase({ status: "open" }, [{ ...kitchenRow, stationStatus: "done" }, bunaRow]) === "ready");
+  assert("buna never triggers 'preparing' on its own", customerOrderPhase({ status: "open" }, [kitchenRow, bunaRow]) === "confirmed");
 
   assert("ready_for_payment → bill", customerOrderPhase({ status: "ready_for_payment" }, [{ ...kitchenRow, stationStatus: "done" }]) === "bill");
   assert("completed → bill", customerOrderPhase({ status: "completed" }, [kitchenRow]) === "bill");
   assert("paid wins over everything else", customerOrderPhase({ status: "open", paymentStatus: "paid_cash" }, [kitchenRow]) === "paid");
   assert("status paid also wins", customerOrderPhase({ status: "paid" }, [kitchenRow]) === "paid");
   assert("cancelled is reported honestly", customerOrderPhase({ status: "cancelled" }, [kitchenRow]) === "cancelled");
-  // Every line removed by the cashier ⇒ no kitchen work left to track.
-  assert("a ticket with no live lines has no food progress", customerOrderPhase({ status: "open" }, []) === "drinks_only");
+  // Every line removed by the cashier ⇒ nothing left to track.
+  assert("a ticket with no live lines reads 'confirmed'", customerOrderPhase({ status: "open" }, []) === "confirmed");
 }
 
 /* ── 7. arrival time helpers (the crew's #1 question) ─────────────────────── */

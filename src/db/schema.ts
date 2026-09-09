@@ -160,6 +160,10 @@ export const tickets = pgTable("tickets", {
   // once the food is served; cleared by staff after the receipt is delivered.
   // It never changes the order or payment status by itself.
   receiptRequestedAt: timestamp("receipt_requested_at"),
+  // Bill-edit audit: WHEN a line on this bill was last corrected (qty, note or
+  // removal). A printed bill with items_edited_at AFTER printed_at changed
+  // after the EFD receipt went out and must be re-keyed into the EFD.
+  itemsEditedAt: timestamp("items_edited_at"),
 });
 
 /**
@@ -200,6 +204,9 @@ export const ticketItems = pgTable("ticket_items", {
   // Station routing: which crew handles this item (barista for drinks/juice, kitchen for food/pastry)
   stationName: varchar("station_name", { length: 20 }).default("kitchen"),
   stationStatus: varchar("station_status", { length: 20 }).default("pending"), // pending | accepted | done
+  // Crew-action audit: WHO last pressed Accept/Done on this line and WHEN.
+  stationStatusBy: varchar("station_status_by", { length: 100 }),
+  stationStatusAt: timestamp("station_status_at"),
   createdAt: timestamp("created_at").defaultNow(),
   // Shared by all rows of one order submission (see tickets.idempotencyKey).
   idempotencyKey: varchar("idempotency_key", { length: 64 }),

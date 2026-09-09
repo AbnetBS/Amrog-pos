@@ -16,7 +16,7 @@ import { sql } from "drizzle-orm";
  * once and stamps the new version. Existing DBs self-heal on the first
  * request after a deploy — no manual action needed.
  */
-const SCHEMA_VERSION = "2026-09-08-2";
+const SCHEMA_VERSION = "2026-09-09-1";
 
 /**
  * UNIVERSAL self-healing schema manager — works on ANY Postgres database
@@ -204,6 +204,8 @@ const RMS_CREATES: Array<[string, string]> = [
       quantity integer DEFAULT 1,
       notes text,
       removed boolean DEFAULT false,
+      station_status_by text,
+      station_status_at timestamp,
       created_at timestamp DEFAULT now()
     )`,
   ],
@@ -303,6 +305,11 @@ const RMS_COLUMNS: Record<string, Record<string, ColSpec>> = {
     closed_by: { type: "text" },
     // Group 8: guest "bring us the bill/receipt" request
     receipt_requested_at: { type: "timestamp", dropNotNull: true },
+    // Bill-edit audit: WHEN a line on this bill was last corrected (qty, note
+    // or removal). Compared with printed_at so a bill changed AFTER the EFD
+    // receipt went out can be flagged for re-keying instead of silently
+    // drifting from the EFD total.
+    items_edited_at: { type: "timestamp", dropNotNull: true },
   },
   order_submissions: {
     ticket_id: { type: "integer", def: "0", castText: true },
@@ -327,6 +334,10 @@ const RMS_COLUMNS: Record<string, Record<string, ColSpec>> = {
     created_at: { type: "timestamp", def: "now()", dropNotNull: true },
     // Group 1: idempotent order submission (unique per ticket + key)
     idempotency_key: { type: "text" },
+    // Crew-action audit: WHO last touched this line (Accept/Done) and WHEN, so
+    // a "done" nobody remembers pressing can always be traced to a person.
+    station_status_by: { type: "text" },
+    station_status_at: { type: "timestamp", dropNotNull: true },
   },
   push_subscriptions: {
     endpoint: { type: "text" },
