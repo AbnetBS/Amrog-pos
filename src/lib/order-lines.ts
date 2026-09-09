@@ -16,9 +16,12 @@
  * 2. CUSTOMER-FACING PROGRESS. The kitchen/barista already track per-item
  *    `pending → accepted → done`; `stationProgress()` + `customerOrderPhase()`
  *    turn that into the one line a guest cares about ("your food is being
- *    prepared" / "your food is ready"). Drinks, cake and other barista items are
- *    deliberately EXCLUDED from that progress: they are made in seconds and a
- *    "preparing…" bar for a macchiato would just be noise.
+ *    prepared" / "your food is ready"). Kitchen, barista AND juice all drive
+ *    that progress: a guest waiting on juice watches it the same way. Buna is
+ *    deliberately EXCLUDED: the buna makers do not watch their phones, so
+ *    their lane would sit "pending" forever and trap every buna order in
+ *    "confirmed" — the guest panel shows buna lines as "Accepted" instead
+ *    (display-only; nothing is auto-accepted in the database).
  *
  * No DB, no React, no runtime imports — safe to unit-test and to use on either
  * side of the wire.
@@ -165,7 +168,7 @@ export interface StationProgress {
 }
 
 /** Progress of one crew station, measured in UNITS (2 Tea = 2 units). */
-export function stationProgress(lines: OrderLine[], station: "kitchen" | "barista"): StationProgress {
+export function stationProgress(lines: OrderLine[], station: string): StationProgress {
   const own = lines.filter((l) => !l.removed && stationOf(l) === station);
   const grouped = groupOrderLines(own, { splitByStationStatus: true });
   const unitsOf = (status: StationStatus) =>
@@ -189,10 +192,9 @@ export function stationProgress(lines: OrderLine[], station: "kitchen" | "barist
 export type CustomerOrderPhase =
   | "none"
   | "waiting"      // sent, waiter has not confirmed yet
-  | "confirmed"    // accepted, kitchen has not started
-  | "preparing"    // kitchen is cooking
-  | "ready"        // kitchen finished everything
-  | "drinks_only"  // barista items only — no progress bar (made in seconds)
+  | "confirmed"    // accepted, no crew station has started yet
+  | "preparing"    // kitchen, barista or juice is working on it
+  | "ready"        // every tracked station finished everything
   | "bill"         // ready_for_payment / completed
   | "paid"
   | "cancelled";
@@ -205,10 +207,13 @@ export interface PhaseTicket {
 /**
  * Order-level phase shown to the customer.
  *
- * Barista-only bills (coffee, juice, cake) intentionally skip the
- * preparing/ready phases — those items are handed over almost immediately, so a
- * progress bar would be noise. Everything else is driven by the KITCHEN's
- * per-item accept/done buttons, which already exist.
+ * Kitchen, barista AND juice all drive the preparing/ready phases through
+ * their per-item accept/done buttons, which already exist: a guest waiting on
+ * juice watches it the same way as a guest waiting on food. Buna lines are
+ * EXCLUDED from the math (not deleted — just not counted): the buna makers do
+ * not watch their phones, so counting their lane would trap every buna order
+ * in "confirmed" forever. A buna-only bill therefore reads "confirmed", and
+ * the guest panel shows each buna line as "Accepted".
  */
 export function customerOrderPhase(ticket: PhaseTicket | null, lines: OrderLine[]): CustomerOrderPhase {
   if (!ticket) return "none";
@@ -220,10 +225,16 @@ export function customerOrderPhase(ticket: PhaseTicket | null, lines: OrderLine[
   if (status === "ready_for_payment" || status === "completed") return "bill";
   if (status === "pending_waiter") return "waiting";
 
-  const kitchen = stationProgress(lines, "kitchen");
-  if (kitchen.units === 0) return "drinks_only";
-  if (kitchen.state === "ready") return "ready";
-  if (kitchen.state === "preparing") return "preparing";
+  const tracked = lines.filter((l) => !l.removed && stationOf(l) !== "buna");
+  if (tracked.length === 0) return "confirmed";
+  const kitchen = stationProgress(tracked, "kitchen");
+  const barista = stationProgress(tracked, "barista");
+  const juice = stationProgress(tracked, "juice");
+  const units = kitchen.units + barista.units + juice.units;
+  const done = kitchen.done + barista.done + juice.done;
+  const accepted = kitchen.accepted + barista.accepted + juice.accepted;
+  if (units > 0 && done === units) return "ready";
+  if (accepted > 0 || done > 0) return "preparing";
   return "confirmed";
 }
 

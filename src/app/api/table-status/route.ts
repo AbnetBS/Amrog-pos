@@ -7,7 +7,7 @@ import { checkRateLimit, checkSharedIpRateLimit, getClientIp, VENUE_POLICIES } f
 import { publish, CHANNELS } from "@/lib/realtime";
 import { sendPushToNamedStaff, sendPushToRoles, CUSTOMER_ALERT_RING } from "@/lib/push";
 import { ticketOwner } from "@/lib/alerts";
-import { stationOf } from "@/lib/stations";
+import { stationOf, type StationName } from "@/lib/stations";
 import {
   customerOrderPhase,
   groupOrderLines,
@@ -59,7 +59,8 @@ interface PublicLine {
   name: string;
   quantity: number;
   notes: string;
-  station: "kitchen" | "barista";
+  /** Full crew lane — the guest panel needs "buna" to pin those lines. */
+  station: StationName;
   stationStatus: string;
 }
 
@@ -76,10 +77,12 @@ interface TableStatusPayload {
     closedAt: string | null;
     receiptRequestedAt: string | null;
     phase: CustomerOrderPhase;
-    /** Food progress — the bar the guest actually watches. */
+    /** Food progress — one of the lanes the guest phase is computed from. */
     kitchen: ReturnType<typeof stationProgress>;
-    /** Drinks/cake: shown as a list only, deliberately without a progress bar. */
+    /** Drinks/cake progress — the barista's accept/done moves the guest phase. */
     barista: ReturnType<typeof stationProgress>;
+    /** Fresh-juice progress — the juice maker's accept/done moves it too. */
+    juice: ReturnType<typeof stationProgress>;
     lines: PublicLine[];
   };
 }
@@ -126,8 +129,10 @@ async function buildPayload(tableId: number): Promise<TableStatusPayload> {
 
   const lines = rows as unknown as OrderLine[];
   // One line per dish, however many times it was added during the visit — the
-  // same rule the waiter, cashier and receipt screens use.
-  const grouped = groupOrderLines(lines, { splitByStationStatus: false });
+  // same rule the waiter, cashier and receipt screens use. Split by crew state
+  // ON PURPOSE: "1 Tea (new)" must stay apart from "1 Tea (ready)" so the
+  // guest's panel can chip each row honestly, like the crew screens do.
+  const grouped = groupOrderLines(lines, { splitByStationStatus: true });
 
   return {
     tableId,
@@ -144,14 +149,15 @@ async function buildPayload(tableId: number): Promise<TableStatusPayload> {
       phase: customerOrderPhase(ticket, lines),
       kitchen: stationProgress(lines, "kitchen"),
       barista: stationProgress(lines, "barista"),
+      juice: stationProgress(lines, "juice"),
       lines: grouped.map((line) => ({
         name: line.name,
         quantity: line.quantity,
         notes: String(line.notes ?? ""),
-        // The guest sees two buckets: food and drinks. Traditional buna is a
-        // drink, so the buna makers' lane folds into the barista bucket here —
-        // the guest never needs to know a third crew exists.
-        station: (stationOf(line.stationName) === "kitchen" ? "kitchen" : "barista") as "kitchen" | "barista",
+        // Full lane name, NOT folded: the guest panel pins buna lines to
+        // "Accepted" (the buna makers do not watch their phones), which only
+        // works if it can see the "buna" lane. No staff data rides along.
+        station: stationOf(line.stationName),
         stationStatus: String(line.stationStatus ?? "pending"),
       })),
     },

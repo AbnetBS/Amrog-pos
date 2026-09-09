@@ -61,7 +61,8 @@ const i18n = read("src/lib/i18n.ts");
   const payloadSrc = payloadStart >= 0 && payloadEnd > payloadStart ? status.slice(payloadStart, payloadEnd) : status;
   pass("the payload leaks no staff names or receipt photos", !/createdBy|confirmedBy|waiterName|staffName|receiptImage|pinHash/.test(payloadSrc));
   pass("recently-paid bills stay visible for the thank-you/review window", /RECENTLY_CLOSED_GRACE_MS/.test(status) && /30 \* 60 \* 1000/.test(status));
-  pass("the payload carries the customer phase + per-station progress", /phase: customerOrderPhase\(ticket, lines\)/.test(status) && /kitchen: stationProgress\(lines, "kitchen"\)/.test(status) && /barista: stationProgress\(lines, "barista"\)/.test(status));
+  pass("the payload carries the customer phase + per-station progress", /phase: customerOrderPhase\(ticket, lines\)/.test(status) && /kitchen: stationProgress\(lines, "kitchen"\)/.test(status) && /barista: stationProgress\(lines, "barista"\)/.test(status) && /juice: stationProgress\(lines, "juice"\)/.test(status));
+  pass("guest lines keep their crew state (split rows, full lane name)", /splitByStationStatus: true/.test(status) && /station: stationOf\(line\.stationName\)/.test(status));
   pass("duplicate lines are collapsed before they reach the guest", /groupOrderLines\(lines/.test(status));
 }
 
@@ -130,11 +131,14 @@ const i18n = read("src/lib/i18n.ts");
   pass("order history shows when the order ARRIVED and who took it", /arrived \{formatDateTime\(o\.createdAt\)\}/.test(history) && /by \{o\.createdBy/.test(history));
 }
 
-/* ── 1. the guest's receipt button (the only order-status UI left) ────────── */
+/* ── 1. the guest's status dock + receipt button ───────────────────────────── */
 {
-  pass("the module ships a provider and the receipt button", /export function OrderStatusProvider/.test(orderStatusUi) && /export function RequestReceiptButton/.test(orderStatusUi));
-  pass("the pill and the full status panel are gone", !/OrderStatusFab/.test(orderStatusUi) && !/OrderStatusSheet/.test(orderStatusUi) && !/open: boolean/.test(orderStatusUi));
-  pass("no status words, timeline or progress bar are left in the module", !/os_phase_/.test(orderStatusUi) && !/os_view/.test(orderStatusUi) && !/kitchenPercent/.test(orderStatusUi) && !/os_line_/.test(orderStatusUi));
+  pass("the module ships a provider, the status dock and the receipt button", /export function OrderStatusProvider/.test(orderStatusUi) && /export function OrderStatusDock/.test(orderStatusUi) && /export function RequestReceiptButton/.test(orderStatusUi));
+  pass("the dock is a floating pill above the language button, tap to expand", /fixed bottom-\[76px\] right-5/.test(orderStatusUi) && /aria-expanded=\{open\}/.test(orderStatusUi) && /useState\(false\)/.test(orderStatusUi));
+  pass("the panel speaks in phases (one sentence per phase, both languages)", /PHASE_SENTENCE/.test(orderStatusUi) && /os_phase_waiting/.test(orderStatusUi) && /os_phase_preparing/.test(orderStatusUi) && /os_phase_ready/.test(orderStatusUi));
+  pass("every dish row carries an Accepted / Preparing / Ready chip", /os_line_accepted/.test(orderStatusUi) && /os_line_preparing/.test(orderStatusUi) && /os_line_done/.test(orderStatusUi));
+  pass("buna lines always read Accepted (the buna makers do not watch phones)", /line\.station === "buna"\) return "accepted"/.test(orderStatusUi));
+  pass("the panel shows the arrival time and the running total", /os_arrived/.test(orderStatusUi) && /os_total/.test(orderStatusUi) && /ETB/.test(orderStatusUi));
   pass("the provider keeps polling /api/table-status while the menu is open", /\/api\/table-status\?table=/.test(orderStatusUi) && /setInterval/.test(orderStatusUi) && /POLL_MS/.test(orderStatusUi));
   pass("a phone left on the table stops hammering the server", /document\.hidden/.test(orderStatusUi) && /visibilitychange/.test(orderStatusUi));
   pass("a failed poll can never break the menu", /catch \{\s*\/\/ A failed poll must never disturb the menu/.test(orderStatusUi));
@@ -146,16 +150,17 @@ const i18n = read("src/lib/i18n.ts");
   pass("a guest who already asked sees the confirmation with the time instead of the button", /billRequested &&[\s\S]{0,400}os_bill_requested/.test(orderStatusUi) && /os_bill_requested_at/.test(orderStatusUi));
   pass("the bill button is disabled while sending", /disabled=\{requesting\}/.test(orderStatusUi));
   pass("the menu page wraps itself in the provider", /<OrderStatusProvider/.test(app) && /tableId=\{tableId \?\? 0\}/.test(app));
-  pass("the menu renders ONLY the receipt button (no pill, no panel)", /<RequestReceiptButton \/>/.test(app) && !/<OrderStatusFab/.test(app) && !/<OrderStatusBanner/.test(app));
+  pass("the menu renders the status dock plus the receipt button", /<OrderStatusDock \/>/.test(app) && /<RequestReceiptButton \/>/.test(app));
+  pass("the sent-confirmation screen has the dock too (what did I just order?)", /if \(submitted\)[\s\S]{0,800}<OrderStatusDock \/>/.test(app));
   pass("nothing is rendered when there is nothing to show", /empty:hidden/.test(app));
   pass("submitting an order refreshes the status immediately", /setStatusRefreshKey\(\(k\) => k \+ 1\)/.test(app) && /refreshKey=\{statusRefreshKey\}/.test(app));
 }
 
 /* ── 5. review as the last step of the flow ───────────────────────────────── */
 {
-  // The removed panel was the only thing that scrolled to the review card, so
-  // the review must stay reachable from the page itself: it is a plain section
-  // of the menu with its stable anchor.
+  // The status dock never links to the review card, so the review must stay
+  // reachable from the page itself: it is a plain section of the menu with
+  // its stable anchor.
   pass("the review card keeps its stable anchor on the page itself", /id="guest-review"/.test(app) && /scroll-mt-24/.test(app));
   pass("the ask appears after the table has ordered", /\{submitted && !reviewSent && \(/.test(app) && /review_cta_title/.test(app));
   pass("a submitted review turns into a thank-you card", /setReviewSent\(true\)/.test(app) && /review_thanks_title/.test(app));

@@ -9,37 +9,51 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { CheckCircle2, Loader2, Receipt } from "lucide-react";
+import { CheckCircle2, ChevronDown, Loader2, Receipt, RefreshCw } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { formatClock, type CustomerOrderPhase } from "@/lib/order-lines";
 
 /**
- * THE GUEST'S RECEIPT BUTTON.
+ * THE GUEST'S ORDER STATUS + RECEIPT BUTTON.
  *
- * The live order-status feature (the pill, the panel with the dish list, the
- * kitchen progress bar and the phase timeline) is gone for now. The one thing
- * a guest needs after ordering is to call for the bill, so this module keeps
- * only two halves:
+ * After a guest sends an order — or scans the QR when the waiter took the
+ * order — a small floating pill sits above the language button showing that
+ * this table HAS an order and what phase it is in. One tap opens the panel:
+ * the dish list with a per-line chip (Accepted / Preparing / Ready) that
+ * moves when the kitchen, barista or juice maker taps Accept/Done, plus the
+ * running total. The receipt button below the menu is unchanged.
  *
  *   • <OrderStatusProvider/>   — keeps polling the public, table-scoped
  *                                `/api/table-status` endpoint so the page
- *                                knows whether THIS table has a live order
- *                                and whether the receipt was already asked
- *                                for (plus the `requestBill` call).
+ *                                knows whether THIS table has a live order,
+ *                                what is on it, and whether the receipt was
+ *                                already asked for (plus `requestBill` and a
+ *                                manual `refresh` for the panel).
+ *   • <OrderStatusDock/>       — the floating pill + expandable panel. Renders
+ *                                nothing until the table has a live order.
  *   • <RequestReceiptButton/>  — one big button with a receipt icon. One tap
  *                                and the waiter's phone rings for ~3 seconds
  *                                and shows WHICH table. After the request it
  *                                is replaced by a confirmation line with the
- *                                time. No status words, no progress bar.
+ *                                time.
  *
- * The provider must keep polling even though nothing else is displayed: the
- * button has to appear the moment an order exists (whoever sent it), and it
- * must never come back once the receipt was requested or the bill was
- * settled/cancelled.
+ * BUNA RULE (owner's decision): buna lines ALWAYS show "Accepted". The buna
+ * makers do not watch their phones, so their lane would sit "pending" forever
+ * and trap the guest's view. This is display-only — nothing is auto-accepted
+ * in the database, so waiter edits and cashier totals are untouched.
  */
 
 /** How often the guest's phone asks for an update while the menu is open. */
 const POLL_MS = 12_000;
+
+export interface TableTicketLine {
+  name: string;
+  quantity: number;
+  notes: string;
+  /** Full crew lane ("kitchen" | "barista" | "buna" | "juice"). */
+  station: string;
+  stationStatus: string;
+}
 
 export interface TableTicketStatus {
   id: number;
@@ -52,6 +66,7 @@ export interface TableTicketStatus {
   closedAt: string | null;
   receiptRequestedAt: string | null;
   phase: CustomerOrderPhase;
+  lines: TableTicketLine[];
 }
 
 export interface TableStatus {
@@ -65,6 +80,8 @@ interface OrderStatusValue {
   /** Bill request in flight. */
   requesting: boolean;
   requestBill: () => Promise<void>;
+  /** Immediate re-poll (the panel's "refresh now" button). */
+  refresh: () => Promise<void>;
 }
 
 const OrderStatusContext = createContext<OrderStatusValue | null>(null);
@@ -145,8 +162,9 @@ export function OrderStatusProvider({
       ticket: status?.ticket ?? null,
       requesting,
       requestBill,
+      refresh,
     }),
-    [tableId, status, requesting, requestBill]
+    [tableId, status, requesting, requestBill, refresh]
   );
 
   return <OrderStatusContext.Provider value={value}>{children}</OrderStatusContext.Provider>;
@@ -210,6 +228,149 @@ export function RequestReceiptButton() {
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ───────────────────── the floating status dock ───────────────────── */
+
+/** One sentence per phase, in the guest's language. */
+const PHASE_SENTENCE = {
+  none: "os_phase_none",
+  waiting: "os_phase_waiting",
+  confirmed: "os_phase_confirmed",
+  preparing: "os_phase_preparing",
+  ready: "os_phase_ready",
+  bill: "os_phase_bill",
+  paid: "os_phase_paid",
+  cancelled: "os_phase_cancelled",
+} as const;
+
+/** Pill dot + phase banner accent per phase. */
+const PHASE_STYLE: Record<CustomerOrderPhase, { dot: string; banner: string }> = {
+  none: { dot: "bg-stone-400", banner: "bg-stone-50 text-stone-700 border border-stone-200" },
+  waiting: { dot: "bg-amber-400", banner: "bg-amber-50 text-amber-900 border border-amber-200" },
+  confirmed: { dot: "bg-sky-400", banner: "bg-sky-50 text-sky-900 border border-sky-200" },
+  preparing: { dot: "bg-orange-500", banner: "bg-orange-50 text-orange-900 border border-orange-200" },
+  ready: { dot: "bg-emerald-500", banner: "bg-emerald-50 text-emerald-900 border border-emerald-200" },
+  bill: { dot: "bg-violet-500", banner: "bg-violet-50 text-violet-900 border border-violet-200" },
+  paid: { dot: "bg-emerald-600", banner: "bg-emerald-50 text-emerald-900 border border-emerald-200" },
+  cancelled: { dot: "bg-rose-500", banner: "bg-rose-50 text-rose-900 border border-rose-200" },
+};
+
+type LineChip = "accepted" | "preparing" | "ready";
+
+const CHIP_STYLE: Record<LineChip, string> = {
+  accepted: "bg-sky-100 text-sky-900",
+  preparing: "bg-amber-100 text-amber-900",
+  ready: "bg-emerald-100 text-emerald-900",
+};
+
+/**
+ * The chip one dish row shows. The crew's `pending → accepted → done` maps to
+ * the guest's Accepted / Preparing / Ready — and buna lines ALWAYS read
+ * Accepted, because the buna makers do not watch their phones (display-only;
+ * the database row is untouched).
+ */
+function chipOf(line: TableTicketLine): LineChip {
+  if (line.station === "buna") return "accepted";
+  const state = String(line.stationStatus ?? "pending");
+  if (state === "done") return "ready";
+  if (state === "accepted") return "preparing";
+  return "accepted";
+}
+
+/**
+ * THE FLOATING PILL + PANEL, above the language button.
+ *
+ * Renders nothing until this table has a live order (whoever sent it). The
+ * pill shows the order phase at a glance; tapping it opens the panel with the
+ * dish list, per-line chips, arrival time and running total. It polls through
+ * the provider, so chips move within seconds of the crew tapping Accept/Done.
+ */
+export function OrderStatusDock() {
+  const { ticket, refresh } = useOrderStatus();
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  if (!ticket) return null;
+
+  const lines = Array.isArray(ticket.lines) ? ticket.lines : [];
+  const units = lines.reduce((sum, line) => sum + (Number(line.quantity) || 0), 0);
+  const style = PHASE_STYLE[ticket.phase] ?? PHASE_STYLE.none;
+  const live = ticket.phase === "waiting" || ticket.phase === "preparing";
+
+  return (
+    <div className="fixed bottom-[76px] right-5 z-40 w-[calc(100vw-2.5rem)] max-w-xs flex flex-col items-end gap-2">
+      {open && (
+        <div className="w-full rounded-2xl border border-[#C9A227]/40 bg-white shadow-xl overflow-hidden">
+          <div className="flex items-center gap-2 px-3.5 pt-3 pb-2">
+            <Receipt className="w-4 h-4 text-[#4E342E] shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs font-black text-[#4E342E] leading-tight">{t("os_no_order_title")}</p>
+              <p className="text-[10px] text-stone-500 font-semibold leading-tight">
+                {t("os_arrived")} {formatClock(ticket.createdAt)}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label={t("close")}
+              className="ml-auto p-1.5 -m-1 text-stone-400 active:text-stone-700"
+            >
+              <ChevronDown className="w-4 h-4" />
+            </button>
+          </div>
+          <p className={`mx-3 rounded-xl px-3 py-2 text-[11px] font-bold ${style.banner}`}>
+            {t(PHASE_SENTENCE[ticket.phase] ?? PHASE_SENTENCE.none)}
+          </p>
+          <ul className="max-h-44 overflow-y-auto px-3.5 py-2 space-y-1.5">
+            {lines.map((line, i) => {
+              const chip = chipOf(line);
+              const chipLabel =
+                chip === "ready" ? t("os_line_done") : chip === "preparing" ? t("os_line_preparing") : t("os_line_accepted");
+              return (
+                <li key={`${line.name}-${i}`} className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-stone-800 leading-snug">
+                      {line.name} <span className="text-stone-400">×{line.quantity}</span>
+                    </p>
+                    {line.notes ? <p className="text-[10px] text-stone-500 leading-snug">{line.notes}</p> : null}
+                  </div>
+                  <span className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full ${CHIP_STYLE[chip]}`}>
+                    {chipLabel}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="flex items-center justify-between px-3.5 py-2 border-t border-stone-100">
+            <span className="text-[11px] font-black text-stone-500 uppercase">{t("os_total")}</span>
+            <span className="text-sm font-black text-[#4E342E]">{ticket.totalAmount} ETB</span>
+          </div>
+          <div className="flex items-center justify-between px-3.5 pb-3 pt-0.5">
+            <span className="text-[10px] text-stone-400 font-semibold">{t("os_auto_refresh")}</span>
+            <button
+              type="button"
+              onClick={() => void refresh()}
+              className="flex items-center gap-1 text-[11px] font-bold text-[#4E342E] active:opacity-60"
+            >
+              <RefreshCw className="w-3 h-3" /> {t("os_refresh_now")}
+            </button>
+          </div>
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex items-center gap-2 rounded-full bg-[#4E342E] text-amber-100 pl-3 pr-2.5 py-2 shadow-lg active:scale-[0.98] transition"
+      >
+        <span className={`w-2 h-2 rounded-full ${style.dot} ${live ? "animate-pulse" : ""}`} />
+        <span className="text-xs font-bold whitespace-nowrap">
+          {t("os_no_order_title")} · {units}
+        </span>
+        <ChevronDown className={`w-4 h-4 transition-transform ${open ? "" : "rotate-180"}`} />
+      </button>
     </div>
   );
 }
