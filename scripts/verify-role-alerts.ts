@@ -27,6 +27,8 @@ import {
   ALL_STAFF_ROLES,
   itemQuantityAlerts,
   itemRemovedAlerts,
+  itemNotesAlerts,
+  itemEditedAfterPrintAlerts,
   billRequestAlerts,
   stationProgressAlerts,
   ticketStatusAlerts,
@@ -138,6 +140,24 @@ const urgentFor = (alerts: RoleAlert[], role: string) =>
   const qty = itemQuantityAlerts({ ...TICKET, itemName: "Tibs", station: "kitchen", fromQuantity: 2, toQuantity: 4 });
   pass("a quantity change tells both waiter and station", hasRole(qty, "waiter") && hasRole(qty, "kitchen"));
   pass("a quantity change spells out the old and new number", qty.every((a) => a.body.includes("2 to 4")));
+
+  // A note changed on a line the crew already STARTED: they would never
+  // re-read it, so the owning station is rung urgently (the waiter is not —
+  // she wrote it herself or stands next to the cashier who did).
+  const note = itemNotesAlerts({ ...TICKET, itemName: "Tea", station: "barista" });
+  pass("a changed note rings ONLY the owning station, urgently",
+    rolesOf(note).join() === "barista" && urgentFor(note, "barista"));
+  pass("a changed note says to re-read it", note.every((a) => /re-read the note/i.test(a.body)));
+  pass("a changed note on a station-less line rings nobody",
+    itemNotesAlerts({ ...TICKET, itemName: "Water", station: "" }).length === 0);
+
+  // A correction landing AFTER the EFD receipt went out: the cashier must
+  // re-key the EFD, and only an alarm tells her (the editor is usually a
+  // waiter, not her).
+  const afterPrint = itemEditedAfterPrintAlerts({ ...TICKET, itemName: "Tibs", station: "kitchen" });
+  pass("an edit after print rings the cashier, urgently",
+    rolesOf(afterPrint).join() === "cashier" && urgentFor(afterPrint, "cashier"));
+  pass("an edit after print says to re-key the EFD", afterPrint.every((a) => /re-key/i.test(a.body)));
 }
 
 /* ── 4. The guest asking for the bill ─────────────────────────────────────── */
@@ -170,6 +190,8 @@ const urgentFor = (alerts: RoleAlert[], role: string) =>
     ...itemRemovedAlerts({ ...TICKET, itemName: "Macchiato", station: "barista" }),
     ...itemQuantityAlerts({ ...TICKET, itemName: "Tibs", station: "kitchen", fromQuantity: 2, toQuantity: 4 }),
     ...itemQuantityAlerts({ ...TICKET, itemName: "Tibs", station: "", fromQuantity: 1, toQuantity: 2 }),
+    ...itemNotesAlerts({ ...TICKET, itemName: "Tea", station: "barista" }),
+    ...itemEditedAfterPrintAlerts({ ...TICKET, itemName: "Tibs", station: "kitchen" }),
     ...billRequestAlerts(TICKET),
   ];
   pass(`every alert in the matrix has repeat 0 (${matrixAlerts.length} alerts checked)`,
@@ -209,6 +231,11 @@ const urgentFor = (alerts: RoleAlert[], role: string) =>
   pass("item removal pushes the station (waiter stays silent)", /itemRemovedAlerts\(/.test(itemsRoute));
   pass("removing a not-yet-started item rings nobody", /wasPending/.test(itemsRoute));
   pass("quantity edits push waiter + station", /itemQuantityAlerts\(/.test(itemsRoute));
+  pass("note edits on a STARTED line push its station", /itemNotesAlerts\(/.test(itemsRoute) && /notesChanged && wasStarted/.test(itemsRoute));
+  pass("edits to a PRINTED bill push the cashier (EFD re-key)", /itemEditedAfterPrintAlerts\(/.test(itemsRoute) && /isPrintedBill\(ticket\)/.test(itemsRoute));
+  pass("more work on a started line reopens it (accepted/done back to pending)", /qtyIncreased \|\| notesChanged/.test(itemsRoute) && /updates\.stationStatus = "pending"/.test(itemsRoute));
+  pass("lowering a quantity never reopens the line", /Number\(updates\.quantity\) > before\[0\]\.quantity/.test(itemsRoute));
+  pass("cancellation alarms are scoped to the bill's crews", /alertStatus === "cancelled"/.test(ticketsRoute));
   {
     // The guest burst is the ONE alarm left in the system: its four quick
     // rings ~1.1s apart are a single ~3 second alarm, not repeats. The shared
@@ -299,6 +326,16 @@ const urgentFor = (alerts: RoleAlert[], role: string) =>
     rolesOf(juiceRemoved).join() === "juice" && !hasRole(juiceRemoved, "barista"));
   pass("a corrected juice quantity rings the juice maker and the waiter",
     rolesOf(juiceQty).join() === "juice,waiter");
+
+  // Cancelling a drinks-only bill must not wake the kitchen either — but an
+  // unknown crew still falls back to ringing everybody, never nobody.
+  const cancelDrinks = ticketStatusAlerts("cancelled", { ...TICKET, stations: ["barista"] });
+  const cancelUnknown = ticketStatusAlerts("cancelled", TICKET);
+  pass("cancelling a drinks-only bill rings ONLY the barista",
+    rolesOf(cancelDrinks).join() === "barista");
+  pass("a scoped cancellation still says what to do", cancelDrinks.every((a) => /stop preparing/i.test(a.body)));
+  pass("a cancellation with unknown crews still rings all four",
+    rolesOf(cancelUnknown).join() === "barista,buna,juice,kitchen");
 
   // The routes must actually hand the crews over, and keep the four apart.
   const stationsLib = read("src/lib/stations.ts");

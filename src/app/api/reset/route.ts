@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { tickets, ticketItems, menuItems, announcements, galleryItems, cafeTables, siteSettings } from "@/db/schema";
+import { tickets, ticketItems, menuItems, announcements, galleryItems, cafeTables, siteSettings, orderSubmissions } from "@/db/schema";
 import { ensureTablesExist } from "@/db/migrate";
 import { DEFAULT_TABLES } from "@/lib/initial-data";
 import { eq } from "drizzle-orm";
@@ -37,6 +37,7 @@ export async function POST(request: Request) {
         // Clears ALL bills + items + payment receipts → reports go back to 0
         const receiptRefs = await db.select({ receiptImage: tickets.receiptImage }).from(tickets);
         await db.delete(ticketItems);
+        await db.delete(orderSubmissions);
         await db.delete(tickets);
         await deleteOrphanedCdnImages(receiptRefs.map((t) => t.receiptImage));
         publish(CHANNELS.orders);

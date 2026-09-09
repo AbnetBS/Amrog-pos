@@ -172,6 +172,19 @@ export default function CashierDashboard() {
     return m[t.status] || null;
   };
 
+  // The staff cookie lives 12 hours (one shift). When it dies mid-service the
+  // API answers 401 — going back to the login screen WITH an explanation beats
+  // a silently frozen queue showing bills that already moved on. Declared up
+  // here so every loader below can call it.
+  const expireSession = () => {
+    try {
+      sessionStorage.removeItem("fana_cashier");
+    } catch {}
+    setPin("");
+    setLoginError("Your session ended. Log in again to keep the queue live.");
+    setStaffName("");
+  };
+
   const loadAll = async () => {
     // GROUP 10 FIX: this used to return early while the tab was hidden (screen
     // off, tablet on the counter) — exactly when the alarm matters most — so it
@@ -179,6 +192,9 @@ export default function CashierDashboard() {
     // process them; the sound and vibration fire even with the screen off.
     try {
       const [tRes, tkRes] = await Promise.all([fetch("/api/tables"), fetch("/api/tickets?active=1")]);
+      // A 401 is not "offline" — the shift session ended, and waiting changes
+      // nothing. Back to the login screen instead of a frozen queue.
+      if (tRes.status === 401 || tkRes.status === 401) return expireSession();
       // Connection indicator: ONLINE only when the backend actually answered both
       // polled endpoints; a failed/thrown fetch flips it to OFFLINE immediately.
       const backendOk = tRes.ok && tkRes.ok;
@@ -324,10 +340,12 @@ export default function CashierDashboard() {
         fetch("/api/tickets?printedToday=1"),
         fetch(`/api/tickets?printedDate=${yesterday}`),
       ]);
+      if (todayRes.status === 401 || yesterdayRes.status === 401) return expireSession();
       if (todayRes.ok) setHistoryToday(sortedPrintedToday(await todayRes.json()));
       if (yesterdayRes.ok) setHistoryYesterday(await yesterdayRes.json());
     } else {
       const r = await fetch("/api/tickets?paid=1&limit=12");
+      if (r.status === 401) return expireSession();
       if (r.ok) setHistoryToday(await r.json());
     }
   };
@@ -451,7 +469,7 @@ export default function CashierDashboard() {
   };
 
   const setStatus = async (id: number, status: string) => {
-    await fetch("/api/tickets", {
+    const r = await fetch("/api/tickets", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -461,6 +479,14 @@ export default function CashierDashboard() {
         confirmedBy: staffName,
       }),
     });
+    // A tap that did nothing must SAY so: another staff member may have moved
+    // the bill a second earlier (409), or the session ended (401). The reload
+    // below then shows the true state either way.
+    if (r.status === 401) return expireSession();
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      showToast(d?.error || "That tap did not go through. Try again.");
+    }
     loadAll();
   };
 
@@ -469,16 +495,26 @@ export default function CashierDashboard() {
   });
 
   const removeItem = async (itemId: number) => {
-    await fetch(`/api/tickets/items?id=${itemId}`, { method: "DELETE" });
+    const r = await fetch(`/api/tickets/items?id=${itemId}`, { method: "DELETE" });
+    if (r.status === 401) return expireSession();
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      showToast(d?.error || "Could not remove that item. Try again.");
+    }
     loadAll();
   };
 
   const updateItemQty = async (item: TicketItem, qty: number) => {
-    await fetch("/api/tickets/items", {
+    const r = await fetch("/api/tickets/items", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ itemId: item.id, quantity: qty }),
     });
+    if (r.status === 401) return expireSession();
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      showToast(d?.error || "Could not update that item. Try again.");
+    }
     loadAll();
   };
 
@@ -501,7 +537,7 @@ export default function CashierDashboard() {
     // (owner's decision): keep any historical paid_* status, otherwise "paid".
     const derived =
       t.paymentStatus && t.paymentStatus !== "unpaid" ? t.paymentStatus : "paid";
-    await fetch("/api/tickets", {
+    const r = await fetch("/api/tickets", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -512,6 +548,11 @@ export default function CashierDashboard() {
         verifiedBy: staffName || "(cashier)",
       }),
     });
+    if (r.status === 401) return expireSession();
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      showToast(d?.error || "Could not mark this bill paid. Try again.");
+    }
     loadAll();
   };
 
@@ -524,11 +565,16 @@ export default function CashierDashboard() {
   // and this tap moves the card out of her queue. Payment is not recorded here
   // by design — the EFD/POS remains the financial system of record.
   const markPrinted = async (t: Ticket) => {
-    await fetch("/api/tickets", {
+    const r = await fetch("/api/tickets", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: t.id, status: "printed", printedBy: staffName || "(cashier)" }),
     });
+    if (r.status === 401) return expireSession();
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      showToast(d?.error || "Could not mark this bill printed. Try again.");
+    }
     loadAll();
     loadHistory();
   };
@@ -539,11 +585,16 @@ export default function CashierDashboard() {
   // whole bill to the kitchen/barista/buna/juice makers; afterwards the card
   // becomes a normal ✓ PRINTED card, exactly like a waiter-sent order.
   const confirmAndSend = async (t: Ticket) => {
-    await fetch("/api/tickets", {
+    const r = await fetch("/api/tickets", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: t.id, send: true, confirmedBy: staffName || "(cashier)" }),
     });
+    if (r.status === 401) return expireSession();
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      showToast(d?.error || "Could not send this bill. Try again.");
+    }
     loadAll();
   };
 
@@ -1428,6 +1479,16 @@ export default function CashierDashboard() {
               {history.map((t) => {
                 const waiting = printQueueMode && (t.unprintedSubmissions || 0) > 0;
                 const cleared = t.status === "closed";
+                // A line on this bill was corrected AFTER the EFD receipt went
+                // out: the EFD total no longer matches the system total until
+                // she re-keys it. Independent of new-item additions ("waiting"
+                // above) — a corrected line is not a new submission, so it
+                // needs its own flag or the drift goes unnoticed.
+                const editedAfterPrint =
+                  printQueueMode &&
+                  t.status === "printed" &&
+                  !!t.printedAt && !!t.itemsEditedAt &&
+                  new Date(t.itemsEditedAt).getTime() > new Date(t.printedAt).getTime();
                 return (
                   <button
                     key={t.id}
@@ -1457,6 +1518,9 @@ export default function CashierDashboard() {
                         ) : (
                           <p className="text-[10px] font-black text-emerald-400 uppercase">● open</p>
                         )
+                      )}
+                      {printQueueMode && editedAfterPrint && (
+                        <p className="text-[10px] font-black text-sky-300 uppercase">✎ edited after print • re-key EFD</p>
                       )}
                     </div>
                     <div className="text-right shrink-0">

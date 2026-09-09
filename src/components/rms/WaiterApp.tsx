@@ -355,6 +355,20 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
     });
   };
 
+  // The staff cookie lives 12 hours (one shift). When it dies mid-service the
+  // API answers 401 — going back to the login screen WITH an explanation beats
+  // a silently frozen board showing tables that already turned over. Declared
+  // up here so every loader below can call it.
+  const expireSession = () => {
+    try {
+      sessionStorage.removeItem(sessionKey);
+    } catch {}
+    setPin("");
+    setLoginError("Your session ended. Log in again to keep serving tables.");
+    setStaffName("");
+    setView("login");
+  };
+
   const loadTables = async () => {
     // GROUP 10 FIX: this used to return early while the screen was off / the
     // tab hidden — which is exactly when a phone sits in a pocket — so the
@@ -362,6 +376,7 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
     // always process them now; sound and vibration fire even with the screen
     // off as long as the tab is alive.
     const r = await fetch("/api/tables");
+    if (r.status === 401) return expireSession();
     if (r.ok) setTables(await r.json());
 
     // Ring bell when a NEW customer QR order (pending_waiter) appears on any table,
@@ -370,6 +385,7 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
     // the item units — so each ticket's live unit count is diffed against the
     // baseline from the previous refresh.
     const tkRes = await fetch("/api/tickets?active=1");
+    if (tkRes.status === 401) return expireSession();
     if (tkRes.ok) {
       const all: Ticket[] = await tkRes.json();
       const pending = all.filter((t) => t.status === "pending_waiter");
@@ -587,6 +603,7 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
   const loadBunaLane = async () => {
     try {
       const r = await fetch("/api/station-items?station=buna");
+      if (r.status === 401) return expireSession();
       if (!r.ok) return;
       const data = (await r.json()) as Array<{
         id: number;
@@ -751,6 +768,8 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
       showToast(d.duplicate ? "✓ Already sent • not sent twice" : d.merged ? "✓ Items added to the table bill" : "✓ Order sent to cashier");
       await loadTables();
       onGoBack();
+    } else if (r.status === 401) {
+      expireSession();
     } else {
       showToast("Failed to send order. Press Send again, it will not duplicate.");
     }
@@ -831,11 +850,18 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
 
   const requestPayment = async () => {
     if (!activeTicket) return;
-    await fetch("/api/tickets", {
+    const r = await fetch("/api/tickets", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: activeTicket.id, status: "ready_for_payment" }),
     });
+    if (r.status === 401) return expireSession();
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      showToast(d?.error || "Could not move this bill. Try again.");
+      loadTables();
+      return;
+    }
     noteOwnStatus(activeTicket.id, "ready_for_payment");
     setView("payment");
     loadTables();
@@ -844,7 +870,7 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
   const confirmPayment = async () => {
     if (!activeTicket) return;
     setSending(true);
-    await fetch("/api/tickets", {
+    const r = await fetch("/api/tickets", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -857,6 +883,17 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
         receiptImage: receiptImage || "",
       }),
     });
+    if (r.status === 401) {
+      setSending(false);
+      return expireSession();
+    }
+    if (!r.ok) {
+      setSending(false);
+      const d = await r.json().catch(() => ({}));
+      showToast(d?.error || "Could not complete payment. Try again.");
+      loadTables();
+      return;
+    }
     noteOwnStatus(activeTicket.id, "completed");
     setSending(false);
     setActiveTicket(null);
@@ -891,11 +928,18 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
       );
       if (!okToClear) return;
     }
-    await fetch("/api/tickets", {
+    const r = await fetch("/api/tickets", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: activeTicket.id, status: "closed", closedBy: staffName }),
     });
+    if (r.status === 401) return expireSession();
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      showToast(d?.error || "Could not clear this table. Try again.");
+      loadTables();
+      return;
+    }
     noteOwnStatus(activeTicket.id, "closed");
     showToast(`✓ ${activeTicket.tableName} is free for new guests`);
     setActiveTicket(null);
@@ -963,11 +1007,18 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
 
   const confirmOrder = async () => {
     if (!activeTicket) return;
-    await fetch("/api/tickets", {
+    const r = await fetch("/api/tickets", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: activeTicket.id, status: "confirmed", confirmedBy: staffName }),
     });
+    if (r.status === 401) return expireSession();
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      showToast(d?.error || "Could not accept this order. Try again.");
+      loadTables();
+      return;
+    }
     noteOwnStatus(activeTicket.id, "confirmed");
     showToast("✓ Accepted • the crews with items on it, and the cashier, all have it");
     onGoBack();

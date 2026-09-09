@@ -186,7 +186,8 @@ function pass(name, cond) {
   pass("QR order → waiters only (crew waits for the accept/send)", /fana-qr-/.test(tickets) && /\["waiter"\]/.test(tickets));
   pass("waiter order → cashier to print AND the crews with new lines (instant release)", /fana-print-/.test(postHalf6) && /fana-station-add-/.test(postHalf6));
   pass("additions on a printed bill → cashier prints the new receipt", /fana-add-/.test(tickets) && /new items on the bill, print receipt #2/.test(tickets));
-  pass("accepting an order wakes the crews + cashier together", /case "confirmed"/.test(alertsMatrix) && /roles: STATION_ROLES/.test(alertsMatrix));
+  pass("accepting an order wakes the crews + cashier together", /case "confirmed"/.test(alertsMatrix) && /crews\.map\(\(station\)/.test(alertsMatrix) && /roles: \["cashier"\]/.test(alertsMatrix));
+  pass("a cancellation with unknown crews still falls back to all of them", /\[\.\.\.STATION_ROLES\]/.test(alertsMatrix));
   pass("the print NEVER wakes the crew (instant release already rang them at the send)", !/fana-station-/.test(putHalf6) && !/sendPushToRoles\(stations/.test(putHalf6));
   pass("only stations with new lines in the submission are pinged", /submissionStations/.test(postHalf6) && /newStations\.length > 0/.test(postHalf6));
   pass("bill request → the OWNING waiter + every cashier", /fana-bill-/.test(tableStatus) && /sendPushToNamedStaff\("waiter"/.test(tableStatus) && /sendPushToRoles\(\["cashier"\]/.test(tableStatus));

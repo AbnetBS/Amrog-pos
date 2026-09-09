@@ -172,14 +172,18 @@ export function ticketStatusAlerts(status: string, t: TicketAlertInfo): RoleAler
     case "closed":
       return [];
 
-    case "cancelled":
+    case "cancelled": {
       // Only the crews that could be standing over a hot pan are rung: for
       // them a cancellation is money burning. The waiter and the cashier see
       // it on their screens without a sound (they are usually the ones who
-      // cancelled it in the first place).
+      // cancelled it in the first place). Like the release alert, a cancelled
+      // drinks-only bill does not wake the kitchen — but when the caller
+      // passes no stations the fallback still rings every crew, because
+      // ringing one crew too many is better than serving nobody.
+      const crews = (t.stations && t.stations.length > 0 ? t.stations : STATION_NAMES).filter(isStationName);
       return [
         {
-          roles: STATION_ROLES,
+          roles: crews.length > 0 ? [...crews] : [...STATION_ROLES],
           title: "⛔ ORDER CANCELLED",
           body: `${table} • stop preparing and do not serve`,
           tag: `fana-cancelled-${t.id}`,
@@ -187,6 +191,7 @@ export function ticketStatusAlerts(status: string, t: TicketAlertInfo): RoleAler
           repeat: 0,
         },
       ];
+    }
 
     default:
       return [];
@@ -285,6 +290,52 @@ export function itemQuantityAlerts(info: ItemChangeInfo): RoleAlert[] {
     });
   }
   return alerts;
+}
+
+/**
+ * A note was changed on a line the crew already STARTED (accepted/done).
+ *
+ * A note edited while the line is still pending needs no alarm — the crew
+ * reads the fresh note when they pick the line up. But once it is in the pan,
+ * "no sugar" becoming "extra sugar" is new information they would otherwise
+ * never re-read, so the owning station is rung urgently. The waiter is not
+ * rung: she either wrote it herself or stands next to the cashier who did.
+ */
+export function itemNotesAlerts(info: ItemChangeInfo): RoleAlert[] {
+  const stationRoles = stationRoleFor(info.station);
+  if (stationRoles.length === 0) return [];
+  return [
+    {
+      roles: stationRoles,
+      title: "✎ Note changed",
+      body: `${info.tableName} • ${info.itemName}: re-read the note before serving`,
+      tag: `fana-item-note-s-${info.id}-${info.itemName}`,
+      urgent: true,
+      repeat: 0,
+    },
+  ];
+}
+
+/**
+ * A line was corrected on a bill the cashier ALREADY keyed into the EFD.
+ *
+ * The EFD receipt went out with the old total, so the cashier must re-key
+ * (void-and-reprint or a correction receipt, per EFD practice) — and she only
+ * knows if someone tells her, because the editor is usually a WAITER fixing a
+ * pending line, not her. Urgent: every minute the EFD and the system disagree
+ * is a minute the cross-check cannot reconcile.
+ */
+export function itemEditedAfterPrintAlerts(info: ItemChangeInfo): RoleAlert[] {
+  return [
+    {
+      roles: ["cashier"],
+      title: "⚠ Bill changed after print",
+      body: `${info.tableName} • ${info.itemName} was corrected after the EFD receipt, re-key it`,
+      tag: `fana-edited-after-print-${info.id}`,
+      urgent: true,
+      repeat: 0,
+    },
+  ];
 }
 
 /** The guest asked for the bill from their own phone. */

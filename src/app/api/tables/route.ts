@@ -108,6 +108,17 @@ export async function DELETE(request: Request) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
+    // A table with a LIVE bill can never be deleted: the boards join bills to
+    // tables, so the bill would vanish from every screen while the kitchen
+    // still cooks it. Close the bill first, then delete the table.
+    const live = await db
+      .select({ id: tickets.id })
+      .from(tickets)
+      .where(and(eq(tickets.tableId, Number(id)), notInArray(tickets.status, ["paid", "cancelled", "closed"])))
+      .limit(1);
+    if (live.length > 0) {
+      return NextResponse.json({ error: "This table has an open bill. Close it first, then delete the table." }, { status: 400 });
+    }
     await db.delete(cafeTables).where(eq(cafeTables.id, Number(id)));
     publish(CHANNELS.orders);
     return NextResponse.json({ success: true, id: Number(id) });

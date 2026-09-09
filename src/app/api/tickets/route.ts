@@ -275,6 +275,12 @@ export async function POST(request: Request) {
     if (!tableId || !items || items.length === 0) {
       return NextResponse.json({ error: "Table and items required" }, { status: 400 });
     }
+    // A table id that is not a real table number is rejected here, not deep
+    // inside the transaction (where it would fail as a cryptic 500).
+    const tableIdNum = Number(tableId);
+    if (!Number.isInteger(tableIdNum) || tableIdNum <= 0) {
+      return NextResponse.json({ error: "Valid table required" }, { status: 400 });
+    }
 
     const initialStatus = isCustomer ? "pending_waiter" : "confirmed";
     const recordSubmissions = idemKey ? await canRecordSubmissions() : false;
@@ -326,7 +332,13 @@ export async function POST(request: Request) {
     }
 
     const tableRows = await tx.select().from(cafeTables).where(eq(cafeTables.id, Number(tableId)));
-    const tableName = tableRows[0]?.name || `Table ${tableId}`;
+    // The table must really exist: a QR code for a deleted table (or a forged
+    // id) must never create a phantom bill that no board shows while the
+    // kitchen still cooks it.
+    if (tableRows.length === 0) {
+      return NextResponse.json({ error: "This table is no longer available. Please call your waiter." }, { status: 400 });
+    }
+    const tableName = tableRows[0].name;
 
     // One active bill per table — merge items into it
     const activeTickets = await tx
@@ -520,7 +532,12 @@ export async function POST(request: Request) {
       it.price = priceById.get(menuId);
       it.quantity = qty;
       if (!promotionLine) {
-        ticketRows.push({ menuItemId: menuId, name: it.name, category: it.category || "", price: Number(it.price), quantity: qty, notes: it.notes || "" });
+        // The NAME and CATEGORY come from the menu row, never from the client:
+        // a phone holding a cached menu could otherwise store a stale name on
+        // the bill — or worse, route the line to the wrong crew through an
+        // outdated category. (Prices were already server-side; this closes the
+        // same hole for the other two fields the crews and bills read.)
+        ticketRows.push({ menuItemId: menuId, name: menuRow.name, category: menuRow.category, price: Number(it.price), quantity: qty, notes: it.notes || "" });
         continue;
       }
 
@@ -1021,9 +1038,10 @@ export async function PUT(request: Request) {
         // WHICH CREWS DOES THIS BILL ACTUALLY INVOLVE? Accepting used to wake
         // every crew at once, so the kitchen was woken for a drinks-only table
         // and the buna makers for every macchiato. The release alert is now
-        // built per crew that really has a line on the ticket.
+        // built per crew that really has a line on the ticket — and so is the
+        // cancellation alarm (a voided juice must not ring the kitchen).
         let billStations: StationName[] = [];
-        if (alertStatus === "confirmed") {
+        if (alertStatus === "confirmed" || alertStatus === "cancelled") {
           const crewRows = await db
             .select({ stationName: ticketItems.stationName })
             .from(ticketItems)
@@ -1073,9 +1091,18 @@ export async function DELETE(request: Request) {
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
     const existing = await db.select().from(tickets).where(eq(tickets.id, Number(id)));
+    if (existing.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    // A LIVE bill can never be deleted: the crews may be cooking it this
+    // second, and a vanished bill would leave ghost food and an EFD mismatch.
+    // Only finished bills (paid, completed, closed, cancelled) may go — close
+    // or cancel the bill first, then delete its history.
+    if (!["paid", "completed", "closed", "cancelled"].includes(existing[0].status)) {
+      return NextResponse.json({ error: "Only finished bills can be deleted. Close or cancel this bill first." }, { status: 400 });
+    }
     await db.delete(ticketItems).where(eq(ticketItems.ticketId, Number(id)));
+    await db.delete(orderSubmissions).where(eq(orderSubmissions.ticketId, Number(id)));
     await db.delete(tickets).where(eq(tickets.id, Number(id)));
-    if (existing.length > 0) await deleteOrphanedCdnImages([existing[0].receiptImage]);
+    await deleteOrphanedCdnImages([existing[0].receiptImage]);
     publish(CHANNELS.orders);
     return NextResponse.json({ success: true, id: Number(id) });
   } catch (error) {

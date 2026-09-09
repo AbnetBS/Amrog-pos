@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { ticketItems, tickets } from "@/db/schema";
+import { ensureTablesExist } from "@/db/migrate";
 import { and, eq, notInArray, asc, desc, gte, inArray } from "drizzle-orm";
 import { requireStaffOrAdmin, readStaffSession, readAdminSession } from "@/lib/session";
 import { publish, CHANNELS } from "@/lib/realtime";
@@ -33,6 +34,7 @@ async function authorizedStation(): Promise<Station | "admin" | null> {
 export async function GET(request: Request) {
   const __auth = await requireStaffOrAdmin();
   if (!__auth.ok) return __auth.response;
+  await ensureTablesExist();
   const stationRole = await authorizedStation();
   if (!stationRole) return NextResponse.json({ error: "Station role required" }, { status: 403 });
   try {
@@ -158,6 +160,8 @@ export async function GET(request: Request) {
             quantity: it.quantity,
             notes: it.notes,
             stationStatus: it.stationStatus,
+            stationStatusBy: it.stationStatusBy || null,
+            stationStatusAt: it.stationStatusAt || null,
             createdAt: it.createdAt,
           })),
         });
@@ -260,12 +264,19 @@ export async function GET(request: Request) {
 export async function PUT(request: Request) {
   const __auth = await requireStaffOrAdmin();
   if (!__auth.ok) return __auth.response;
+  await ensureTablesExist();
   const stationRole = await authorizedStation();
   if (!stationRole) return NextResponse.json({ error: "Station role required" }, { status: 403 });
   try {
     const body = await request.json();
     if (!body.itemId || !body.stationStatus) {
       return NextResponse.json({ error: "itemId and stationStatus required" }, { status: 400 });
+    }
+    // Only the three real crew actions exist — anything else is rejected
+    // instead of being stored as a garbage status no screen understands.
+    const nextStatus = String(body.stationStatus);
+    if (nextStatus !== "pending" && nextStatus !== "accepted" && nextStatus !== "done") {
+      return NextResponse.json({ error: "stationStatus must be pending, accepted or done" }, { status: 400 });
     }
     const existing = await db
       .select({
@@ -283,9 +294,14 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Item belongs to another station" }, { status: 403 });
     }
 
+    // CREW-ACTION AUDIT: stamp WHO pressed it and WHEN, so a "done" nobody
+    // remembers pressing can always be traced to a person and a minute. An
+    // admin acting on a crew's behalf is stamped as admin, never as the crew.
+    const actorName =
+      stationRole === "admin" ? "admin" : (await readStaffSession())?.name || stationRole;
     const updated = await db
       .update(ticketItems)
-      .set({ stationStatus: String(body.stationStatus) })
+      .set({ stationStatus: nextStatus, stationStatusBy: String(actorName).slice(0, 100), stationStatusAt: new Date() })
       .where(eq(ticketItems.id, Number(body.itemId)))
       .returning();
 
@@ -313,9 +329,9 @@ export async function PUT(request: Request) {
           .from(ticketItems)
           .where(and(eq(ticketItems.ticketId, item.ticketId), eq(ticketItems.removed, false)));
         const wholeOrderReady = siblings.every((row) =>
-          row.id === item.id ? String(body.stationStatus) === "done" : row.stationStatus === "done"
+          row.id === item.id ? nextStatus === "done" : row.stationStatus === "done"
         );
-        const alerts = stationProgressAlerts(String(body.stationStatus), {
+        const alerts = stationProgressAlerts(nextStatus, {
           id: ticketRows[0].id,
           tableName: ticketRows[0].tableName,
           totalAmount: ticketRows[0].totalAmount,

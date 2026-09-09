@@ -10,10 +10,18 @@ export default function OrderHistoryTab() {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [receiptModal, setReceiptModal] = useState<string | null>(null);
+  const [expired, setExpired] = useState(false);
 
   const load = async () => {
     const r = await fetch("/api/reports");
+    // The admin cookie lives 7 days; when it dies this tab would show stale
+    // history forever. Say so instead, with the way back.
+    if (r.status === 401) {
+      setExpired(true);
+      return;
+    }
     if (r.ok) {
+      setExpired(false);
       const d = await r.json();
       setOrders(d.orderHistory || []);
     }
@@ -22,7 +30,7 @@ export default function OrderHistoryTab() {
   const cleanOldReceipts = async () => {
     if (
       !confirm(
-        "Free up storage?\n\nRemoves receipt PHOTOS from paid bills older than 30 days.\nOrder records (items, totals) stay in history."
+        "Free up storage?\n\nPermanently deletes receipt PHOTOS of finished bills older than 30 days (completed, closed, paid, cancelled).\nOrder records (items, totals) stay in history."
       )
     )
       return;
@@ -69,6 +77,11 @@ export default function OrderHistoryTab() {
 
   return (
     <div className="space-y-5">
+      {expired && (
+        <div className="bg-rose-900/60 border border-rose-500 text-rose-200 text-xs p-3 rounded-xl font-bold">
+          Your admin session ended. Reload the page and log in again to see fresh history.
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-serif font-bold text-amber-100">Order History ({filtered.length})</h2>

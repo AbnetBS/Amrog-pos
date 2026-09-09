@@ -158,15 +158,15 @@ export async function GET(request: Request) {
       itemsByTicket.get(it.ticketId)!.push(it);
     }
 
-    // Peak selling hours — the period's orders grouped by hour of the day
+    // Peak selling hours — the period's orders grouped by hour of the day.
+    // Hours are read on the ETHIOPIAN wall clock, like the office PC shows.
     const hourAgg: Array<{ hour: number; orders: number; revenue: number }> = Array.from({ length: 24 }, (_, h) => ({
       hour: h,
       orders: 0,
       revenue: 0,
     }));
     for (const t of scopeTickets) {
-      const d = new Date(soldAt(t) as Date);
-      const h = d.getHours();
+      const h = etHour(soldAt(t) as Date);
       hourAgg[h].orders += 1;
       hourAgg[h].revenue += t.totalAmount || 0;
     }

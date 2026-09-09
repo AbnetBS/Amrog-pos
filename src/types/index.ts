@@ -180,6 +180,10 @@ export interface TicketItem {
   stationName?: string | null;
   /** Crew progress: pending → accepted → done. */
   stationStatus?: string | null;
+  /** WHO last pressed Accept/Done on this line (crew-action audit). */
+  stationStatusBy?: string | null;
+  /** WHEN they pressed it (crew-action audit). */
+  stationStatusAt?: string | null;
   createdAt?: string;
   idempotencyKey?: string | null;
 }
@@ -221,6 +225,8 @@ export interface Ticket {
   unprintedSubmissions?: number;
   /** Guest asked for the bill/receipt (Group 8). Null until they tap it. */
   receiptRequestedAt?: string | null;
+  /** WHEN a line on this bill was last corrected (bill-edit audit). */
+  itemsEditedAt?: string | null;
   items?: TicketItem[];
 }
 

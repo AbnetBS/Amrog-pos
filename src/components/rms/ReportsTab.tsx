@@ -42,10 +42,20 @@ export default function ReportsTab() {
   const [billModal, setBillModal] = useState<Ticket | null>(null);
   // Cafe letterhead (name, address, phone, logo) for the printed paper.
   const [brand, setBrand] = useState<Record<string, string>>({});
+  const [expired, setExpired] = useState(false);
 
   const load = async (p: Period) => {
     const r = await fetch(`/api/reports?period=${p}`);
-    if (r.ok) setData(await r.json());
+    // The admin cookie lives 7 days; when it dies this tab would show stale
+    // figures forever. Say so instead, with the way back.
+    if (r.status === 401) {
+      setExpired(true);
+      return;
+    }
+    if (r.ok) {
+      setExpired(false);
+      setData(await r.json());
+    }
   };
 
   useEffect(() => {
@@ -116,23 +126,33 @@ export default function ReportsTab() {
       `}</style>
 
       {/* OFFICIAL LETTERHEAD, print only: this paper leaves the office, so it
-          carries the logo, the full PLC name in English and Amharic, the
-          address and phone, which period it covers and when it was printed. */}
-      <div className="print-only" style={{ textAlign: "center", borderBottom: "3px double #000", paddingBottom: 10, marginBottom: 12 }}>
-        <img src={brand.logo_url || "/logo.png"} alt="Fana Cafe and Restaurant logo" style={{ height: 60, margin: "0 auto 6px" }} />
-        <h1 style={{ fontSize: "22px", fontWeight: 900 }}>Fana Cafe and Restaurant PLC</h1>
-        <p style={{ fontSize: "15px", fontWeight: 700 }}>ፋና ካፌ እና ሬስቶራንት ኃ.የተ.የ.ግ.ማ.</p>
-        <p style={{ fontSize: "11px" }}>
-          {brand.address || "Town Square Building, 22 Square, Djibouti Street, Bole, Addis Ababa, Ethiopia"}
-          {" • Tel: "}
-          {brand.phone || "0911 065 022"}
-        </p>
-        <p style={{ fontSize: "14px", fontWeight: 800, marginTop: 8 }}>Sales Report ({label})</p>
-        <p style={{ fontSize: "11px" }}>
-          This paper covers {label.toLowerCase()} sales, printed {new Date().toLocaleString()}. Every amount on it comes
-          from bills keyed into the EFD or marked paid.
-        </p>
+          carries the logo and the full PLC name in English and Amharic. The
+          address and phone are left BLANK: the person who writes the report
+          fills in their own name, phone and address by hand. */}
+      <div className="print-only" style={{ borderBottom: "3px double #000", paddingBottom: 10, marginBottom: 12 }}>
+        <div style={{ textAlign: "center" }}>
+          <img src={brand.logo_url || "/logo.png"} alt="Fana Cafe and Restaurant logo" style={{ height: 60, margin: "0 auto 6px" }} />
+          <h1 style={{ fontSize: "22px", fontWeight: 900 }}>Fana Cafe and Restaurant PLC</h1>
+          <p style={{ fontSize: "15px", fontWeight: 700 }}>ፋና ካፌ እና ሬስቶራንት ኃ.የተ.የ.ግ.ማ.</p>
+        </div>
+        <div style={{ fontSize: "12px", marginTop: 8, lineHeight: 2.2 }}>
+          <p>Prepared by (name): ................................................................</p>
+          <p>Phone: .................................... Address: ........................................................</p>
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <p style={{ fontSize: "14px", fontWeight: 800, marginTop: 8 }}>Sales Report ({label})</p>
+          <p style={{ fontSize: "11px" }}>
+            This paper covers {PERIOD_COVER[period]} and was printed {new Date().toLocaleString()}. Every amount on it
+            comes from bills keyed into the EFD or marked paid.
+          </p>
+        </div>
       </div>
+
+      {expired && (
+        <div className="bg-rose-900/60 border border-rose-500 text-rose-200 text-xs p-3 rounded-xl font-bold no-print">
+          Your admin session ended. Reload the page and log in again to see fresh figures.
+        </div>
+      )}
 
       <div className="flex items-center justify-between">
         <div>
@@ -341,6 +361,7 @@ export default function ReportsTab() {
                       <div key={c.category}>
                         <div className="flex justify-between text-xs mb-1">
                           <span className="font-bold text-amber-100 capitalize">{c.category}</span>
+                          <span className="font-bold text-stone-400">{(c.quantity || 0).toLocaleString("en-US")} sold</span>
                           <span className="font-extrabold text-[#C9A227]">{fmt(c.revenue)}</span>
                         </div>
                         <div className="h-2 bg-black/40 rounded-full overflow-hidden">

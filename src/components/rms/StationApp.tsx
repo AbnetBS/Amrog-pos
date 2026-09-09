@@ -27,6 +27,10 @@ interface StationItem {
   quantity: number;
   notes?: string | null;
   stationStatus: "pending" | "accepted" | "done";
+  /** WHO last pressed Accept/Done on this line (crew-action audit). */
+  stationStatusBy?: string | null;
+  /** WHEN they pressed it (crew-action audit). */
+  stationStatusAt?: string | null;
   /** When THIS line arrived — a later "2 Tea" is newer work than the first one. */
   createdAt?: string | null;
 }
@@ -69,6 +73,8 @@ interface HistoryTicket {
     quantity: number;
     notes?: string | null;
     stationStatus: string;
+    stationStatusBy?: string | null;
+    stationStatusAt?: string | null;
     createdAt?: string | null;
   }>;
 }
@@ -112,6 +118,7 @@ export default function StationApp({ station }: { station: Station }) {
     setHistoryLoading(true);
     try {
       const r = await fetch(`/api/station-items?station=${station}&history=1`);
+      if (r.status === 401) return expireSession();
       if (r.ok) setHistoryTickets(await r.json());
     } catch {
       /* a failed history load keeps the previous list */
@@ -203,11 +210,24 @@ export default function StationApp({ station }: { station: Station }) {
     setPin("");
   };
 
+  // The staff cookie lives 12 hours (one shift). When it dies mid-service the
+  // API answers 401 — going back to the login screen WITH an explanation beats
+  // a silently frozen list showing yesterday's orders as today's work.
+  const expireSession = () => {
+    try {
+      sessionStorage.removeItem(`fana_${station}`);
+    } catch {}
+    setPin("");
+    setLoginError("Your session ended. Log in again to keep receiving orders.");
+    setStaffName("");
+  };
+
   const load = async () => {
     // GROUP 10 FIX: used to skip while the tab was hidden — but the kitchen
     // tablet dims its screen! SSE messages only arrive on change, so always
     // process them: the alarm rings even with a dimmed screen.
     const r = await fetch(`/api/station-items?station=${station}`);
+    if (r.status === 401) return expireSession();
     if (!r.ok) return;
     const data: StationTicket[] = await r.json();
 
@@ -613,6 +633,14 @@ export default function StationApp({ station }: { station: Station }) {
                           📝 {i.notes}
                         </p>
                       )}
+                      {/* WHO pressed it: a "done" nobody remembers is always
+                          traceable to a person and a minute, never a mystery. */}
+                      {(i.stationStatus === "done" || i.stationStatus === "accepted") && i.stationStatusBy && (
+                        <p className="text-[11px] font-bold text-stone-400 mt-0.5">
+                          {i.stationStatus === "done" ? "✓ Done" : "▶ Started"} by {i.stationStatusBy}
+                          {i.stationStatusAt ? ` • ${formatClock(i.stationStatusAt)}` : ""}
+                        </p>
+                      )}
                     </div>
                     {i.stationStatus === "pending" && (
                       <button
@@ -749,6 +777,12 @@ export default function StationApp({ station }: { station: Station }) {
                                 {i.name} <span className="text-[#C9A227]">x{i.quantity}</span>
                               </p>
                               {i.notes && <p className="text-[11px] text-amber-200/80 italic mt-0.5">📝 {i.notes}</p>}
+                              {(i.stationStatus === "done" || i.stationStatus === "accepted") && i.stationStatusBy && (
+                                <p className="text-[11px] font-bold text-stone-400 mt-0.5">
+                                  {i.stationStatus === "done" ? "✓ Done" : "▶ Started"} by {i.stationStatusBy}
+                                  {i.stationStatusAt ? ` • ${formatClock(i.stationStatusAt)}` : ""}
+                                </p>
+                              )}
                             </div>
                             {i.stationStatus === "done" ? (
                               <span className="shrink-0 text-[10px] font-black text-emerald-400 bg-emerald-950/60 px-2.5 py-1 rounded-full uppercase border border-emerald-700">
