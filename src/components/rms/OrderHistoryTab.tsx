@@ -1,14 +1,13 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Search, RefreshCw, CreditCard, Banknote, Smartphone, ImageIcon, X, Trash2 } from "lucide-react";
+import { Search, RefreshCw, ImageIcon, X, Trash2 } from "lucide-react";
 import { Ticket, TicketItem } from "@/types";
 import { formatDateTime, groupOrderLines, type OrderLine } from "@/lib/order-lines";
 
 export default function OrderHistoryTab() {
   const [orders, setOrders] = useState<Ticket[]>([]);
   const [q, setQ] = useState("");
-  const [methodFilter, setMethodFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [receiptModal, setReceiptModal] = useState<string | null>(null);
 
@@ -23,7 +22,7 @@ export default function OrderHistoryTab() {
   const cleanOldReceipts = async () => {
     if (
       !confirm(
-        "Free up storage?\n\nRemoves receipt PHOTOS from paid bills older than 30 days.\nOrder records (items, totals, method) stay in history."
+        "Free up storage?\n\nRemoves receipt PHOTOS from paid bills older than 30 days.\nOrder records (items, totals) stay in history."
       )
     )
       return;
@@ -50,18 +49,11 @@ export default function OrderHistoryTab() {
       orders.filter((o) => {
         const searchText = `${o.tableName} ${o.createdBy} ${o.status} ${new Date(o.closedAt || o.updatedAt || "").toLocaleDateString()}`.toLowerCase();
         const matchQ = !q || searchText.includes(q.toLowerCase());
-        const matchM = methodFilter === "all" || (o.paymentMethod || "cash") === methodFilter;
         const matchS = statusFilter === "all" || o.status === statusFilter;
-        return matchQ && matchM && matchS;
+        return matchQ && matchS;
       }),
-    [orders, q, methodFilter, statusFilter]
+    [orders, q, statusFilter]
   );
-
-  const methodIcon = (m?: string | null) =>
-    m === "card" ? <CreditCard className="w-3.5 h-3.5 text-sky-400" />
-    : m === "online" || m === "telebirr" ? <Smartphone className="w-3.5 h-3.5 text-amber-400" />
-    : m === "cbe" ? <Smartphone className="w-3.5 h-3.5 text-violet-400" />
-    : <Banknote className="w-3.5 h-3.5 text-emerald-400" />;
 
   const fmtTime = (t: Ticket) => {
     const d = t.closedAt || t.updatedAt;
@@ -80,7 +72,7 @@ export default function OrderHistoryTab() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-serif font-bold text-amber-100">Order History ({filtered.length})</h2>
-          <p className="text-xs text-stone-400">Every completed, closed & cancelled bill • search by date, table, waiter, method or status.</p>
+          <p className="text-xs text-stone-400">Every completed, closed & cancelled bill • search by date, table, waiter or status.</p>
         </div>
         <div className="flex gap-2 self-start">
           <button
@@ -96,8 +88,8 @@ export default function OrderHistoryTab() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      {/* Filters (no payment-method options — owner's decision) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="relative">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-500" />
           <input
@@ -107,14 +99,6 @@ export default function OrderHistoryTab() {
             className="w-full bg-[#2C1B17] border border-stone-700 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white"
           />
         </div>
-        <select value={methodFilter} onChange={(e) => setMethodFilter(e.target.value)} className="bg-[#2C1B17] border border-stone-700 rounded-xl p-2.5 text-xs text-white">
-          <option value="all">All Payment Methods</option>
-          <option value="cash">Cash</option>
-          <option value="telebirr">Telebirr</option>
-          <option value="cbe">CBE Birr</option>
-          <option value="card">Card</option>
-          <option value="online">Online (legacy)</option>
-        </select>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-[#2C1B17] border border-stone-700 rounded-xl p-2.5 text-xs text-white">
           <option value="all">All Statuses</option>
           <option value="paid">Paid</option>
@@ -166,12 +150,9 @@ export default function OrderHistoryTab() {
                 </div>
               </div>
 
-              {/* payment + receipt */}
-              <div className="flex items-center justify-between bg-black/30 rounded-xl px-3 py-2">
-                <span className="flex items-center gap-1.5 text-xs font-bold capitalize">
-                  {methodIcon(o.paymentMethod)} {o.paymentMethod || "cash"} payment
-                </span>
-                {(o.status === "paid" || o.status === "completed") && o.paymentMethod !== "cash" && (
+              {/* receipt photo (bills that have one open it; others do nothing) */}
+              {(o.status === "paid" || o.status === "completed") && (
+                <div className="flex items-center justify-end bg-black/30 rounded-xl px-3 py-2">
                   <button
                     onClick={async () => {
                       const r = await fetch(`/api/tickets/receipt?id=${o.id}`);
@@ -182,8 +163,8 @@ export default function OrderHistoryTab() {
                   >
                     <ImageIcon className="w-3 h-3" /> Receipt
                   </button>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* items */}
               <div className="bg-[#3D2314] rounded-xl p-3 space-y-1.5">

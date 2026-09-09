@@ -94,12 +94,12 @@ const urgentFor = (alerts: RoleAlert[], role: string) =>
   // A cancellation is money burning on a pan: the cooking crews are rung,
   // the waiter and cashier read it quietly on their screens.
   const cancelled = ticketStatusAlerts("cancelled", TICKET);
-  pass("CANCELLED rings the kitchen, the barista and the buna makers", rolesOf(cancelled).join() === "barista,buna,kitchen");
+  pass("CANCELLED rings all four cooking crews (kitchen, barista, buna, juice)", rolesOf(cancelled).join() === "barista,buna,juice,kitchen");
   pass("CANCELLED does not ring the waiter or the cashier", !hasRole(cancelled, "waiter") && !hasRole(cancelled, "cashier"));
   pass("CANCELLED is urgent and rings ONCE (no re-rings until answered)", cancelled.every((a) => a.urgent && a.repeat === 0));
   pass("CANCELLED says what to do (stop and do not serve)", cancelled.every((a) => /stop preparing/i.test(a.body)));
 
-  pass("printed/preparing do NOT push stations here (the route pushes only newly released items)",
+  pass("printed/preparing do NOT push stations here (the route never re-pushes on print — instant release rings them at the send)",
     !hasRole(ticketStatusAlerts("printed", TICKET), "kitchen") &&
       !hasRole(ticketStatusAlerts("preparing", TICKET), "barista"));
 }
@@ -183,10 +183,10 @@ const urgentFor = (alerts: RoleAlert[], role: string) =>
   pass("the actor's own role is dropped", !hasRole(confirmedAsCashier, "cashier") && hasRole(confirmedAsCashier, "waiter"));
   // TICKET carries no `stations`, so the release falls back to every crew:
   // ringing one crew too many is better than serving nobody.
-  pass("everyone else still gets it", rolesOf(confirmedAsCashier).join() === "barista,buna,kitchen,waiter");
+  pass("everyone else still gets it", rolesOf(confirmedAsCashier).join() === "barista,buna,juice,kitchen,waiter");
 
   const confirmedByWaiter = withoutActor(ticketStatusAlerts("confirmed", TICKET), "waiter");
-  pass("a waiter accepting rings every crew and the cashier", rolesOf(confirmedByWaiter).join() === "barista,buna,cashier,kitchen");
+  pass("a waiter accepting rings every crew and the cashier", rolesOf(confirmedByWaiter).join() === "barista,buna,cashier,juice,kitchen");
 
   const soloAlert = withoutActor(stationProgressAlerts("done", { ...TICKET, station: "kitchen", itemName: "Shiro", quantity: 1, wholeOrderReady: true }), "waiter");
   pass("an alert with no recipients left is dropped entirely", soloAlert.length === 0);
@@ -261,24 +261,28 @@ const urgentFor = (alerts: RoleAlert[], role: string) =>
   // takes the crews the route found on the ticket.
   const drinksOnly = ticketStatusAlerts("confirmed", { ...TICKET, stations: ["barista"] });
   const bunaOnly = ticketStatusAlerts("confirmed", { ...TICKET, stations: ["buna"] });
+  const juiceOnly = ticketStatusAlerts("confirmed", { ...TICKET, stations: ["juice"] });
   const mixed = ticketStatusAlerts("confirmed", { ...TICKET, stations: ["kitchen", "buna"] });
   const unknownCrews = ticketStatusAlerts("confirmed", TICKET);
 
   pass("a drinks-only order does NOT ring the kitchen", !hasRole(drinksOnly, "kitchen"));
   pass("a drinks-only order does NOT ring the buna makers", !hasRole(drinksOnly, "buna"));
+  pass("a drinks-only order does NOT ring the juice maker", !hasRole(drinksOnly, "juice"));
   pass("a drinks-only order still rings the barista, cashier and waiter",
     rolesOf(drinksOnly).join() === "barista,cashier,waiter");
   pass("a traditional-buna order rings ONLY the buna makers",
     rolesOf(bunaOnly).join() === "buna,cashier,waiter");
   pass("the buna makers' release says it is traditional buna",
     bunaOnly.some((a) => a.roles.includes("buna") && /traditional buna/.test(a.body)));
+  pass("a juices-only order rings ONLY the juice maker (+ cashier and waiter)",
+    rolesOf(juiceOnly).join() === "cashier,juice,waiter");
   pass("a mixed order rings exactly the two crews involved",
     rolesOf(mixed).join() === "buna,cashier,kitchen,waiter");
   pass("every crew alert is urgent and has its own tag",
     mixed.filter((a) => a.urgent).every((a) => a.repeat === 0) &&
     new Set(mixed.map((a) => a.tag)).size === mixed.length);
   pass("a caller that names no crews falls back to all of them (never nobody)",
-    hasRole(unknownCrews, "kitchen") && hasRole(unknownCrews, "barista") && hasRole(unknownCrews, "buna"));
+    hasRole(unknownCrews, "kitchen") && hasRole(unknownCrews, "barista") && hasRole(unknownCrews, "buna") && hasRole(unknownCrews, "juice"));
 
   // A buna line taken off the bill, or corrected, belongs to the buna makers.
   const bunaRemoved = itemRemovedAlerts({ ...TICKET, itemName: "Jebena Buna", station: "buna" });
@@ -288,13 +292,25 @@ const urgentFor = (alerts: RoleAlert[], role: string) =>
   pass("a corrected buna quantity rings the buna makers and the waiter",
     rolesOf(bunaQty).join() === "buna,waiter");
 
-  // The routes must actually hand the crews over, and keep the three apart.
+  // A juice line taken off the bill, or corrected, belongs to the juice maker.
+  const juiceRemoved = itemRemovedAlerts({ ...TICKET, itemName: "Mango Juice", station: "juice" });
+  const juiceQty = itemQuantityAlerts({ ...TICKET, itemName: "Avocado Juice", station: "juice", fromQuantity: 1, toQuantity: 2 });
+  pass("a removed juice line rings the juice maker (not the barista)",
+    rolesOf(juiceRemoved).join() === "juice" && !hasRole(juiceRemoved, "barista"));
+  pass("a corrected juice quantity rings the juice maker and the waiter",
+    rolesOf(juiceQty).join() === "juice,waiter");
+
+  // The routes must actually hand the crews over, and keep the four apart.
   const stationsLib = read("src/lib/stations.ts");
   const tickets = read("src/app/api/tickets/route.ts");
-  pass("the station vocabulary holds all three crews", /export type StationName = "kitchen" \| "barista" \| "buna"/.test(stationsLib));
+  pass("the station vocabulary holds all four crews", /export type StationName = "kitchen" \| "barista" \| "buna" \| "juice"/.test(stationsLib));
   pass("a flagged item goes to the buna station whatever its category", /if \(isBunaItem\) return "buna"/.test(stationsLib));
   pass("the order route uses that rule (buna flag + per-item override + category routing)", /stationForOrder\(\s*routing,\s*catSlug,\s*bunaById\.get/.test(tickets) && /overrideById\.get/.test(tickets));
-  pass("the release push keeps the buna lane apart from the kitchen", /stations\.length === 1 && stations\[0\] === "buna"/.test(tickets));
+  pass("the instant-release push keeps every crew's lane apart (per-station titles)",
+    /single === "buna" \? "🫖 New buna"/.test(tickets) &&
+    /single === "juice" \? "🧃 New juices"/.test(tickets) &&
+    /single === "barista" \? "☕ New drinks"/.test(tickets) &&
+    /single === "kitchen" \? "👨‍🍳 New items to cook"/.test(tickets));
   pass("food ready still finds its owner by NAME, whatever role they hold",
     /\.where\(eq\(pushSubscriptions\.name, name\)\)/.test(read("src/lib/push.ts")));
 }

@@ -177,15 +177,18 @@ function pass(name, cond) {
 
 /* ── 6. Who gets woken, for which event ───────────────────────────────────── */
 {
-  // GROUP 11 (release gate): the order POST wakes the CASHIER (or waiters for
-  // a QR order) — never the stations. The crew is woken by the PUT when the
-  // cashier confirms the printed receipt (or full-mode "Accept → Kitchen").
-  pass("QR order → waiters only (crew waits for the print)", /fana-qr-/.test(tickets) && /\["waiter"\]/.test(tickets));
-  pass("waiter order → cashier to print (no station push on POST)", /fana-print-/.test(tickets) && /\["cashier"\]/.test(tickets));
+  // INSTANT RELEASE (owner's decision, Sept 2026): the order POST wakes the
+  // CASHIER (or the waiters for a QR order) AND — when the bill is sent —
+  // exactly the crews with new lines in that submission. The print NEVER
+  // wakes anyone: it is EFD audit only.
+  const postHalf6 = tickets.split("export async function PUT")[0] || "";
+  const putHalf6 = tickets.split("export async function PUT")[1] || "";
+  pass("QR order → waiters only (crew waits for the accept/send)", /fana-qr-/.test(tickets) && /\["waiter"\]/.test(tickets));
+  pass("waiter order → cashier to print AND the crews with new lines (instant release)", /fana-print-/.test(postHalf6) && /fana-station-add-/.test(postHalf6));
   pass("additions on a printed bill → cashier prints the new receipt", /fana-add-/.test(tickets) && /new items on the bill, print receipt #2/.test(tickets));
-  pass("accepting an order wakes kitchen + barista + cashier together", /case "confirmed"/.test(alertsMatrix) && /roles: STATION_ROLES/.test(alertsMatrix));
-  pass("✓ PRINTED & SEND wakes the crew for food ADDED later", /body\.status === "printed" \|\| \(body\.status === "preparing"/.test(tickets) && /fana-station-/.test(tickets));
-  pass("only stations with newly released items are pinged", /prevStamp === null \|\| !r\.createdAt \|\| new Date\(r\.createdAt\)\.getTime\(\) > prevStamp/.test(tickets));
+  pass("accepting an order wakes the crews + cashier together", /case "confirmed"/.test(alertsMatrix) && /roles: STATION_ROLES/.test(alertsMatrix));
+  pass("the print NEVER wakes the crew (instant release already rang them at the send)", !/fana-station-/.test(putHalf6) && !/sendPushToRoles\(stations/.test(putHalf6));
+  pass("only stations with new lines in the submission are pinged", /submissionStations/.test(postHalf6) && /newStations\.length > 0/.test(postHalf6));
   pass("bill request → the OWNING waiter + every cashier", /fana-bill-/.test(tableStatus) && /sendPushToNamedStaff\("waiter"/.test(tableStatus) && /sendPushToRoles\(\["cashier"\]/.test(tableStatus));
 
   /* ── 6b. EVERY customer top-up rings the waiter, not just the first order ──
@@ -226,7 +229,7 @@ function pass(name, cond) {
     });
     pass("staff-originated sends never ring the waiter (all waiter pushes need isCustomer)", waiterPushes.length >= 2 && guarded.length === waiterPushes.length);
   }
-  pass("POST never wakes the crew (acceptance and the print do)", !/sendPushToRoles\(stations/.test(postHalf));
+  pass("POST wakes exactly the crews with new lines (instant release, sent bills only)", /sendPushToRoles\(newStations/.test(postHalf) && /billSent/.test(postHalf) && /fana-station-add-/.test(postHalf));
   pass("waiter diffs per-ticket ITEM UNITS, not just new ticket IDs", /itemCountRef/.test(waiter) && /Number\(i\.quantity\)/.test(waiter));
   pass("waiter's own keying never alarms her (own-send credit)", /ownAddRef/.test(waiter));
   pass("top-up alert names the table and says what to do", /guest added items/.test(waiter) && /go confirm!/.test(waiter) && /check the bill!/.test(waiter));
@@ -313,8 +316,8 @@ console.log("     iPhone via Add to Home Screen, with an in-app instruction bann
 console.log("   • loud: 6-pair alarm, low-octave layer, limiter near full scale + vibration");
 console.log("   • armed automatically at staff login — no separate button to forget");
 console.log("   • every customer top-up (pending/confirmed/printed) rings the waiter on");
-console.log("     its own tag; staff keying never rings anyone extra; stations stay");
-console.log("     silent until the cashier's print (Group 11 gate)");
+console.log("     its own tag; staff keying never rings the waiter extra; the crews");
+console.log("     ring at the SEND for their own new lines — the print never re-rings");
 console.log("   • a push is NEVER swallowed because a window looked 'focused' (the bug");
 console.log("     that kept pocketed phones silent), the worker updates itself, and the");
 console.log("     subscription self-heals on mount/visibility/reconnect/timer");

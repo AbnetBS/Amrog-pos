@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Coffee, CookingPot, RefreshCw, LogOut, CheckCircle2, BellRing, Clock, History, X } from "lucide-react";
+import { Coffee, CookingPot, CupSoda, RefreshCw, LogOut, CheckCircle2, BellRing, Clock, History, X } from "lucide-react";
 import { unlockAudio, playAlarm, playDing } from "@/lib/sound";
 import { formatClock, formatDayMonthYear, minutesSince, waitingLabel } from "@/lib/order-lines";
 import { triggerDesktopNotification } from "@/lib/notifications";
@@ -11,7 +11,7 @@ import PocketAlertsChip from "@/components/rms/PocketAlertsChip";
 import { usePocketAlerts } from "@/lib/use-pocket-alerts";
 import Link from "next/link";
 
-type Station = "barista" | "kitchen";
+type Station = "barista" | "kitchen" | "juice";
 
 interface StaffLite {
   id: number;
@@ -48,8 +48,8 @@ interface StationTicket {
 /**
  * One order in "Today's History" — every line this crew RECEIVED today, from
  * bills that are still open or already cleared. `releasedAt` is when the work
- * reached them (the send for the original order, the print for additions),
- * which is also the day the history list groups by.
+ * reached them (the send, or the moment an addition landed), which is also
+ * the day the history list groups by.
  */
 interface HistoryTicket {
   id: number;
@@ -74,8 +74,9 @@ interface HistoryTicket {
 }
 
 const STATION_META = {
-  barista: { label: "Barista", icon: Coffee, color: "amber", slug: "barista" as Station, desc: "Drinks, juices, coffees & cold beverages" },
+  barista: { label: "Barista", icon: Coffee, color: "amber", slug: "barista" as Station, desc: "Machine coffee & cold beverages" },
   kitchen: { label: "Kitchen (Chef)", icon: CookingPot, color: "emerald", slug: "kitchen" as Station, desc: "Foods, pastries, meals & snacks" },
+  juice: { label: "Juice Maker", icon: CupSoda, color: "lime", slug: "juice" as Station, desc: "Fresh juices, spris & punches" },
 };
 
 export default function StationApp({ station }: { station: Station }) {
@@ -541,7 +542,7 @@ export default function StationApp({ station }: { station: Station }) {
       <div className="max-w-4xl mx-auto px-4 md:px-6 mt-5 space-y-4">
         {tickets.length === 0 ? (
           <div className="bg-[#2C1B17] border border-stone-800 rounded-2xl p-10 text-center text-stone-500 text-xs">
-            All clear • no incoming items for the {meta.label} right now. New orders appear here instantly when the cashier accepts them.
+            All clear • no incoming items for the {meta.label} right now. New orders and added items appear here instantly when they are sent.
           </div>
         ) : (
           tickets.map((t) => (

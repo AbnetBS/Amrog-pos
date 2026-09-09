@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useMemo } from "react";
 import {
-  Coffee, Plus, Minus, Send, ArrowLeft, RefreshCw, CreditCard, Banknote,
-  Smartphone, Camera, CheckCircle2, ClipboardList, Search, X, Users, LogOut, BellRing,
+  Coffee, Plus, Minus, Send, ArrowLeft, RefreshCw, CreditCard,
+  Camera, CheckCircle2, ClipboardList, Search, X, Users, LogOut, BellRing,
 } from "lucide-react";
 import { MenuItem, Ticket, TicketItem, CafeTable } from "@/types";
 import PocketAlertsHint from "@/components/rms/PocketAlertsHint";
@@ -114,8 +114,9 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
       ? crypto.randomUUID()
       : `k-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-  // Payment
-  const [payMethod, setPayMethod] = useState<"cash" | "telebirr" | "cbe" | "card" | null>(null);
+  // Payment (full mode only — print-queue mode hides these screens entirely).
+  // The owner removed payment-method options: the EFD receipt is the proof of
+  // payment, so the waiter just collects and confirms, with an optional photo.
   const [receiptImage, setReceiptImage] = useState("");
   const [receiptEnabled, setReceiptEnabled] = useState(true);
   // GROUP 9 (print-queue): payments live in the EFD/POS world — the waiter's
@@ -841,7 +842,7 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
   };
 
   const confirmPayment = async () => {
-    if (!activeTicket || !payMethod) return;
+    if (!activeTicket) return;
     setSending(true);
     await fetch("/api/tickets", {
       method: "PUT",
@@ -849,10 +850,10 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
       body: JSON.stringify({
         id: activeTicket.id,
         status: "completed",
-        paymentMethod: payMethod,
-        // Payment status is separate from order status: record HOW it was paid now;
-        // the cashier still verifies (for digital) and releases the table.
-        paymentStatus: `paid_${payMethod}` as const,
+        // No payment-method options (owner's decision): paid is paid — the EFD
+        // receipt is the proof. The cashier still verifies and releases the table.
+        paymentMethod: null,
+        paymentStatus: "paid",
         receiptImage: receiptImage || "",
       }),
     });
@@ -860,7 +861,6 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
     setSending(false);
     setActiveTicket(null);
     setSelectedTable(null);
-    setPayMethod(null);
     setReceiptImage("");
     showToast("✓ Payment completed • cashier will verify and release the table");
     setView("tables");
@@ -887,7 +887,7 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
     );
     if (cooking.length > 0) {
       const okToClear = confirm(
-        `Kitchen/Barista is still preparing ${cooking.length} item(s) for ${activeTicket.tableName}. The station lists will drop them.\n\nClear the table anyway?`
+        `The crews are still preparing ${cooking.length} item(s) for ${activeTicket.tableName}. The station lists will drop them.\n\nClear the table anyway?`
       );
       if (!okToClear) return;
     }
@@ -1500,7 +1500,7 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
               {activeTicket.status === "confirmed" && (
                 activeTicket.confirmedAt ? (
                   <div className="w-full bg-[#2C1B17] border border-emerald-500/40 rounded-xl px-4 py-3 text-center text-xs font-bold text-emerald-300">
-                    ✓ Sent • the kitchen and barista are cooking, the cashier is printing
+                    ✓ Sent • the crews are cooking, the cashier is printing
                   </div>
                 ) : (
                   <div className="w-full bg-[#2C1B17] border border-sky-500/40 rounded-xl px-4 py-3 text-center text-xs font-bold text-sky-300">
@@ -1560,34 +1560,14 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
             <p className="font-serif font-black text-3xl text-[#C9A227]">{billTotal} ETB</p>
           </div>
 
-          <div className="space-y-2">
-            <p className="text-xs font-bold text-amber-200">Ask the customer • payment method:</p>
-            {([
-              { m: "cash", icon: <Banknote className="w-5 h-5 text-emerald-400" />, label: "Cash" },
-              { m: "telebirr", icon: <Smartphone className="w-5 h-5 text-amber-400" />, label: "Telebirr" },
-              { m: "cbe", icon: <Smartphone className="w-5 h-5 text-violet-400" />, label: "CBE Birr" },
-              { m: "card", icon: <CreditCard className="w-5 h-5 text-sky-400" />, label: "Card" },
-            ] as const).map(({ m, icon, label }) => (
-              <button
-                key={m}
-                onClick={() => setPayMethod(m)}
-                className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition ${
-                  payMethod === m ? "border-[#C9A227] bg-[#C9A227]/10" : "border-stone-700 bg-[#2C1B17]"
-                }`}
-              >
-                {icon}
-                <div className="flex-1">
-                  <p className="text-sm font-bold text-white">{label}</p>
-                  <p className="text-[11px] text-stone-400">
-                    {m === "cash" ? "Collect cash and confirm" : "Take receipt photo after payment (optional)"}
-                  </p>
-                </div>
-                {payMethod === m && <CheckCircle2 className="w-5 h-5 text-[#C9A227]" />}
-              </button>
-            ))}
+          <div className="bg-[#2C1B17] rounded-2xl border border-stone-700 p-4">
+            <p className="text-xs text-stone-300 leading-relaxed">
+              Collect the <strong className="text-white">{billTotal} ETB</strong> from the customer, then confirm below.
+              The cashier verifies and releases the table.
+            </p>
           </div>
 
-          {payMethod && payMethod !== "cash" && receiptEnabled && (
+          {receiptEnabled && (
             <div className="bg-[#2C1B17] rounded-2xl border border-stone-700 p-4 space-y-3">
               <p className="text-xs font-bold text-amber-200 flex items-center gap-1.5">
                 <Camera className="w-4 h-4 text-[#C9A227]" /> Receipt Photo (optional)
@@ -1621,14 +1601,10 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
 
           <button
             onClick={confirmPayment}
-            disabled={!payMethod || sending}
+            disabled={sending}
             className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm uppercase py-4 rounded-xl disabled:opacity-40"
           >
-            {sending
-              ? "Confirming..."
-              : `Confirm ${
-                  payMethod === "cbe" ? "CBE Birr" : payMethod ? payMethod.charAt(0).toUpperCase() + payMethod.slice(1) : ""
-                } Payment`}
+            {sending ? "Confirming..." : "Confirm Payment"}
           </button>
 
           <div className="flex items-center gap-2 text-[11px] text-stone-400 bg-[#2C1B17] rounded-xl p-3">

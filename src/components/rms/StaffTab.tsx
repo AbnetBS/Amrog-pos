@@ -7,7 +7,7 @@ import { StaffUser } from "@/types";
 export default function StaffTab() {
   const [staff, setStaff] = useState<StaffUser[]>([]);
   const [name, setName] = useState("");
-  const [role, setRole] = useState<"waiter" | "cashier" | "barista" | "kitchen" | "buna" | "admin">("waiter");
+  const [role, setRole] = useState<"waiter" | "cashier" | "barista" | "kitchen" | "buna" | "juice" | "admin">("waiter");
   const [pin, setPin] = useState("");
 
   const load = async () => {
@@ -64,7 +64,7 @@ export default function StaffTab() {
           <select
             value={role}
             onChange={(e) =>
-              setRole(e.target.value as "waiter" | "cashier" | "barista" | "kitchen" | "buna" | "admin")
+              setRole(e.target.value as "waiter" | "cashier" | "barista" | "kitchen" | "buna" | "juice" | "admin")
             }
             className="bg-[#3D2314] border border-stone-700 rounded-xl p-3 text-xs text-white"
           >
@@ -73,6 +73,7 @@ export default function StaffTab() {
             <option value="barista">Barista (/barista)</option>
             <option value="kitchen">Kitchen/Chef (/kitchen)</option>
             <option value="buna">Buna Maker (/buna)</option>
+            <option value="juice">Juice Maker (/juice)</option>
             <option value="admin">Admin (owner dashboard)</option>
           </select>
           <input

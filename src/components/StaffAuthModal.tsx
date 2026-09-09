@@ -16,7 +16,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 
-export type RoleType = "waiter" | "cashier" | "barista" | "kitchen" | "buna" | "admin";
+export type RoleType = "waiter" | "cashier" | "barista" | "kitchen" | "buna" | "juice" | "admin";
 
 interface StaffAuthModalProps {
   isOpen: boolean;
@@ -194,6 +194,14 @@ export default function StaffAuthModal({ isOpen, onClose }: StaffAuthModalProps)
       icon: <Flame className="w-6 h-6 text-rose-300" />,
       color: "from-rose-600/30 to-rose-900/30 border-rose-500/40 hover:border-rose-400",
       badgeBg: "bg-rose-500/20 text-rose-300 border-rose-500/40",
+    },
+    {
+      id: "juice" as const,
+      title: "Juice Maker",
+      description: "Fresh juices, spris & punches",
+      icon: <UtensilsCrossed className="w-6 h-6 text-lime-300" />,
+      color: "from-lime-600/30 to-lime-900/30 border-lime-500/40 hover:border-lime-400",
+      badgeBg: "bg-lime-500/20 text-lime-300 border-lime-500/40",
     },
     {
       id: "admin" as const,

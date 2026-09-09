@@ -29,9 +29,9 @@
 // `scripts/verify-role-alerts.ts`, outside Next's path aliases.
 import { STATION_NAMES, STATION_LABELS, isStationName, type StationName } from "./stations";
 
-export type StaffRole = "waiter" | "cashier" | "kitchen" | "barista" | "buna";
+export type StaffRole = "waiter" | "cashier" | "kitchen" | "barista" | "buna" | "juice";
 
-/** The three crews that physically make something (see @/lib/stations). */
+/** The four crews that physically make something (see @/lib/stations). */
 export const STATION_ROLES: StaffRole[] = [...STATION_NAMES];
 export const ALL_STAFF_ROLES: StaffRole[] = ["waiter", "cashier", ...STATION_NAMES];
 
@@ -81,6 +81,7 @@ const RELEASE_TITLES: Record<StationName, string> = {
   kitchen: "👨‍🍳 New order to cook",
   barista: "☕ New drinks to make",
   buna: "🫖 New buna to make",
+  juice: "🧃 New juices to make",
 };
 
 const money = (t: TicketAlertInfo) =>
@@ -172,7 +173,7 @@ export function ticketStatusAlerts(status: string, t: TicketAlertInfo): RoleAler
       return [];
 
     case "cancelled":
-      // Only the two crews that could be standing over a hot pan are rung: for
+      // Only the crews that could be standing over a hot pan are rung: for
       // them a cancellation is money burning. The waiter and the cashier see
       // it on their screens without a sound (they are usually the ones who
       // cancelled it in the first place).

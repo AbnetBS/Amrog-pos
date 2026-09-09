@@ -65,7 +65,7 @@ async function main() {
   (globalThis as any).__fanaMigrateDone = true;
   const route = await import("./src/app/api/reports/route");
   stmts = []; rowsPerStmt = [];
-  const res = await route.GET();
+  const res = await route.GET({ url: "http://localhost/api/reports" } as any);
   const body = await res.json();
   const totalRows = rowsPerStmt.reduce((a, b) => a + b, 0);
   const itemStmts = stmts.map((s, i) => (/from "ticket_items"/.test(s) ? rowsPerStmt[i] : 0));

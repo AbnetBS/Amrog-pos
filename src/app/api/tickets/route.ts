@@ -14,6 +14,7 @@ import { canMergeLines } from "@/lib/order-lines";
 import { sendPushToRoles, CUSTOMER_ALERT_RING } from "@/lib/push";
 import { ticketStatusAlerts, withoutActor } from "@/lib/alerts";
 import { stationForOrder, stationOf, type StationName } from "@/lib/stations";
+import { etStartOfToday, etStartOfCalendarDay } from "@/lib/timezone";
 
 /**
  * Customer order limits are TWO-TIER (per table + per venue) because every guest
@@ -91,7 +92,7 @@ const TICKET_STATUS_TRANSITIONS: Record<string, string[]> = {
 const INACTIVE_TICKET_STATUSES = ["paid", "cancelled", "closed"] as const;
 
 /** Payment status is separate from order status (food done ≠ paid). */
-const PAYMENT_STATUSES = ["unpaid", "paid_cash", "paid_telebirr", "paid_cbe", "paid_card"] as const;
+const PAYMENT_STATUSES = ["unpaid", "paid", "paid_cash", "paid_telebirr", "paid_cbe", "paid_card"] as const;
 
 /** Payment methods this cafe records. "online" kept for legacy rows. */
 const PAYMENT_METHODS = ["cash", "telebirr", "cbe", "card", "online"] as const;
@@ -122,10 +123,10 @@ export async function GET(request: Request) {
     const activeOnly = searchParams.get("active") === "1";
     const paidOnly = searchParams.get("paid") === "1";
     const finishedOnly = searchParams.get("finished") === "1";
-    // "Printed Today": bills keyed into the EFD since local midnight. The cutoff
-    // is START OF TODAY in the server's timezone — old bills can never pollute
-    // the cashier's daily cross-check, and a bill printed today stays today even
-    // after the waiter clears the table (it is still printed; it is not lost).
+    // "Printed Today": bills keyed into the EFD since ETHIOPIAN midnight (see
+    // @/lib/timezone) — old bills can never pollute the cashier's daily
+    // cross-check, and a bill printed today stays today even after the waiter
+    // clears the table (it is still printed; it is not lost).
     const printedTodayOnly = searchParams.get("printedToday") === "1";
     // "Printed Yesterday" (or any past day): same window, different date.
     const printedDateParam = searchParams.get("printedDate");
@@ -138,20 +139,21 @@ export async function GET(request: Request) {
       // Only the most recent paid bills — no items, no receipt, small response.
       list = await db.select().from(tickets).where(eq(tickets.status, "paid")).orderBy(desc(tickets.updatedAt)).limit(limit);
     } else if (printedTodayOnly || printedDateParam) {
-      // Every bill printed on the given day (default: today), any status
-      // (printed → later closed), newest print first. Cards carry items so a
-      // tap expands the full bill.
-      const startOfToday = new Date();
-      startOfToday.setHours(0, 0, 0, 0);
-      // ?printedDate=YYYY-MM-DD moves the window to that calendar day
+      // Every bill printed on the given ETHIOPIAN calendar day (default:
+      // today), printed → later closed, newest print first. CANCELLED bills
+      // are excluded: a voided order is not a sale and must never sit in her
+      // cross-check pile. Cards carry items so a tap expands the full bill.
+      // ?printedDate=YYYY-MM-DD moves the window to that EAT calendar day
       // ("Printed Yesterday"); an invalid date simply keeps today.
       const dateMatch = printedDateParam ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(printedDateParam) : null;
-      if (dateMatch) startOfToday.setFullYear(Number(dateMatch[1]), Number(dateMatch[2]) - 1, Number(dateMatch[3]));
+      const startOfToday = dateMatch
+        ? etStartOfCalendarDay(Number(dateMatch[1]), Number(dateMatch[2]), Number(dateMatch[3]))
+        : etStartOfToday();
       const endOfDay = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
       list = await db
         .select()
         .from(tickets)
-        .where(and(isNotNull(tickets.printedAt), gte(tickets.printedAt, startOfToday), lt(tickets.printedAt, endOfDay)))
+        .where(and(isNotNull(tickets.printedAt), gte(tickets.printedAt, startOfToday), lt(tickets.printedAt, endOfDay), notInArray(tickets.status, ["cancelled"])))
         .orderBy(desc(tickets.printedAt));
     } else if (finishedOnly) {
       // Print-queue history: closed bills (table cleared) + paid bills, newest first.
@@ -385,7 +387,7 @@ export async function POST(request: Request) {
     }
 
     // Read category → station routing (owner-configured in admin, fallback to defaults)
-    let routing: Record<string, "barista" | "kitchen"> = DEFAULT_CATEGORY_ROUTING;
+    let routing: Record<string, "barista" | "kitchen" | "juice"> = DEFAULT_CATEGORY_ROUTING;
     try {
       const { siteSettings } = await import("@/db/schema");
       const { eq: eqSet } = await import("drizzle-orm");
@@ -554,6 +556,11 @@ export async function POST(request: Request) {
     // Insert the submission's items. If a CONCURRENT duplicate of this exact
     // submission already inserted rows, the UNIQUE index on (ticket_id, key)
     // rejects ours → we return the already-recorded bill instead.
+    // submissionStations remembers which crews THIS submission fed, so the
+    // instant-release push below rings exactly those crews — never a crew
+    // with nothing new in it. Folded lines count too: growing a pending "2
+    // Tea" to "4 Tea" is new work for that crew.
+    const submissionStations = new Set<StationName>();
     try {
       for (let idx = 0; idx < ticketRows.length; idx++) {
         const it = ticketRows[idx];
@@ -561,13 +568,14 @@ export async function POST(request: Request) {
         // A menu item flagged "Traditional Buna" always goes to the BUNA crew,
         // whatever category it sits in; an item with a per-item override (e.g.
         // "Extra Things") goes to ITS crew; everything else follows the owner's
-        // category routing (barista | kitchen), defaulting to the kitchen.
+        // category routing (barista | kitchen | juice), defaulting to kitchen.
         const stationName = stationForOrder(
           routing,
           catSlug,
           bunaById.get(Number(it.menuItemId)) === true,
           overrideById.get(Number(it.menuItemId))
         );
+        submissionStations.add(stationName);
         const incoming = {
           ticketId,
           menuItemId: it.menuItemId,
@@ -634,8 +642,8 @@ export async function POST(request: Request) {
 
     // A STAFF submission is SENT the moment it is placed: the waiter stood at
     // the table and read the order back to the guest, so there is nothing to
-    // hold. The release stamp is written AFTER the item rows exist so every
-    // line lands before the cutoff. (A customer QR submission gets NO stamp —
+    // hold. The release stamp is written AFTER the item rows exist so the crew
+    // push below finds every line. (A customer QR submission gets NO stamp —
     // it waits for an accept, and in print-queue mode the cashier's accept
     // only holds it until her CONFIRM & SEND.)
     if (!isCustomer && activeTickets.length === 0) {
@@ -643,7 +651,7 @@ export async function POST(request: Request) {
     }
 
     const finalTicket = await tx.select().from(tickets).where(eq(tickets.id, ticketId));
-    return { ticket: finalTicket[0], total, merged: activeTickets.length > 0 };
+    return { ticket: finalTicket[0], total, merged: activeTickets.length > 0, submissionStations: [...submissionStations] as StationName[] };
     });
 
     if (transactionResult instanceof NextResponse) return transactionResult;
@@ -661,9 +669,14 @@ export async function POST(request: Request) {
     // ── GROUP 10 (pocket mode): ring every relevant phone — including browsers
     // that are CLOSED. Fire-and-forget by design: a push outage must never
     // delay or fail an order.
-    // RELEASE RULE: the crew is never woken from here. A brand-new order
-    // reaches them when staff ACCEPT it; food added to a bill that is already
-    // accepted reaches them when the cashier prints it (print-and-send).
+    // RELEASE RULE (owner's decision, Sept 2026): the SEND releases the food,
+    // never the print. A staff-sent new order is sent at creation, and food
+    // added later to a SENT bill lands on the crew's list the same second —
+    // the cashier, the waiter and every crew with new lines in this submission
+    // are all rung at once. Only two bills keep the crews quiet: a bill nobody
+    // accepted yet (pending_waiter — the waiter's job to confirm) and a HELD
+    // bill (the cashier accepted the QR order but has not sent it — the guest
+    // may still add more, and the crews see none of it until CONFIRM & SEND).
     //
     // WAITER TOP-UP ALARMS: a guest ordering from their phone hears nothing
     // from staff, so EVERY customer submission must ring the waiter — not just
@@ -673,8 +686,10 @@ export async function POST(request: Request) {
     // fana-qr-<id> tag would silently REPLACE the previous notification instead
     // of ringing as a new event. The cashier pushes below are UNCHANGED — she
     // keeps exactly the signals she already had. Staff-originated sends
-    // (isCustomer false) ring nobody extra: the waiter keying items herself
-    // already knows what she did.
+    // (isCustomer false) ring nobody extra on the waiter side: the waiter
+    // keying items herself already knows what she did — but the CREWS with new
+    // lines are still rung, because a waiter keying a juice cannot shout it
+    // across the room to the juice maker's tablet.
     {
       const pushed = transactionResult.ticket;
       const merged = transactionResult.merged;
@@ -697,14 +712,15 @@ export async function POST(request: Request) {
           action: "confirm",
         }).catch(() => {});
       } else {
-        // ADDED FOOD KEEPS THE OLD PRINT-AND-SEND FLOW: the crew is NOT woken
-        // here. The addition goes to the cashier (her card shows only the new
-        // items); when she taps ✓ PRINTED & SEND those items are appended to
-        // that table's order for the kitchen/barista, and only THEY are rung.
+        // INSTANT RELEASE: the crews already have these lines on their lists
+        // (see station-items) — the cashier's card shows the new items only so
+        // she keys just those into the EFD for receipt #2, but she is NOT the
+        // gate for the kitchen anymore.
         if (pushed.status === "printed") {
           // Additions landed on a bill the cashier already keyed into the EFD —
           // she prints the second receipt for the NEW items only (her queue
-          // card shows exactly those, never the whole bill again).
+          // card shows exactly those, never the whole bill again). The crews
+          // were already rung for them below.
           void sendPushToRoles(["cashier"], {
             title: "⚠ Items ADDED",
             body: `${pushed.tableName} • new items on the bill, print receipt #2`,
@@ -748,6 +764,37 @@ export async function POST(request: Request) {
             action: pushed.status === "pending_waiter" ? "confirm" : null,
           }).catch(() => {});
         }
+      }
+      // ── INSTANT-RELEASE CREW PUSH ──
+      // The lines of THIS submission are already on the crew's lists. Ring
+      // exactly the crews that received new work — a drinks-only top-up never
+      // wakes the kitchen, and a held or still-pending bill rings nobody here
+      // (there is nothing on their lists yet). One tag per submission, so each
+      // addition rings as its own event instead of replacing the last one.
+      try {
+        const billSent = !!(pushed.confirmedAt || pushed.printedAt);
+        const newStations = (transactionResult.submissionStations || []) as StationName[];
+        if (billSent && pushed.status !== "pending_waiter" && newStations.length > 0) {
+          const single = newStations.length === 1 ? newStations[0] : null;
+          const title =
+            single === "buna" ? "🫖 New buna"
+            : single === "juice" ? "🧃 New juices"
+            : single === "barista" ? "☕ New drinks"
+            : single === "kitchen" ? "👨‍🍳 New items to cook"
+            : "👨‍🍳 New items";
+          void sendPushToRoles(newStations, {
+            title,
+            body: merged
+              ? `${pushed.tableName} • added to the order • check your station list`
+              : `${pushed.tableName} • new order • start now`,
+            tag: `fana-station-add-${pushed.id}-${idemKey || Date.now()}`,
+            urgent: true,
+            // One ring per event: no route may pass a repeat above 0.
+            repeat: 0,
+          }).catch(() => {});
+        }
+      } catch {
+        // A push hiccup must never fail an order submission.
       }
     }
 
@@ -878,15 +925,16 @@ export async function PUT(request: Request) {
     // the original createdBy or the later verifiedBy.
     if (body.status === "confirmed") {
       updates.confirmedBy = body.confirmedBy ? String(body.confirmedBy).slice(0, 100) : cur.confirmedBy || "(staff)";
-      // The crew's release stamp: everything on the bill right now goes to the
-      // kitchen and barista. A HELD accept (cashier, print-queue) deliberately
-      // skips it — the bill waits for her CONFIRM & SEND below.
+      // The crew's release stamp: everything on the bill right now goes to
+      // every crew with lines on it (kitchen, barista, buna, juice). A HELD
+      // accept (cashier, print-queue) deliberately skips it — the bill waits
+      // for her CONFIRM & SEND below.
       if (!holdAfterConfirm) updates.confirmedAt = new Date();
     }
     // CONFIRM & SEND — the cashier's release tap on a held bill. Stamps the
     // release moment (and the acceptor, if nobody was recorded yet). Idempotent
     // by design: a bill that was already sent or printed keeps its original
-    // stamp, and additions to a PRINTED bill still follow print-and-send.
+    // stamp.
     if (sendRequested && !cur.confirmedAt && !cur.printedAt) {
       updates.confirmedAt = new Date();
       if (!updates.confirmedBy) {
@@ -948,43 +996,11 @@ export async function PUT(request: Request) {
       await deleteOrphanedCdnImages([cur.receiptImage]);
     }
 
-    // ── THE PRINT RELEASES THE ADDITIONS ──
-    // The original order already reached the crew when it was ACCEPTED (see
-    // ticketStatusAlerts("confirmed")). Food added afterwards keeps the old
-    // print-and-send flow: it reaches the kitchen/barista when the cashier
-    // taps ✓ PRINTED & SEND, and only the stations that received NEWLY
-    // released items are rung — never a crew already cooking. The cutoff is
-    // the previous release stamp: the later of accepted-at and printed-at.
-    if (body.status === "printed" || (body.status === "preparing" && body.status !== cur.status)) {
-      try {
-        const stationRows = await db
-          .select({ stationName: ticketItems.stationName, createdAt: ticketItems.createdAt })
-          .from(ticketItems)
-          .where(and(eq(ticketItems.ticketId, Number(body.id)), eq(ticketItems.removed, false)));
-        const stamps = [cur.printedAt, cur.confirmedAt]
-          .filter(Boolean)
-          .map((d) => new Date(d as Date).getTime());
-        const prevStamp = stamps.length > 0 ? Math.max(...stamps) : null;
-        const fresh = stationRows.filter(
-          (r) => prevStamp === null || !r.createdAt || new Date(r.createdAt).getTime() > prevStamp
-        );
-        // stationOf() keeps the three crews apart: a traditional-buna line goes
-        // to the BUNA makers, never to the kitchen that used to inherit it.
-        const stations = [...new Set(fresh.map((r) => stationOf(r.stationName)))];
-        if (stations.length > 0) {
-          void sendPushToRoles(stations, {
-            title: stations.length === 1 && stations[0] === "buna" ? "🫖 New buna" : "👨‍🍳 New items",
-            body: `${updated[0].tableName} • added to the order • check your station list`,
-            tag: `fana-station-${updated[0].id}-${Date.now()}`,
-            urgent: true,
-            // One ring per event: no route may pass a repeat above 0.
-            repeat: 0,
-          }).catch(() => {});
-        }
-      } catch {
-        // A push hiccup must never fail the cashier's print confirmation.
-      }
-    }
+    // ── THE PRINT IS EFD AUDIT ONLY (instant release, owner's decision) ──
+    // The crews already received every line the moment it was ordered (see the
+    // POST instant-release push): a print must never re-ring them for food
+    // they already have on their lists. The matrix below keeps printed and
+    // preparing silent on purpose — the screens still update everywhere.
 
     // ── EVERY STATUS CHANGE RINGS THE ROLES THAT MUST REACT ──
     // Before, only the print/preparing moment pushed anyone, so a waiter with

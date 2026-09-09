@@ -7,27 +7,28 @@ import { publish, CHANNELS } from "@/lib/realtime";
 import { sendPushToNamedStaff, sendPushToRoles } from "@/lib/push";
 import { stationProgressAlerts, ticketOwner } from "@/lib/alerts";
 import { stationOf, type StationName } from "@/lib/stations";
+import { etStartOfToday } from "@/lib/timezone";
 
-/** The three crews that receive work (see @/lib/stations). */
+/** The four crews that receive work (see @/lib/stations). */
 type Station = StationName;
 
 async function authorizedStation(): Promise<Station | "admin" | null> {
   if (await readAdminSession()) return "admin";
   const staff = await readStaffSession();
   // A crew may only ever read its OWN lane: buna makers see buna lines, the
-  // barista sees the drinks, the kitchen sees the food.
-  if (staff?.role === "barista" || staff?.role === "kitchen" || staff?.role === "buna") return staff.role;
+  // barista sees the drinks, the kitchen sees the food, juice sees the juices.
+  if (staff?.role === "barista" || staff?.role === "kitchen" || staff?.role === "buna" || staff?.role === "juice") return staff.role as Station;
   return null;
 }
 
 /**
- * GET /api/station-items?station=barista|kitchen[&history=1]
+ * GET /api/station-items?station=barista|kitchen|buna|juice[&history=1]
  * Returns open tickets carrying items for this crew station ONLY.
  *
  * ?history=1 → "Today's History": every order this crew RECEIVED today (the
  * paper stack they used to keep), open or already closed, with each line's
- * progress. Same release rule as the live list, so a held or still-unprinted
- * line never shows up as work they already did.
+ * progress. Same release rule as the live list, so a held bill never shows up
+ * as work they already did.
  */
 export async function GET(request: Request) {
   const __auth = await requireStaffOrAdmin();
@@ -41,42 +42,35 @@ export async function GET(request: Request) {
     const historyOnly = searchParams.get("history") === "1";
 
     // ── THE RELEASE RULE (shared by the live list and the history) ──
-    // 1. The ORIGINAL order is released the moment staff SEND it: a waiter's
-    //    ✓ ACCEPT & SEND, or the cashier's CONFIRM & SEND on a held QR order
-    //    (her plain accept only HOLDS the bill — the guest may add more — so a
-    //    confirmed bill without a confirmed_at stamp releases NOTHING).
-    // 2. Anything ADDED after that release follows the old print-and-send
-    //    flow: it stays off the crew's list until the cashier prints again, and
-    //    her card shows ONLY the new items. Her print appends them to that
-    //    table's order for the crew.
-    // So the cutoff is the LATER of the two stamps: sent-at (confirmed_at)
-    // and printed-at. No stamps at all = a held bill the crew cannot see yet.
-    const releaseCutoff = (confirmedAt: Date | string | null, printedAt: Date | string | null) => {
-      const c = confirmedAt ? new Date(confirmedAt).getTime() : null;
-      const p = printedAt ? new Date(printedAt).getTime() : null;
-      if (c === null && p === null) return null; // held bill, never sent → release nothing
-      return Math.max(c ?? 0, p ?? 0);
-    };
+    // A bill is released the moment staff SEND it: a waiter's ✓ ACCEPT & SEND
+    // (or a staff-sent new order, which is sent at creation), or the cashier's
+    // CONFIRM & SEND on a held QR order. From that second on, EVERY line on
+    // the bill — the original order AND anything added later by the waiter or
+    // the guest's own phone — is the crew's work immediately, exactly like the
+    // cashier and waiter see it. The cashier's print is only the EFD receipt:
+    // it never gates what the kitchen, barista, buna or juice makers see.
+    // The ONLY thing still held back is a HELD bill: her plain accept of a QR
+    // order only acknowledges it (alarms stop, nothing sent), so a confirmed
+    // bill with neither a confirmed_at nor a printed_at stamp releases NOTHING
+    // until she taps CONFIRM & SEND.
+    const isHeld = (confirmedAt: Date | string | null, printedAt: Date | string | null) =>
+      !confirmedAt && !printedAt;
 
     const releasedItems = (
       confirmedAt: Date | string | null,
       printedAt: Date | string | null,
       items: any[]
     ) => {
-      const cutoff = releaseCutoff(confirmedAt, printedAt);
-      if (cutoff === null) return [];
-      return items.filter((it) => {
-        if (!it.createdAt) return true; // legacy rows without a timestamp → released
-        return new Date(it.createdAt).getTime() <= cutoff;
-      });
+      if (isHeld(confirmedAt, printedAt)) return [];
+      return items;
     };
 
     if (historyOnly) {
       // ── TODAY'S HISTORY ──
-      // Every order this crew received today: the release stamp (sent-at or
-      // printed-at, whichever released the line) falls on today. Scoped to the
-      // last 48h of tickets so a late-night order released by this morning's
-      // print is still found, without ever scanning the whole table.
+      // Every order this crew received today: the bill was SENT today, or it
+      // received new lines today (additions land instantly now, without a
+      // print), or it was printed today. Scoped to the last 48h of tickets so
+      // a late-night order is still found, without ever scanning the table.
       const since = new Date();
       since.setDate(since.getDate() - 2);
       const recent = await db
@@ -118,9 +112,8 @@ export async function GET(request: Request) {
         byTicket.get(it.ticketId)!.push(it);
       }
 
-      const startOfToday = new Date();
-      startOfToday.setHours(0, 0, 0, 0);
-      const startOfTodayMs = startOfToday.getTime();
+      // "Today" on the ETHIOPIAN wall clock, like the office PC shows.
+      const startOfTodayMs = etStartOfToday().getTime();
       const isToday = (d: Date | string | null) =>
         d ? new Date(d).getTime() >= startOfTodayMs : false;
 
@@ -128,14 +121,24 @@ export async function GET(request: Request) {
       for (const t of recent) {
         const items = byTicket.get(t.id) || [];
         if (items.length === 0) continue;
-        // Which of our lines were actually RELEASED (visible to the crew), and
-        // did that release happen today?
+        // Held bills release nothing, so they never appear as work already done.
         const released = releasedItems(t.confirmedAt, t.printedAt, items);
         if (released.length === 0) continue;
-        // The crew received this order when the newest released line crossed
-        // the cutoff: the later of the two stamps.
-        const cutoff = releaseCutoff(t.confirmedAt, t.printedAt) as number;
-        if (!isToday(new Date(cutoff))) continue;
+        // Did this crew receive work from this bill TODAY? The send, the
+        // print, or any of their own lines landing all count — an addition to
+        // yesterday's bill is today's work for them.
+        const receivedToday =
+          isToday(t.confirmedAt) ||
+          isToday(t.printedAt) ||
+          released.some((it: any) => isToday(it.createdAt));
+        if (!receivedToday) continue;
+        // Newest activity first: the latest of the send, the print and their
+        // own newest line.
+        const stamps = [t.confirmedAt, t.printedAt, ...released.map((it: any) => it.createdAt)]
+          .filter(Boolean)
+          .map((d) => new Date(d as Date | string).getTime())
+          .filter((n) => Number.isFinite(n));
+        const releasedMs = stamps.length > 0 ? Math.max(...stamps) : Date.now();
         rows.push({
           id: t.id,
           tableName: t.tableName,
@@ -148,7 +151,7 @@ export async function GET(request: Request) {
           closedAt: t.closedAt,
           printedAt: t.printedAt,
           confirmedAt: t.confirmedAt,
-          releasedAt: new Date(cutoff),
+          releasedAt: new Date(releasedMs),
           items: released.map((it: any) => ({
             id: it.id,
             name: it.name,
@@ -184,8 +187,8 @@ export async function GET(request: Request) {
         // has been waiting), not just that it exists.
         createdAt: tickets.createdAt,
         updatedAt: tickets.updatedAt,
-        // The two release stamps: the send releases the original order, the
-        // print releases anything added after it.
+        // The release stamps: a bill with NEITHER is held (cashier accepted a
+        // QR order but has not sent it yet) and releases nothing.
         printedAt: tickets.printedAt,
         confirmedAt: tickets.confirmedAt,
       })
@@ -193,11 +196,13 @@ export async function GET(request: Request) {
       // WORKFLOW (owner's decision, Sept 2026): the SEND releases the food,
       // not the print. The moment a waiter taps ✓ ACCEPT & SEND (or the
       // cashier taps CONFIRM & SEND on a held QR order) the ticket becomes
-      // "confirmed" with a release stamp and the kitchen, the barista AND the
-      // cashier all receive it in the same second. The cashier still keys it
-      // into the EFD and prints, but the crew no longer waits for that tap.
-      // A cashier's plain accept HOLDS the bill (no stamp, nothing released).
-      // Only orders nobody has accepted yet (pending_waiter) stay hidden here.
+      // "confirmed" with a release stamp and every crew with lines on it —
+      // kitchen, barista, buna, juice — plus the cashier all receive it in the
+      // same second. Food ADDED later lands the same second too: the cashier
+      // still keys it into the EFD and prints receipt #2, but the crew never
+      // waits for that tap. A cashier's plain accept HOLDS the bill (no stamp,
+      // nothing released). Only orders nobody has accepted yet (pending_waiter)
+      // stay hidden here.
       .where(notInArray(tickets.status, ["paid", "cancelled", "closed", "pending_waiter"]));
 
     if (open.length === 0) return NextResponse.json([], { headers: { "Cache-Control": "no-store" } });

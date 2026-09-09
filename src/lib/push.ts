@@ -59,6 +59,8 @@ export function urlForRole(role: string): string {
   // The traditional-coffee crew takes orders like a waiter but works its own
   // lane, so it has its own screen.
   if (role === "buna") return "/buna";
+  // The juice maker has their own tablet and their own lane, like the kitchen.
+  if (role === "juice") return "/juice";
   return "/waiter";
 }
 
