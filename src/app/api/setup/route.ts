@@ -15,18 +15,19 @@ export async function GET() {
   const migrateResult = await ensureTablesExist();
   const seedResult = await ensureDbSeeded();
 
-  // One-time data normalizer: undo the historical "FanaQueen" naming in saved settings.
-  // The business is called "Fana Cafe & Restaurant" — any stored mention gets corrected.
+  // One-time data normalizer: bring saved settings over from the engine's old
+  // cafe customer to the Amrogn Chicken brand. Any stored old mention becomes
+  // "Amrogn Chicken" (and old addresses become Ambassador Mall).
   let normalized = 0;
   try {
     const { siteSettings } = await import("@/db/schema");
     const { db } = await import("@/db");
     const { eq } = await import("drizzle-orm");
-    const { fixBrandText } = await import("@/lib/brand");
+    const { fixSiteText } = await import("@/lib/brand");
     const rows = await db.select().from(siteSettings);
     for (const row of rows) {
-      const fixed = fixBrandText(row.value);
-      if (fixed !== row.value && (row.value.includes("FanaQueen") || /Cafe\s+Cafe/i.test(row.value))) {
+      const fixed = fixSiteText(row.value);
+      if (fixed !== row.value && /fana|golagul|town square|22\s*square/i.test(row.value)) {
         await db.update(siteSettings).set({ value: fixed }).where(eq(siteSettings.key, row.key));
         normalized++;
       }
@@ -50,7 +51,7 @@ export async function GET() {
         : "Some steps need attention. See details below.",
       migration_errors: migrateResult.errors ?? [],
       seed_result: seedResult,
-      settings_normalized_fanaqueen_to_fana_cafe: normalized,
+      settings_normalized_to_amrogn: normalized,
       tables: tableReport,
       insert_smoke_test: insertTest,
       next_step: allOk

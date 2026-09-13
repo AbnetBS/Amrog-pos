@@ -2,37 +2,37 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy • Fana Cafe & Restaurant",
+  title: "Privacy Policy • Amrogn Chicken",
   description:
-    "How Fana Cafe & Restaurant collects, uses, and protects your information when you browse the menu, submit a review, or place a table/QR order.",
+    "How Amrogn Chicken collects, uses, and protects your information when you browse the menu, submit a review, or place a table/QR order.",
 };
 
 export default function PrivacyPage() {
   return (
-    <main className="min-h-screen bg-[#FAF6F0] text-[#2C1B17]">
+    <main className="min-h-screen bg-[#FCFAF6] text-[#1B1B20]">
       <div className="max-w-3xl mx-auto px-5 sm:px-6 py-12 sm:py-16">
         {/* Brand header */}
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-11 h-11 rounded-full bg-[#2C1B17] border-2 border-[#C9A227] flex items-center justify-center shrink-0">
-            <span className="text-xl font-black text-[#C9A227] font-serif">F</span>
+          <div className="w-11 h-11 rounded-full bg-[#1B1B20] border-2 border-[#F6C51B] flex items-center justify-center shrink-0">
+            <img src="/logo.png" alt="Amrogn Chicken" className="w-full h-full object-contain rounded-full" />
           </div>
           <div>
-            <h1 className="font-serif text-2xl sm:text-3xl font-black text-[#2C1B17]">Privacy Policy</h1>
-            <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#C9A227]">
-              Fana Cafe &amp; Restaurant
+            <h1 className="font-serif text-2xl sm:text-3xl font-black text-[#1B1B20]">Privacy Policy</h1>
+            <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#F6C51B]">
+              Amrogn Chicken
             </p>
           </div>
         </div>
 
-        <p className="text-sm text-[#6D4C41] leading-relaxed mb-8">
-          This page explains, in plain language, what information Fana Cafe &amp; Restaurant
+        <p className="text-sm text-[#57575F] leading-relaxed mb-8">
+          This page explains, in plain language, what information Amrogn Chicken
           may collect through this website, why we collect it, how we protect it, and how you
           can contact us about privacy questions. This is a general information page and is not
           legal advice.
         </p>
 
         <Section title="1. Who we are">
-          Fana Cafe &amp; Restaurant is a café and restaurant located in Addis Ababa, Ethiopia.
+          Amrogn Chicken is a fast-casual chicken restaurant at Ambassador Mall, 4 Kilo, Addis Ababa, Ethiopia.
           This website lets customers view our menu, read and submit reviews, and place orders
           by scanning the QR code at their table.
         </Section>
@@ -40,28 +40,28 @@ export default function PrivacyPage() {
         <Section title="2. Information we may collect">
           <ul className="list-disc pl-5 space-y-2">
             <li>
-              <strong className="text-[#4E342E]">Reviews.</strong> When you submit a review,
+              <strong className="text-[#36363E]">Reviews.</strong> When you submit a review,
               we collect the name you enter, your star rating, and the text of your review.
               This information is displayed publicly on the website.
             </li>
             <li>
-              <strong className="text-[#4E342E]">Table and order information.</strong> When you
+              <strong className="text-[#36363E]">Table and order information.</strong> When you
               order from a table (by scanning the QR code), we record the table you are at, the
-              items you order (including quantities and any notes such as “no sugar”), the order
+              items you order (including quantities and any notes such as “no onions” or “extra garlic sauce”), the order
               total, and how you chose to pay (for example, cash, Telebirr, CBE, or card).
             </li>
             <li>
-              <strong className="text-[#4E342E]">Receipt photos (optional).</strong> For card or
+              <strong className="text-[#36363E]">Receipt photos (optional).</strong> For card or
               online payments, a staff member may capture a photo of the payment receipt to
               verify the payment. This is optional and only stored when provided.
             </li>
             <li>
-              <strong className="text-[#4E342E]">Staff and admin accounts.</strong> We store the
+              <strong className="text-[#36363E]">Staff and admin accounts.</strong> We store the
               names and roles of our own staff, together with login credentials (PINs and
               passwords) that are stored in a protected (hashed) form, never as plain text.
             </li>
             <li>
-              <strong className="text-[#4E342E]">Basic technical information.</strong> Like most
+              <strong className="text-[#36363E]">Basic technical information.</strong> Like most
               websites, our server processes standard technical details needed to deliver pages
               to your device (such as your IP address and browser type).
             </li>
@@ -110,17 +110,17 @@ export default function PrivacyPage() {
 
         <Section title="9. Contact us about privacy">
           If you have any questions or concerns about your privacy, you can reach us at:
-          <ul className="list-none space-y-1 mt-2 text-[#4E342E]">
-            <li>📞 0911 065 022</li>
-            <li>📍 Town Square Building, 22 Square, Djibouti Street, Bole, Addis Ababa, Ethiopia</li>
+          <ul className="list-none space-y-1 mt-2 text-[#36363E]">
+            <li>📞 097 895 7070</li>
+            <li>📍 Ambassador Mall, Ground Floor, 4 Kilo, Addis Ababa, Ethiopia</li>
           </ul>
         </Section>
 
-        <div className="mt-10 pt-6 border-t border-[#C9A227]/30 flex items-center justify-between text-xs">
-          <Link href="/" className="text-[#4E342E] font-bold hover:text-[#C9A227] transition">
+        <div className="mt-10 pt-6 border-t border-[#F6C51B]/30 flex items-center justify-between text-xs">
+          <Link href="/" className="text-[#36363E] font-bold hover:text-[#F6C51B] transition">
             ← Back to Homepage
           </Link>
-          <Link href="/terms" className="text-[#4E342E] font-bold hover:text-[#C9A227] transition">
+          <Link href="/terms" className="text-[#36363E] font-bold hover:text-[#F6C51B] transition">
             Terms of Service →
           </Link>
         </div>
@@ -132,8 +132,8 @@ export default function PrivacyPage() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mb-8">
-      <h2 className="font-serif text-lg font-bold text-[#4E342E] mb-3">{title}</h2>
-      <div className="text-sm text-[#6D4C41] leading-relaxed">{children}</div>
+      <h2 className="font-serif text-lg font-bold text-[#36363E] mb-3">{title}</h2>
+      <div className="text-sm text-[#57575F] leading-relaxed">{children}</div>
     </section>
   );
 }

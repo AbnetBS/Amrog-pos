@@ -1,6 +1,6 @@
 /* eslint-disable */
 /**
- * Fana Cafe — service worker for POCKET-MODE alerts.
+ * Amrogn Chicken - service worker for POCKET-MODE alerts.
  *
  * This file is what makes an alert reach a phone that is IN A POCKET: screen
  * off, tab in the background, or the browser fully closed. The push service
@@ -87,7 +87,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 self.addEventListener("push", (event) => {
   let data = {
-    title: "Fana Cafe",
+    title: "Amrogn Chicken",
     body: "New activity, open the app.",
     tag: "fana-orders",
     url: "/waiter",

@@ -58,7 +58,7 @@ function vibratePhone() {
 
 export function triggerDesktopNotification({
   message,
-  title = "Fana Cafe Alert",
+  title = "Amrogn Chicken Alert",
   icon = "/logo.png",
   tag = "fana-cafe-notification",
   urgent = true,

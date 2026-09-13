@@ -9,38 +9,41 @@ const localBusinessSchema = {
   "@context": "https://schema.org",
   "@type": "Restaurant",
   "@id": `${siteUrl}/#restaurant`,
-  name: "Fana Cafe & Restaurant",
-  description: "Specialty coffee, Ethiopian meals, fresh juices, and desserts at Town Square Building, 22 Square in Addis Ababa.",
+  name: "Amrogn Chicken - 4 Kilo",
+  description:
+    "Home of authentic shawarma in Addis Ababa: chicken shawarma, fire-grilled and roasted chicken, tandoor mofo and crispy fried chicken at Ambassador Mall, 4 Kilo.",
   url: siteUrl,
   logo: `${siteUrl}/logo.png`,
   image: `${siteUrl}/logo.png`,
-  telephone: "+251911065022",
+  telephone: "+251978957070",
+  priceRange: "ETB 150 - 1,450",
   currenciesAccepted: "ETB",
-  servesCuisine: ["Ethiopian", "Coffee", "Cafe"],
+  servesCuisine: ["Chicken", "Shawarma", "Fast Food", "Grill"],
   hasMenu: `${siteUrl}/menu`,
   hasMap: GOOGLE_MAPS_DIRECTIONS_URL,
   address: {
     "@type": "PostalAddress",
-    streetAddress: "Town Square Building, 22 Square, Djibouti Street, Bole",
+    streetAddress: "Ambassador Mall, Ground Floor, 4 Kilo",
     addressLocality: "Addis Ababa",
     addressCountry: "ET",
   },
   geo: {
     "@type": "GeoCoordinates",
-    latitude: 9.0148457,
-    longitude: 38.7875868,
+    latitude: 9.0349875,
+    longitude: 38.7587344,
   },
-  sameAs: [FACEBOOK_URL, INSTAGRAM_URL, TIKTOK_URL],
+  openingHours: "Mo-Su 10:00-22:00",
+  sameAs: ["https://amrogn.com", FACEBOOK_URL, INSTAGRAM_URL, TIKTOK_URL],
 };
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Fana Cafe & Restaurant • Addis Ababa",
-    template: "%s • Fana Cafe & Restaurant",
+    default: "Amrogn Chicken • 4 Kilo Branch • Addis Ababa",
+    template: "%s • Amrogn Chicken",
   },
   description:
-    "Fana Cafe & Restaurant in Addis Ababa. Specialty coffee, authentic Ethiopian meals, and fresh juices at Town Square Building, 22 Square. Scan your table QR to order, or browse the menu, gallery, and reviews online.",
+    "Amrogn Chicken at Ambassador Mall, 4 Kilo, Addis Ababa. Famous chicken shawarma, roasted and fire-grilled chicken, tandoor mofo and crispy fried chicken. Scan your table QR to order, or browse the menu and reviews online.",
   alternates: {
     canonical: "/",
   },
@@ -50,13 +53,14 @@ export const metadata: Metadata = {
   },
   // PWA manifest — lets staff "Add to Home Screen" so pocket alerts work on iPhone.
   manifest: "/manifest.webmanifest",
+  themeColor: "#1B1B20",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
-        {/* Speed up external menu/gallery images (Pexels URLs used by seed/admin) */}
+        {/* Local food photography ships with the app; warm the menu image CDNs used by admin uploads */}
         <link rel="preconnect" href="https://images.pexels.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://images.pexels.com" />
         <script
@@ -64,7 +68,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessSchema).replace(/</g, "\\u003c") }}
         />
       </head>
-      <body className="bg-slate-100 text-slate-900 antialiased">
+      <body className="bg-neutral-100 text-neutral-900 antialiased">
         {children}
       </body>
     </html>

@@ -84,7 +84,7 @@ export default function OrderHistoryTab() {
       )}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-serif font-bold text-amber-100">Order History ({filtered.length})</h2>
+          <h2 className="text-xl font-serif font-bold text-white">Order History ({filtered.length})</h2>
           <p className="text-xs text-stone-400">Every completed, closed & cancelled bill • search by date, table, waiter or status.</p>
         </div>
         <div className="flex gap-2 self-start">
@@ -95,7 +95,7 @@ export default function OrderHistoryTab() {
           >
             <Trash2 className="w-4 h-4" /> Clean Old Receipts
           </button>
-          <button onClick={load} className="p-2 bg-white/10 hover:bg-white/20 text-amber-200 rounded-xl" title="Refresh">
+          <button onClick={load} className="p-2 bg-white/10 hover:bg-white/20 text-yellow-200 rounded-xl" title="Refresh">
             <RefreshCw className="w-4 h-4" />
           </button>
         </div>
@@ -109,10 +109,10 @@ export default function OrderHistoryTab() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search table, waiter, date..."
-            className="w-full bg-[#2C1B17] border border-stone-700 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white"
+            className="w-full bg-[#1B1B20] border border-stone-700 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white"
           />
         </div>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-[#2C1B17] border border-stone-700 rounded-xl p-2.5 text-xs text-white">
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-[#1B1B20] border border-stone-700 rounded-xl p-2.5 text-xs text-white">
           <option value="all">All Statuses</option>
           <option value="paid">Paid</option>
           <option value="completed">Completed</option>
@@ -123,17 +123,17 @@ export default function OrderHistoryTab() {
 
       {/* Orders list */}
       {filtered.length === 0 ? (
-        <div className="p-10 bg-[#2C1B17] rounded-2xl border border-stone-800 text-center text-stone-500 text-xs">
+        <div className="p-10 bg-[#1B1B20] rounded-2xl border border-stone-800 text-center text-stone-500 text-xs">
           No orders match your search. Closed and paid bills appear here automatically.
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {filtered.map((o) => (
-            <div key={o.id} className="bg-[#2C1B17] rounded-2xl border border-stone-800 p-4 space-y-3">
+            <div key={o.id} className="bg-[#1B1B20] rounded-2xl border border-stone-800 p-4 space-y-3">
               {/* header */}
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-serif font-bold text-amber-100">{o.tableName}</p>
+                  <p className="font-serif font-bold text-white">{o.tableName}</p>
                   <p className="text-[10px] text-stone-500">
                     {fmtTime(o)} • by {o.createdBy || "staff"}
                   </p>
@@ -146,7 +146,7 @@ export default function OrderHistoryTab() {
                   <div className="flex items-center gap-1.5">
                     <span
                       className={`inline-block text-[10px] font-black px-2.5 py-1 rounded-full uppercase ${
-                        o.status === "paid" ? "bg-emerald-500/20 text-emerald-400" : o.status === "completed" ? "bg-sky-500/20 text-sky-300" : o.status === "closed" ? "bg-amber-500/20 text-amber-300" : "bg-rose-500/20 text-rose-400"
+                        o.status === "paid" ? "bg-emerald-500/20 text-emerald-400" : o.status === "completed" ? "bg-sky-500/20 text-sky-300" : o.status === "closed" ? "bg-yellow-500/20 text-yellow-300" : "bg-rose-500/20 text-rose-400"
                       }`}
                     >
                       {o.status === "paid" ? "✓ PAID" : o.status === "closed" ? "✓ CLOSED" : o.status}
@@ -159,7 +159,7 @@ export default function OrderHistoryTab() {
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                  <p className="font-serif font-black text-lg text-[#C9A227]">{o.totalAmount} ETB</p>
+                  <p className="font-serif font-black text-lg text-[#F6C51B]">{o.totalAmount} ETB</p>
                 </div>
               </div>
 
@@ -180,16 +180,16 @@ export default function OrderHistoryTab() {
               )}
 
               {/* items */}
-              <div className="bg-[#3D2314] rounded-xl p-3 space-y-1.5">
+              <div className="bg-[#2A2A31] rounded-xl p-3 space-y-1.5">
                 {displayItems(o).map((i) => (
                   <div key={i.ids.join("-")} className={`text-xs flex justify-between gap-2 ${i.removed ? "opacity-40 line-through" : ""}`}>
                     <div className="flex-1 min-w-0">
                       <span className="text-stone-200">
                         {i.name} <span className="text-stone-500">x{i.quantity}</span>
                       </span>
-                      {i.notes && <p className="text-[10px] text-amber-300/80 italic">📝 {i.notes}</p>}
+                      {i.notes && <p className="text-[10px] text-yellow-300/80 italic">📝 {i.notes}</p>}
                     </div>
-                    <span className="font-bold text-amber-200 shrink-0">{Number(i.price ?? 0) * i.quantity} ETB</span>
+                    <span className="font-bold text-yellow-200 shrink-0">{Number(i.price ?? 0) * i.quantity} ETB</span>
                   </div>
                 ))}
               </div>
@@ -202,7 +202,7 @@ export default function OrderHistoryTab() {
       {receiptModal && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={() => setReceiptModal(null)}>
           <button className="absolute top-4 right-4 text-white"><X className="w-6 h-6" /></button>
-          <img src={receiptModal} alt="Receipt" className="max-h-[85vh] max-w-full rounded-2xl border border-[#C9A227]" />
+          <img src={receiptModal} alt="Receipt" className="max-h-[85vh] max-w-full rounded-2xl border border-[#F6C51B]" />
         </div>
       )}
     </div>

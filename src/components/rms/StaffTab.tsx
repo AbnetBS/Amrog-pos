@@ -10,6 +10,20 @@ export default function StaffTab() {
   const [role, setRole] = useState<"waiter" | "cashier" | "barista" | "kitchen" | "buna" | "juice" | "admin">("waiter");
   const [pin, setPin] = useState("");
 
+  // Internal role keys stay as the engine defines them; only the visible labels
+  // change. Amrogn 4 Kilo has two floor roles (waiter, cashier) and two making
+  // crews (kitchen, juice=Juice & Cold Drinks). The legacy barista/buna keys
+  // remain readable in case an old account still carries them.
+  const ROLE_LABELS: Record<string, string> = {
+    waiter: "Waiter",
+    cashier: "Cashier",
+    kitchen: "Amrogn Kitchen",
+    juice: "Juice & Cold Drinks",
+    barista: "Juice & Cold Drinks",
+    buna: "Waiter",
+    admin: "Admin",
+  };
+
   const load = async () => {
     const r = await fetch("/api/staff");
     if (r.ok) setStaff(await r.json());
@@ -43,37 +57,35 @@ export default function StaffTab() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-serif font-bold text-amber-100">Staff Accounts</h2>
+          <h2 className="text-xl font-serif font-bold text-white">Staff Accounts</h2>
           <p className="text-xs text-stone-400">Create waiter & cashier logins (name + PIN). Share the PIN directly with staff.</p>
         </div>
-        <button onClick={load} className="p-2 bg-white/10 hover:bg-white/20 text-amber-200 rounded-xl" title="Refresh">
+        <button onClick={load} className="p-2 bg-white/10 hover:bg-white/20 text-yellow-200 rounded-xl" title="Refresh">
           <RefreshCw className="w-4 h-4" />
         </button>
       </div>
 
       {/* Add staff form */}
-      <div className="bg-[#2C1B17] rounded-2xl border border-[#C9A227]/30 p-5">
-        <h3 className="text-sm font-bold text-amber-200 uppercase tracking-wider mb-3">Add New Staff</h3>
+      <div className="bg-[#1B1B20] rounded-2xl border border-[#F6C51B]/30 p-5">
+        <h3 className="text-sm font-bold text-yellow-200 uppercase tracking-wider mb-3">Add New Staff</h3>
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Staff name (e.g. Samuel)"
-            className="bg-[#3D2314] border border-stone-700 rounded-xl p-3 text-xs text-white"
+            className="bg-[#2A2A31] border border-stone-700 rounded-xl p-3 text-xs text-white"
           />
           <select
             value={role}
             onChange={(e) =>
               setRole(e.target.value as "waiter" | "cashier" | "barista" | "kitchen" | "buna" | "juice" | "admin")
             }
-            className="bg-[#3D2314] border border-stone-700 rounded-xl p-3 text-xs text-white"
+            className="bg-[#2A2A31] border border-stone-700 rounded-xl p-3 text-xs text-white"
           >
             <option value="waiter">Waiter (/waiter)</option>
             <option value="cashier">Cashier (/cashier)</option>
-            <option value="barista">Barista (/barista)</option>
-            <option value="kitchen">Kitchen/Chef (/kitchen)</option>
-            <option value="buna">Buna Maker (/buna)</option>
-            <option value="juice">Juice Maker (/juice)</option>
+            <option value="kitchen">Amrogn Kitchen (/kitchen)</option>
+            <option value="juice">Juice &amp; Cold Drinks (/juice)</option>
             <option value="admin">Admin (owner dashboard)</option>
           </select>
           <input
@@ -81,12 +93,12 @@ export default function StaffTab() {
             onChange={(e) => setPin(e.target.value)}
             placeholder="PIN (e.g. 4321)"
             inputMode="numeric"
-            className="bg-[#3D2314] border border-stone-700 rounded-xl p-3 text-xs text-white"
+            className="bg-[#2A2A31] border border-stone-700 rounded-xl p-3 text-xs text-white"
           />
           <button
             onClick={addStaff}
             disabled={!name || !pin}
-            className="bg-[#C9A227] hover:bg-amber-400 text-[#2C1B17] font-black text-xs uppercase rounded-xl flex items-center justify-center gap-2 disabled:opacity-40"
+            className="bg-[#F6C51B] hover:bg-yellow-400 text-[#1B1B20] font-black text-xs uppercase rounded-xl flex items-center justify-center gap-2 disabled:opacity-40"
           >
             <Plus className="w-4 h-4" /> Create Account
           </button>
@@ -96,18 +108,18 @@ export default function StaffTab() {
       {/* Staff list */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {staff.map((s) => (
-          <div key={s.id} className="bg-[#2C1B17] rounded-2xl border border-stone-800 p-4 flex items-center justify-between">
+          <div key={s.id} className="bg-[#1B1B20] rounded-2xl border border-stone-800 p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${s.role === "cashier" ? "bg-purple-700" : "bg-emerald-700"}`}>
                 {s.role === "cashier" ? <Monitor className="w-5 h-5 text-white" /> : <ClipboardList className="w-5 h-5 text-white" />}
               </div>
               <div>
-                <p className="text-sm font-bold text-amber-100">{s.name}</p>
+                <p className="text-sm font-bold text-white">{s.name}</p>
                 <p className="text-[10px] text-stone-400 uppercase font-extrabold">
-                  {s.role} • PIN: {s.pinSet ? "•••• (set)" : "not set"}
+                  {ROLE_LABELS[s.role] || s.role} • PIN: {s.pinSet ? "•••• (set)" : "not set"}
                 </p>
                 {s.alertsOff && (
-                  <p className="text-[10px] font-bold text-amber-300 mt-0.5" title="They tapped 'Off duty' in their app. Signing in with their PIN switches alerts back on.">
+                  <p className="text-[10px] font-bold text-yellow-300 mt-0.5" title="They tapped 'Off duty' in their app. Signing in with their PIN switches alerts back on.">
                     🔕 Off duty (alerts silent)
                   </p>
                 )}
@@ -119,14 +131,14 @@ export default function StaffTab() {
           </div>
         ))}
         {staff.length === 0 && (
-          <div className="col-span-3 bg-[#2C1B17] rounded-2xl border border-stone-800 p-8 text-center text-stone-500 text-xs">
+          <div className="col-span-3 bg-[#1B1B20] rounded-2xl border border-stone-800 p-8 text-center text-stone-500 text-xs">
             No staff yet. Create your first waiter or cashier above.
           </div>
         )}
       </div>
 
-      <div className="bg-[#2C1B17] rounded-2xl border border-stone-800 p-4 flex items-start gap-3">
-        <Users className="w-5 h-5 text-[#C9A227] shrink-0 mt-0.5" />
+      <div className="bg-[#1B1B20] rounded-2xl border border-stone-800 p-4 flex items-start gap-3">
+        <Users className="w-5 h-5 text-[#F6C51B] shrink-0 mt-0.5" />
         <p className="text-xs text-stone-400 leading-relaxed">
           Staff open <strong className="text-white">/waiter</strong> (phones) or <strong className="text-white">/cashier</strong> (counter), pick their name, and enter this PIN.
           Admin access stays separate with your master password.

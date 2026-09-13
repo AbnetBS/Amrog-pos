@@ -136,7 +136,7 @@ export const tickets = pgTable("tickets", {
   closedAt: timestamp("closed_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-  // Guaranteed-unique order number shown to staff/customers (FANA-<ticket id>).
+  // Guaranteed-unique order number shown to staff/customers (AMROGN-<ticket id>).
   // Populated at insert from the DB serial → never random → never collides.
   orderNumber: varchar("order_number", { length: 32 }),
   // Idempotency key: a client-generated UUID per order submission. The unique index

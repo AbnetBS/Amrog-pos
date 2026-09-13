@@ -15,7 +15,7 @@ export default function GallerySection({ items }: GalleryProps) {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [lightboxItem, setLightboxItem] = useState<GalleryItem | null>(null);
 
-  const categories = ["All", "Coffee", "Juices", "Meals", "Desserts", "Interior", "Outdoor"];
+  const categories = ["All", "Shawarma", "Fried", "Grilled", "Mofo", "Burgers", "Interior", "Vibe"];
 
   const filteredItems = items.filter(
     (item) => selectedCategory === "All" || item.category.toLowerCase() === selectedCategory.toLowerCase()
@@ -31,22 +31,22 @@ export default function GallerySection({ items }: GalleryProps) {
   };
 
   return (
-    <section id="gallery" className="py-20 bg-[#2C1B17] text-white relative">
+    <section id="gallery" className="py-20 bg-[#1B1B20] text-white relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-12">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#C9A227]/20 border border-[#C9A227]/40 text-[#C9A227] text-xs font-bold uppercase tracking-widest mb-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F6C51B]/20 border border-[#F6C51B]/40 text-[#F6C51B] text-xs font-bold uppercase tracking-widest mb-3">
             <Camera className="w-3.5 h-3.5" />
             <span>{tx("Visual Tour")}</span>
           </div>
 
-          <h2 className="text-3xl sm:text-5xl font-serif font-bold text-amber-100">
+          <h2 className="text-3xl sm:text-5xl font-serif font-bold text-white">
             {t("sec_gallery")}
           </h2>
 
           <p className="text-stone-300 text-sm sm:text-base mt-3 font-light">
-            {tx("Explore our rich coffee art, fresh juices, comfortable dining spaces, and pleasant indoor & outdoor seating options.")}
+            {tx("Explore our fresh shawarma, fried, grilled and mofo chicken, family buckets, and the busy 4 Kilo floor.")}
           </p>
         </div>
 
@@ -60,7 +60,7 @@ export default function GallerySection({ items }: GalleryProps) {
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
                   isActive
-                    ? "bg-[#C9A227] text-[#2C1B17] shadow-lg scale-105"
+                    ? "bg-[#F6C51B] text-[#1B1B20] shadow-lg scale-105"
                     : "bg-white/10 text-stone-300 hover:bg-white/20"
                 }`}
               >
@@ -76,7 +76,7 @@ export default function GallerySection({ items }: GalleryProps) {
             <div
               key={item.id}
               onClick={() => setLightboxItem(item)}
-              className="group relative h-72 rounded-3xl overflow-hidden border border-[#C9A227]/20 shadow-xl cursor-pointer"
+              className="group relative h-72 rounded-3xl overflow-hidden border border-[#F6C51B]/20 shadow-xl cursor-pointer"
             >
               <img
                 src={item.imageUrl}
@@ -86,10 +86,10 @@ export default function GallerySection({ items }: GalleryProps) {
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
 
               <div className="absolute inset-0 p-6 flex flex-col justify-end text-white">
-                <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#C9A227] bg-black/50 px-2.5 py-1 rounded-full w-fit mb-2">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#F6C51B] bg-black/50 px-2.5 py-1 rounded-full w-fit mb-2">
                   {tx(item.category)}
                 </span>
-                <h3 className="text-lg font-serif font-bold group-hover:text-[#C9A227] transition-colors">
+                <h3 className="text-lg font-serif font-bold group-hover:text-[#F6C51B] transition-colors">
                   {tx(item.title)}
                 </h3>
                 {item.caption && (
@@ -99,7 +99,7 @@ export default function GallerySection({ items }: GalleryProps) {
                 )}
               </div>
 
-              <div className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm text-amber-300 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm text-yellow-300 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                 <Eye className="w-5 h-5" />
               </div>
             </div>
@@ -111,7 +111,7 @@ export default function GallerySection({ items }: GalleryProps) {
       {/* Lightbox Modal */}
       {lightboxItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-lg animate-fadeIn">
-          <div className="relative max-w-4xl w-full bg-[#2C1B17] rounded-3xl overflow-hidden border border-[#C9A227] shadow-2xl">
+          <div className="relative max-w-4xl w-full bg-[#1B1B20] rounded-3xl overflow-hidden border border-[#F6C51B] shadow-2xl">
             <button
               onClick={() => setLightboxItem(null)}
               className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black"
@@ -148,8 +148,8 @@ export default function GallerySection({ items }: GalleryProps) {
               </>
             )}
 
-            <div className="p-6 bg-[#3D2314] text-white">
-              <span className="text-xs font-bold text-[#C9A227] uppercase tracking-wider">
+            <div className="p-6 bg-[#2A2A31] text-white">
+              <span className="text-xs font-bold text-[#F6C51B] uppercase tracking-wider">
                 {tx(lightboxItem.category)}
               </span>
               <h3 className="text-2xl font-serif font-bold mt-1">{tx(lightboxItem.title)}</h3>

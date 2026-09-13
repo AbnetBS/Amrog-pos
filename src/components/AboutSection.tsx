@@ -1,6 +1,6 @@
 "use client";
 
-import { Coffee, Heart, Sparkles, CheckCircle2, ShieldCheck } from "lucide-react";
+import { Drumstick, Heart, Sparkles, CheckCircle2, ShieldCheck } from "lucide-react";
 import { SiteSettings } from "@/types";
 import { useAutoT } from "@/lib/i18n";
 
@@ -10,25 +10,25 @@ interface AboutProps {
 
 export default function AboutSection({ settings }: AboutProps) {
   const tx = useAutoT();
-  const aboutTitle = settings.about_title || "Experience Modern Ethiopian Hospitality";
+  const aboutTitle = settings.about_title || "Experience Authentic Chicken, Amrogn Style";
   const aboutDesc =
     settings.about_description ||
-    "Ethiopia is recognized as the birthplace of Arabica coffee, and coffee is more than a beverage; it's part of our culture and hospitality. At Fana Cafe, every detail is centered around comfort, flavor, and warm service. Enjoy carefully prepared coffee, freshly made meals, refreshing beverages, and a calm environment that lets you slow down and enjoy the moment.";
+    "Since January 2018, Amrogn Chicken has been the home of authentic shawarma in Addis Ababa. From our first branch at Mekanisa to the 4 Kilo branch at Ambassador Mall, our chicken is marinated, scored, roasted and fried fresh every day. Famous for the city's best shawarma, mofo, burgers, combos and fresh juices."
 
   return (
-    <section id="about" className="py-20 bg-[#FAF6F0] relative overflow-hidden">
+    <section id="about" className="py-20 bg-[#FCFAF6] relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           
           {/* Text Content */}
           <div className="space-y-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#4E342E]/10 border border-[#4E342E]/20 text-[#4E342E] text-xs font-bold uppercase tracking-widest">
-              <Coffee className="w-3.5 h-3.5 text-[#C9A227]" />
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#36363E]/10 border border-[#36363E]/20 text-[#36363E] text-xs font-bold uppercase tracking-widest">
+              <Drumstick className="w-3.5 h-3.5 text-[#F6C51B]" />
               <span>{tx("Discover Our Story")}</span>
             </div>
 
-            <h2 className="text-3xl sm:text-4xl font-serif font-bold text-[#2C1B17] leading-tight">
+            <h2 className="text-3xl sm:text-4xl font-serif font-bold text-[#1B1B20] leading-tight">
               {tx(aboutTitle)}
             </h2>
 
@@ -39,51 +39,51 @@ export default function AboutSection({ settings }: AboutProps) {
             {/* Highlights List */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
               
-              <div className="flex items-start gap-3 p-3.5 rounded-xl bg-white border border-[#C9A227]/20 shadow-sm">
-                <CheckCircle2 className="w-5 h-5 text-[#C9A227] shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3 p-3.5 rounded-xl bg-white border border-[#F6C51B]/20 shadow-sm">
+                <CheckCircle2 className="w-5 h-5 text-[#F6C51B] shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-bold text-[#2C1B17] text-sm">{tx("Authentic Coffee Culture")}</h4>
-                  <p className="text-xs text-stone-600 mt-0.5">{tx("Brewed from fresh, high-altitude Ethiopian beans.")}</p>
+                  <h4 className="font-bold text-[#1B1B20] text-sm">{tx("Home of Authentic Shawarma")}</h4>
+                  <p className="text-xs text-stone-600 mt-0.5">{tx("Marinated, scored and grilled the Amrogn way.")}</p>
                 </div>
               </div>
 
-              <div className="flex items-start gap-3 p-3.5 rounded-xl bg-white border border-[#C9A227]/20 shadow-sm">
-                <CheckCircle2 className="w-5 h-5 text-[#C9A227] shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3 p-3.5 rounded-xl bg-white border border-[#F6C51B]/20 shadow-sm">
+                <CheckCircle2 className="w-5 h-5 text-[#F6C51B] shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-bold text-[#2C1B17] text-sm">{tx("Fresh Made Daily")}</h4>
-                  <p className="text-xs text-stone-600 mt-0.5">{tx("Sandwiches, local dishes, and 100% natural juices.")}</p>
+                  <h4 className="font-bold text-[#1B1B20] text-sm">{tx("Fresh Made Daily")}</h4>
+                  <p className="text-xs text-stone-600 mt-0.5">{tx("Chicken, shawarma, burgers and 100% natural juices.")}</p>
                 </div>
               </div>
 
-              <div className="flex items-start gap-3 p-3.5 rounded-xl bg-white border border-[#C9A227]/20 shadow-sm">
-                <CheckCircle2 className="w-5 h-5 text-[#C9A227] shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3 p-3.5 rounded-xl bg-white border border-[#F6C51B]/20 shadow-sm">
+                <CheckCircle2 className="w-5 h-5 text-[#F6C51B] shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-bold text-[#2C1B17] text-sm">{tx("Calm & Welcoming Ambience")}</h4>
-                  <p className="text-xs text-stone-600 mt-0.5">{tx("Designed for remote work, meetings, or relaxing.")}</p>
+                  <h4 className="font-bold text-[#1B1B20] text-sm">{tx("A Packed House, Every Day")}</h4>
+                  <p className="text-xs text-stone-600 mt-0.5">{tx("One of the busiest chicken houses in Addis Ababa.")}</p>
                 </div>
               </div>
 
-              <div className="flex items-start gap-3 p-3.5 rounded-xl bg-white border border-[#C9A227]/20 shadow-sm">
-                <CheckCircle2 className="w-5 h-5 text-[#C9A227] shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3 p-3.5 rounded-xl bg-white border border-[#F6C51B]/20 shadow-sm">
+                <CheckCircle2 className="w-5 h-5 text-[#F6C51B] shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-bold text-[#2C1B17] text-sm">{tx("Comfortable Dine-In")}</h4>
-                  <p className="text-xs text-stone-600 mt-0.5">{tx("Enjoy your favorites in our warm, welcoming space.")}</p>
+                  <h4 className="font-bold text-[#1B1B20] text-sm">{tx("Dine-In, Takeaway & Delivery")}</h4>
+                  <p className="text-xs text-stone-600 mt-0.5">{tx("Ambassador Mall, Ground Floor, 4 Kilo.")}</p>
                 </div>
               </div>
 
             </div>
 
             {/* Quote Badge */}
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-[#4E342E] to-[#2C1B17] text-white flex items-center gap-4 shadow-xl border-l-4 border-[#C9A227]">
-              <div className="w-12 h-12 rounded-full bg-[#C9A227]/20 flex items-center justify-center shrink-0 text-[#C9A227]">
-                <Heart className="w-6 h-6 fill-[#C9A227]" />
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-[#36363E] to-[#1B1B20] text-white flex items-center gap-4 shadow-xl border-l-4 border-[#F6C51B]">
+              <div className="w-12 h-12 rounded-full bg-[#F6C51B]/20 flex items-center justify-center shrink-0 text-[#F6C51B]">
+                <Heart className="w-6 h-6 fill-[#F6C51B]" />
               </div>
               <div>
-                <p className="text-sm italic font-light text-amber-100">
-                  {tx("“At Fana Cafe, every cup is poured with warmth, and every guest is treated like long-time family.”")}
+                <p className="text-sm italic font-light text-white">
+                  {tx("“At Amrogn, every shawarma is made the way Addis loves it, and every guest is treated like long-time family.”")}
                 </p>
-                <p className="text-xs text-[#C9A227] font-bold mt-1 uppercase tracking-wider">
-                  {tx("The Fana Hospitality Team")}
+                <p className="text-xs text-[#F6C51B] font-bold mt-1 uppercase tracking-wider">
+                  {tx("The Amrogn Chicken Family")}
                 </p>
               </div>
             </div>
@@ -93,32 +93,32 @@ export default function AboutSection({ settings }: AboutProps) {
           {/* Visual Grid */}
           <div className="grid grid-cols-2 gap-4 relative">
             <div className="space-y-4">
-              <div className="rounded-3xl overflow-hidden shadow-2xl border-2 border-[#C9A227]/20 group">
+              <div className="rounded-3xl overflow-hidden shadow-2xl border-2 border-[#F6C51B]/20 group">
                 <img
-                  src="https://images.pexels.com/photos/36794595/pexels-photo-36794595.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=400"
-                  alt="Traditional Ethiopian Coffee Jebena"
+                  src="/images/menu/shawarma.jpg"
+                  alt="Amrogn Chicken Shawarma platter"
                   className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-500"
                 />
               </div>
-              <div className="bg-[#4E342E] text-amber-100 p-5 rounded-3xl shadow-xl border border-[#C9A227]/30 text-center">
-                <span className="text-3xl font-serif font-extrabold text-[#C9A227] block">100%</span>
-                <span className="text-xs uppercase font-bold tracking-wider block mt-1 text-amber-200">
-                  {tx("Single-Origin Ethiopian Beans")}
+              <div className="bg-[#36363E] text-white p-5 rounded-3xl shadow-xl border border-[#F6C51B]/30 text-center">
+                <span className="text-3xl font-serif font-extrabold text-[#F6C51B] block">100%</span>
+                <span className="text-xs uppercase font-bold tracking-wider block mt-1 text-yellow-200">
+                  {tx("Chicken, Every Single Time")}
                 </span>
               </div>
             </div>
 
             <div className="space-y-4 pt-8">
-              <div className="bg-[#C9A227] text-[#2C1B17] p-5 rounded-3xl shadow-xl text-center">
+              <div className="bg-[#F6C51B] text-[#1B1B20] p-5 rounded-3xl shadow-xl text-center">
                 <span className="text-3xl font-serif font-black block">Addis</span>
                 <span className="text-xs uppercase font-extrabold tracking-wider block mt-1">
                   {tx("Heart of the City")}
                 </span>
               </div>
-              <div className="rounded-3xl overflow-hidden shadow-2xl border-2 border-[#C9A227]/20 group">
+              <div className="rounded-3xl overflow-hidden shadow-2xl border-2 border-[#F6C51B]/20 group">
                 <img
-                  src="https://images.pexels.com/photos/6763235/pexels-photo-6763235.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=400"
-                  alt="Fana Macchiato"
+                  src="/images/menu/roasted-full.jpg"
+                  alt="Roasted chicken at Amrogn Chicken"
                   className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-500"
                 />
               </div>

@@ -78,10 +78,10 @@ export interface TicketAlertInfo {
 
 /** What each crew reads when an order is released to them. */
 const RELEASE_TITLES: Record<StationName, string> = {
-  kitchen: "👨‍🍳 New order to cook",
-  barista: "☕ New drinks to make",
-  buna: "🫖 New buna to make",
-  juice: "🧃 New juices to make",
+  kitchen: "🍗 New order",
+  barista: "🥤 New drinks",
+  buna: "🥤 New drinks",
+  juice: "🥤 New drinks",
 };
 
 const money = (t: TicketAlertInfo) =>

@@ -41,8 +41,8 @@ export interface UrgentAlert {
 }
 
 const LOOK = {
-  order: { icon: UtensilsCrossed, title: "NEW ORDER", ring: "from-amber-500 to-orange-600" },
-  added: { icon: Bell, title: "ITEMS ADDED", ring: "from-amber-500 to-rose-600" },
+  order: { icon: UtensilsCrossed, title: "NEW ORDER", ring: "from-yellow-500 to-orange-600" },
+  added: { icon: Bell, title: "ITEMS ADDED", ring: "from-yellow-500 to-rose-600" },
   bill: { icon: Receipt, title: "BILL REQUESTED", ring: "from-emerald-500 to-teal-600" },
 } as const;
 
@@ -89,11 +89,11 @@ export default function UrgentAlertOverlay({
 
       <p className="mt-6 text-sm tracking-[0.3em] text-white/60">{look.title}</p>
       <p className="mt-2 text-4xl font-black text-white text-center leading-tight">{alert.table}</p>
-      {alert.detail ? <p className="mt-2 text-lg text-amber-200 text-center">{alert.detail}</p> : null}
+      {alert.detail ? <p className="mt-2 text-lg text-yellow-200 text-center">{alert.detail}</p> : null}
 
       <button
         onClick={answer}
-        className="mt-10 w-full max-w-sm py-6 rounded-3xl bg-gradient-to-r from-amber-500 to-orange-600 text-white text-2xl font-black shadow-xl active:scale-95 transition"
+        className="mt-10 w-full max-w-sm py-6 rounded-3xl bg-gradient-to-r from-yellow-500 to-orange-600 text-white text-2xl font-black shadow-xl active:scale-95 transition"
       >
         {alert.actionLabel}
       </button>

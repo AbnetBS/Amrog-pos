@@ -1,6 +1,6 @@
 "use client";
 
-import { Coffee, Utensils, GlassWater, Sparkles, HeartHandshake, Briefcase, Heart, BookOpen, Users, Sun } from "lucide-react";
+import { Drumstick, Utensils, GlassWater, Sparkles, HeartHandshake, Briefcase, Heart, BookOpen, Users, Sun } from "lucide-react";
 import { useT, useAutoT } from "@/lib/i18n";
 
 export default function WhyChooseSection() {
@@ -8,15 +8,15 @@ export default function WhyChooseSection() {
   const tx = useAutoT();
   const features = [
     {
-      icon: Coffee,
-      title: "Premium Coffee",
-      desc: "Freshly prepared Ethiopian coffee including our popular Fana Macchiato, brewed with rich local Arabica beans.",
-      badge: "Local Roasts",
+      icon: Drumstick,
+      title: "Signature Chicken",
+      desc: "Famous chicken shawarma, roasted, grilled and fried chicken, marinated and made fresh every day.",
+      badge: "Since 2018",
     },
     {
       icon: Utensils,
-      title: "Delicious Food",
-      desc: "From traditional Ethiopian favorites to triple-decker club sandwiches, snacks, and satisfying meals.",
+      title: "Burgers, Combos & More",
+      desc: "From chicken fajita and kabsa to family meal buckets, satisfying meals for the whole table.",
       badge: "Quality Ingredients",
     },
     {
@@ -27,47 +27,47 @@ export default function WhyChooseSection() {
     },
     {
       icon: Sparkles,
-      title: "Relaxing Atmosphere",
-      desc: "A calm, peaceful setting designed with warm lighting, comfortable seating, and cozy nooks.",
-      badge: "Serene Vibe",
+      title: "Bold, Busy, Loved",
+      desc: "The packed 4 Kilo branch at Ambassador Mall, with warm lighting, fast service and a lively floor.",
+      badge: "4 Kilo Vibe",
     },
     {
       icon: HeartHandshake,
       title: "Friendly Service",
-      desc: "Our goal is to provide every guest with authentic Ethiopian hospitality and a memorable dining experience.",
+      desc: "Our goal is to provide every guest with warm Addis hospitality and a memorable chicken experience.",
       badge: "Warm Hospitality",
     },
   ];
 
   const occasions = [
     { icon: Briefcase, label: "Business Meetings" },
-    { icon: Heart, label: "Coffee Dates" },
-    { icon: BookOpen, label: "Studying & Work" },
+    { icon: Heart, label: "Date Night" },
+    { icon: BookOpen, label: "Office Lunches" },
     { icon: Users, label: "Family Lunches" },
     { icon: Sun, label: "Catching Up With Friends" },
   ];
 
   return (
-    <section id="why-us" className="py-20 bg-[#2C1B17] text-white relative overflow-hidden">
+    <section id="why-us" className="py-20 bg-[#1B1B20] text-white relative overflow-hidden">
       {/* Decorative Blur BG */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-[#C9A227]/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#4E342E]/50 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-0 right-0 w-96 h-96 bg-[#F6C51B]/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#36363E]/50 rounded-full blur-3xl pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#C9A227]/20 border border-[#C9A227]/40 text-[#C9A227] text-xs font-bold uppercase tracking-widest mb-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#F6C51B]/20 border border-[#F6C51B]/40 text-[#F6C51B] text-xs font-bold uppercase tracking-widest mb-3">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>{tx("Why Choose Fana Cafe")}</span>
+            <span>{tx("Why Choose Amrogn Chicken")}</span>
           </div>
 
-          <h2 className="text-3xl sm:text-5xl font-serif font-bold text-amber-100">
+          <h2 className="text-3xl sm:text-5xl font-serif font-bold text-white">
             {t("sec_why")}
           </h2>
 
           <p className="text-stone-300 text-base sm:text-lg mt-4 font-light">
-            {tx("Whether you are stopping by for your morning macchiato or unwinding with fresh juice and desserts, Fana Cafe offers a welcoming setting for every guest.")}
+            {tx("Whether you are grabbing the famous shawarma for lunch or ordering a family bucket for dinner, Amrogn Chicken offers a welcoming spot for every guest.")}
           </p>
         </div>
 
@@ -78,18 +78,18 @@ export default function WhyChooseSection() {
             return (
               <div
                 key={idx}
-                className="bg-[#3D2314]/70 backdrop-blur-md p-6 rounded-3xl border border-[#C9A227]/20 hover:border-[#C9A227]/60 transition-all duration-300 hover:-translate-y-1 group shadow-xl"
+                className="bg-[#2A2A31]/70 backdrop-blur-md p-6 rounded-3xl border border-[#F6C51B]/20 hover:border-[#F6C51B]/60 transition-all duration-300 hover:-translate-y-1 group shadow-xl"
               >
                 <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#C9A227] to-[#B8921F] flex items-center justify-center text-[#2C1B17] shadow-lg group-hover:scale-110 transition-transform">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#F6C51B] to-[#D9A409] flex items-center justify-center text-[#1B1B20] shadow-lg group-hover:scale-110 transition-transform">
                     <IconComponent className="w-6 h-6" />
                   </div>
-                  <span className="text-[10px] uppercase font-extrabold tracking-widest text-[#C9A227] bg-[#C9A227]/10 px-2.5 py-1 rounded-full border border-[#C9A227]/20">
+                  <span className="text-[10px] uppercase font-extrabold tracking-widest text-[#F6C51B] bg-[#F6C51B]/10 px-2.5 py-1 rounded-full border border-[#F6C51B]/20">
                     {tx(feat.badge)}
                   </span>
                 </div>
 
-                <h3 className="text-xl font-serif font-bold text-stone-100 group-hover:text-[#C9A227] transition-colors">
+                <h3 className="text-xl font-serif font-bold text-stone-100 group-hover:text-[#F6C51B] transition-colors">
                   {tx(feat.title)}
                 </h3>
 
@@ -101,12 +101,12 @@ export default function WhyChooseSection() {
           })}
 
           {/* Occasions Card */}
-          <div className="bg-gradient-to-br from-[#4E342E] to-[#2C1B17] p-6 rounded-3xl border-2 border-[#C9A227]/40 shadow-xl flex flex-col justify-between">
+          <div className="bg-gradient-to-br from-[#36363E] to-[#1B1B20] p-6 rounded-3xl border-2 border-[#F6C51B]/40 shadow-xl flex flex-col justify-between">
             <div>
-              <div className="inline-block bg-[#C9A227] text-[#2C1B17] font-extrabold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full mb-3">
+              <div className="inline-block bg-[#F6C51B] text-[#1B1B20] font-extrabold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full mb-3">
                 {tx("Versatile Environment")}
               </div>
-              <h3 className="text-2xl font-serif font-bold text-amber-100 mb-2">
+              <h3 className="text-2xl font-serif font-bold text-white mb-2">
                 {tx("Designed For Every Occasion")}
               </h3>
               <p className="text-stone-300 text-xs leading-relaxed mb-4">
@@ -118,8 +118,8 @@ export default function WhyChooseSection() {
               {occasions.map((occ, oIdx) => {
                 const OccIcon = occ.icon;
                 return (
-                  <div key={oIdx} className="flex items-center gap-2.5 text-xs text-amber-200/90 font-medium bg-black/20 px-3 py-1.5 rounded-lg">
-                    <OccIcon className="w-3.5 h-3.5 text-[#C9A227]" />
+                  <div key={oIdx} className="flex items-center gap-2.5 text-xs text-yellow-200/90 font-medium bg-black/20 px-3 py-1.5 rounded-lg">
+                    <OccIcon className="w-3.5 h-3.5 text-[#F6C51B]" />
                     <span>{occ.label}</span>
                   </div>
                 );

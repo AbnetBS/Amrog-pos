@@ -9,7 +9,7 @@ import { getSiteUrl } from "@/lib/site-url";
  *   - /menu  canonical customer menu (QR menu, ordering)
  *
  * Deliberately EXCLUDED (internal/private, never indexed):
- *   - /admin, /waiter, /cashier, /kitchen, /barista, /buna (staff/owner apps)
+ *   - /admin, /waiter, /cashier, /kitchen, /juice (staff/owner apps; /barista & /buna redirect)
  *   - /table/[id] (QR redirect shim → /menu)
  *   - /api/* (API routes)
  */

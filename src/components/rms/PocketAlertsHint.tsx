@@ -42,8 +42,8 @@ export default function PocketAlertsHint() {
       <div className="flex-1 space-y-1">
         <p className="text-xs font-bold text-sky-200">📱 Make your iPhone ring in your pocket</p>
         <p className="text-[11px] text-sky-300/80 leading-relaxed">
-          Tap <strong>Share</strong> → <strong>Add to Home Screen</strong>, then always open Fana from the home screen
-          icon. Apple only allows pocket notifications for installed apps. (Android phones work automatically.)
+          Tap <strong>Share</strong> → <strong>Add to Home Screen</strong>, then always open Amrogn Chicken from the home
+          screen icon. Apple only allows pocket notifications for installed apps. (Android phones work automatically.)
         </p>
       </div>
       <button onClick={dismiss} className="p-1.5 rounded-lg bg-white/10 text-sky-200 shrink-0" title="Got it">

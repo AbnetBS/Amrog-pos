@@ -92,7 +92,7 @@ export default function PocketAlertsChip({
           state === "on"
             ? "bg-emerald-500/15 border-emerald-500/50 text-emerald-300"
             : state === "offduty"
-              ? "bg-amber-500/15 border-amber-500/50 text-amber-300"
+              ? "bg-yellow-500/15 border-yellow-500/50 text-yellow-300"
               : "bg-red-500/15 border-red-500/50 text-red-300 animate-pulse"
         }`}
         title={
@@ -114,15 +114,15 @@ export default function PocketAlertsChip({
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-72 z-50 bg-[#2C1B17] border border-[#C9A227]/40 rounded-2xl p-3 space-y-2 shadow-2xl">
+        <div className="absolute right-0 mt-2 w-72 z-50 bg-[#1B1B20] border border-[#F6C51B]/40 rounded-2xl p-3 space-y-2 shadow-2xl">
           {/* The per-person OFF-DUTY switch (silences every device of this staff member). */}
           {notificationsEnabled !== null && (
             <div
               className={`rounded-xl border p-2.5 space-y-2 ${
-                offDuty ? "bg-amber-500/10 border-amber-500/40" : "bg-emerald-500/10 border-emerald-500/40"
+                offDuty ? "bg-yellow-500/10 border-yellow-500/40" : "bg-emerald-500/10 border-emerald-500/40"
               }`}
             >
-              <p className={`text-[11px] font-bold leading-relaxed ${offDuty ? "text-amber-200" : "text-emerald-200"}`}>
+              <p className={`text-[11px] font-bold leading-relaxed ${offDuty ? "text-yellow-200" : "text-emerald-200"}`}>
                 {offDuty
                   ? "Off duty: your phone stays silent. No order alarms at home."
                   : "On duty: your phone rings for new orders, even at home."}
@@ -131,7 +131,7 @@ export default function PocketAlertsChip({
                 onClick={handleDuty}
                 disabled={busy}
                 className={`w-full py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-50 ${
-                  offDuty ? "bg-emerald-600 text-white" : "bg-[#C9A227] text-[#2C1B17]"
+                  offDuty ? "bg-emerald-600 text-white" : "bg-[#F6C51B] text-[#1B1B20]"
                 }`}
               >
                 {offDuty ? <BellPlus className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
@@ -144,14 +144,14 @@ export default function PocketAlertsChip({
               </p>
             </div>
           )}
-          <p className={`text-[11px] leading-relaxed ${armed ? "text-emerald-200" : "text-amber-200"}`}>
+          <p className={`text-[11px] leading-relaxed ${armed ? "text-emerald-200" : "text-yellow-200"}`}>
             {status?.reason || "Checking this device..."}
           </p>
           {!armed && (
             <button
               onClick={handleArm}
               disabled={busy}
-              className="w-full py-2 rounded-xl bg-[#C9A227] text-[#2C1B17] text-xs font-bold disabled:opacity-50"
+              className="w-full py-2 rounded-xl bg-[#F6C51B] text-[#1B1B20] text-xs font-bold disabled:opacity-50"
             >
               Arm pocket alerts
             </button>
@@ -159,7 +159,7 @@ export default function PocketAlertsChip({
           <button
             onClick={() => handleTest(10)}
             disabled={busy}
-            className="w-full py-2 rounded-xl bg-white/10 text-amber-100 text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-50"
+            className="w-full py-2 rounded-xl bg-white/10 text-white text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
             <Volume2 className="w-3.5 h-3.5" />
             Test ring in 10s (lock your phone)
@@ -167,7 +167,7 @@ export default function PocketAlertsChip({
           <button
             onClick={() => handleTest(0)}
             disabled={busy}
-            className="w-full py-2 rounded-xl bg-white/10 text-amber-100 text-xs font-bold disabled:opacity-50"
+            className="w-full py-2 rounded-xl bg-white/10 text-white text-xs font-bold disabled:opacity-50"
           >
             Test ring now
           </button>

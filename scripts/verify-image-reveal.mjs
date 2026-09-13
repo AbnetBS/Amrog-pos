@@ -81,8 +81,8 @@ const menuPage = read("src/app/menu/page.tsx");
 {
   // The server <link> and the client batch must ask for IDENTICAL urls, or the
   // browser downloads every first-screen photo twice.
-  pass("the photo box is defined once, in a server-safe module", /export const MENU_CARD_IMG_W = 400/.test(imageUrl) && /export const MENU_CARD_IMG_H = 250/.test(imageUrl));
-  pass("the first-screen count is shared too", /export const FIRST_SCREEN_PHOTOS = 8/.test(imageUrl));
+  pass("the photo box is defined once, in a server-safe module", /export const MENU_CARD_IMG_W = 640/.test(imageUrl) && /export const MENU_CARD_IMG_H = 420/.test(imageUrl));
+  pass("the first-screen count is shared too", /export const FIRST_SCREEN_PHOTOS = 6/.test(imageUrl));
   pass("image-url.ts is server-safe (no \"use client\")", !/^"use client"/m.test(imageUrl));
   pass("image-utils.ts re-exports it so existing callers are untouched", /from "@\/lib\/image-url"/.test(imageUtils) && /MENU_CARD_IMG_W/.test(imageUtils));
   pass("the grid imports the shared constants instead of redefining them", /FIRST_SCREEN_PHOTOS,\s*\} from "@\/lib\/image-utils"/.test(app) && !/const MENU_CARD_IMG_W =/.test(app));

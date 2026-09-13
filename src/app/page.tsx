@@ -67,7 +67,7 @@ export default function HomePage() {
         if (gData.length > 0) setGallery(gData);
       }
     } catch (err) {
-      console.error("Error loading Fana Cafe data:", err);
+      console.error("Error loading Amrogn data:", err);
     }
   };
 
@@ -96,7 +96,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF6F0] text-[#2C1B17] font-sans selection:bg-[#C9A227] selection:text-[#2C1B17]">
+    <div className="min-h-screen bg-[#FCFAF6] text-[#1B1B20] font-sans selection:bg-[#F6C51B] selection:text-[#1B1B20]">
       <Navbar settings={settings} onOpenAdmin={openStaffPortal} isAdminLoggedIn={isAdminLoggedIn} />
       <LanguageToggle />
 

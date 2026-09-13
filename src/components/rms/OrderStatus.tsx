@@ -204,7 +204,7 @@ export function RequestReceiptButton() {
   return (
     <div
       className={`w-full rounded-2xl border px-3.5 py-3 shadow-sm ${
-        billRequested ? "bg-emerald-50 border-emerald-300" : "bg-white border-[#C9A227]/40"
+        billRequested ? "bg-emerald-50 border-emerald-300" : "bg-white border-[#F6C51B]/40"
       }`}
     >
       {canAsk && (
@@ -212,7 +212,7 @@ export function RequestReceiptButton() {
           type="button"
           onClick={requestBill}
           disabled={requesting}
-          className="w-full bg-[#4E342E] text-amber-200 font-black text-sm uppercase py-3.5 rounded-xl flex items-center justify-center gap-2 disabled:opacity-60 active:scale-[0.99] transition"
+          className="w-full bg-[#36363E] text-yellow-200 font-black text-sm uppercase py-3.5 rounded-xl flex items-center justify-center gap-2 disabled:opacity-60 active:scale-[0.99] transition"
         >
           {requesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Receipt className="w-5 h-5" />}
           {requesting ? t("os_sending") : t("os_request_bill")}
@@ -249,7 +249,7 @@ const PHASE_SENTENCE = {
 /** Pill dot + phase banner accent per phase. */
 const PHASE_STYLE: Record<CustomerOrderPhase, { dot: string; banner: string }> = {
   none: { dot: "bg-stone-400", banner: "bg-stone-50 text-stone-700 border border-stone-200" },
-  waiting: { dot: "bg-amber-400", banner: "bg-amber-50 text-amber-900 border border-amber-200" },
+  waiting: { dot: "bg-yellow-400", banner: "bg-yellow-50 text-neutral-900 border border-yellow-200" },
   confirmed: { dot: "bg-sky-400", banner: "bg-sky-50 text-sky-900 border border-sky-200" },
   preparing: { dot: "bg-orange-500", banner: "bg-orange-50 text-orange-900 border border-orange-200" },
   ready: { dot: "bg-emerald-500", banner: "bg-emerald-50 text-emerald-900 border border-emerald-200" },
@@ -262,7 +262,7 @@ type LineChip = "accepted" | "preparing" | "ready";
 
 const CHIP_STYLE: Record<LineChip, string> = {
   accepted: "bg-sky-100 text-sky-900",
-  preparing: "bg-amber-100 text-amber-900",
+  preparing: "bg-yellow-100 text-neutral-900",
   ready: "bg-emerald-100 text-emerald-900",
 };
 
@@ -302,11 +302,11 @@ export function OrderStatusDock() {
   return (
     <div className="fixed bottom-[76px] right-5 z-40 w-[calc(100vw-2.5rem)] max-w-xs flex flex-col items-end gap-2">
       {open && (
-        <div className="w-full rounded-2xl border border-[#C9A227]/40 bg-white shadow-xl overflow-hidden">
+        <div className="w-full rounded-2xl border border-[#F6C51B]/40 bg-white shadow-xl overflow-hidden">
           <div className="flex items-center gap-2 px-3.5 pt-3 pb-2">
-            <Receipt className="w-4 h-4 text-[#4E342E] shrink-0" />
+            <Receipt className="w-4 h-4 text-[#36363E] shrink-0" />
             <div className="min-w-0">
-              <p className="text-xs font-black text-[#4E342E] leading-tight">{t("os_no_order_title")}</p>
+              <p className="text-xs font-black text-[#36363E] leading-tight">{t("os_no_order_title")}</p>
               <p className="text-[10px] text-stone-500 font-semibold leading-tight">
                 {t("os_arrived")} {formatClock(ticket.createdAt)}
               </p>
@@ -345,14 +345,14 @@ export function OrderStatusDock() {
           </ul>
           <div className="flex items-center justify-between px-3.5 py-2 border-t border-stone-100">
             <span className="text-[11px] font-black text-stone-500 uppercase">{t("os_total")}</span>
-            <span className="text-sm font-black text-[#4E342E]">{ticket.totalAmount} ETB</span>
+            <span className="text-sm font-black text-[#36363E]">{ticket.totalAmount} ETB</span>
           </div>
           <div className="flex items-center justify-between px-3.5 pb-3 pt-0.5">
             <span className="text-[10px] text-stone-400 font-semibold">{t("os_auto_refresh")}</span>
             <button
               type="button"
               onClick={() => void refresh()}
-              className="flex items-center gap-1 text-[11px] font-bold text-[#4E342E] active:opacity-60"
+              className="flex items-center gap-1 text-[11px] font-bold text-[#36363E] active:opacity-60"
             >
               <RefreshCw className="w-3 h-3" /> {t("os_refresh_now")}
             </button>
@@ -363,7 +363,7 @@ export function OrderStatusDock() {
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex items-center gap-2 rounded-full bg-[#4E342E] text-amber-100 pl-3 pr-2.5 py-2 shadow-lg active:scale-[0.98] transition"
+        className="flex items-center gap-2 rounded-full bg-[#36363E] text-white pl-3 pr-2.5 py-2 shadow-lg active:scale-[0.98] transition"
       >
         <span className={`w-2 h-2 rounded-full ${style.dot} ${live ? "animate-pulse" : ""}`} />
         <span className="text-xs font-bold whitespace-nowrap">

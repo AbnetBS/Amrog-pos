@@ -1,17 +1,12 @@
-"use client";
-
-import WaiterApp from "@/components/rms/WaiterApp";
+import { redirect } from "next/navigation";
 
 /**
- * /buna — THE BUNA MAKERS' SCREEN.
+ * /buna — the cafe engine's traditional-coffee makers' screen.
  *
- * Two people make the traditional coffee at their own place, indoors and
- * outdoors, and when the room is full they take orders like waiters too. So
- * this is the WAITER app (tables, menu, send) with the buna lane pinned on top
- * and the noise turned off: their phone rings only for a traditional-buna line
- * arriving, or for food ready on a table they accepted. QR orders, guest
- * top-ups and bill requests never wake them.
+ * Amrogn Chicken (4 Kilo) serves no traditional buna, so there is no buna
+ * crew here. The engine keeps the role for legacy/future branches; any old
+ * link simply lands on the floor team's Waiter app.
  */
 export default function BunaPage() {
-  return <WaiterApp role="buna" />;
+  redirect("/waiter");
 }

@@ -29,14 +29,15 @@ export const FALLBACK_DRINK_IMAGE = "/images/placeholder-drink.svg";
  * different URLs for the same photo and downloads it twice, which is exactly the
  * sequential trickle this pipeline exists to remove.
  */
-export const MENU_CARD_IMG_W = 400;
-export const MENU_CARD_IMG_H = 250;
+export const MENU_CARD_IMG_W = 640;
+export const MENU_CARD_IMG_H = 420;
 /**
- * How many dish photos fit on the first screen (2 columns × ~3 rows + a little
- * scroll buffer). These are preloaded in parallel and revealed together; the
- * rest stay lazy so scrolling is what costs data, not opening the menu.
+ * How many dish photos fit on the first screen (ONE column × ~2 big rows + a
+ * little scroll buffer). These are preloaded in parallel and revealed
+ * together; the rest stay lazy so scrolling is what costs data, not opening
+ * the menu.
  */
-export const FIRST_SCREEN_PHOTOS = 8;
+export const FIRST_SCREEN_PHOTOS = 6;
 
 /**
  * Adds `?w=&h=` to an application-served photo (`/api/images/{id}`) so the
