@@ -28,7 +28,7 @@ export default async function CustomerMenuPage() {
       ))}
       <Suspense
         fallback={
-          <div className="min-h-screen bg-[#FAF6F0] flex items-center justify-center text-[#4E342E] text-sm font-bold">
+          <div className="min-h-screen bg-[#FCFAF6] flex items-center justify-center text-[#36363E] text-sm font-bold">
             Loading menu...
           </div>
         }

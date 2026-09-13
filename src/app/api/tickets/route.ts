@@ -369,11 +369,11 @@ export async function POST(request: Request) {
           })
           .returning();
         ticketId = created[0].id;
-        // Guaranteed-unique order number — derived from the DB serial (FANA-<id>),
+        // Guaranteed-unique order number — derived from the DB serial (AMROGN-<id>),
         // never random, so collisions are impossible by construction.
         await tx
           .update(tickets)
-          .set({ orderNumber: `FANA-${ticketId}` })
+          .set({ orderNumber: `AMROGN-${ticketId}` })
           .where(eq(tickets.id, ticketId));
       } catch (err) {
         // GROUP 5 — one-active-bill-per-table is enforced by a partial UNIQUE
@@ -407,6 +407,12 @@ export async function POST(request: Request) {
       if (rows.length > 0 && rows[0].value) routing = JSON.parse(rows[0].value);
     } catch {
       /* fallback to defaults */
+    }
+    // Amrogn 4 Kilo runs one beverage crew (Juice & Cold Drinks). Even an old
+    // cached routing that still points drinks at the cafe engine's "barista"
+    // lane must land those lines on the juice station's tablet.
+    for (const [slug, station] of Object.entries(routing)) {
+      if (station === "barista") (routing as Record<string, string>)[slug] = "juice";
     }
 
     // ── PRICE & QUANTITY INTEGRITY (server-side authority) ──
@@ -794,11 +800,11 @@ export async function POST(request: Request) {
         if (billSent && pushed.status !== "pending_waiter" && newStations.length > 0) {
           const single = newStations.length === 1 ? newStations[0] : null;
           const title =
-            single === "buna" ? "🫖 New buna"
-            : single === "juice" ? "🧃 New juices"
-            : single === "barista" ? "☕ New drinks"
-            : single === "kitchen" ? "👨‍🍳 New items to cook"
-            : "👨‍🍳 New items";
+            single === "buna" ? "🥤 New drinks"
+            : single === "juice" ? "🥤 New drinks"
+            : single === "barista" ? "🥤 New drinks"
+            : single === "kitchen" ? "🍗 New order"
+            : "🍗 New items";
           void sendPushToRoles(newStations, {
             title,
             body: merged

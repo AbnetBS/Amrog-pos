@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import {
-  Coffee, Plus, Minus, Send, ArrowLeft, RefreshCw, CreditCard,
+  Plus, Minus, Send, ArrowLeft, RefreshCw, CreditCard,
   Camera, CheckCircle2, ClipboardList, Search, X, Users, LogOut, BellRing,
 } from "lucide-react";
 import { MenuItem, Ticket, TicketItem, CafeTable } from "@/types";
@@ -57,7 +57,9 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
   //      order, a guest top-up or a bill request;
   //   2. they never close a bill (the waiter clears the table).
   const isBuna = role === "buna";
-  const roleLabel = isBuna ? "Buna Maker" : "Waiter";
+  // Legacy engine prop: Amrogn 4 Kilo has no buna crew (the /buna screen
+  // redirects to /waiter), so the header always reads "Waiter" here.
+  const roleLabel = "Waiter";
   const sessionKey = `fana_${role}`;
   const alertsKey = `fana_alerts_${role}`;
 
@@ -491,7 +493,7 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
           const r = readyItems[0];
           const more = readyItems.length > 1 ? ` (+${readyItems.length - 1} more)` : "";
           triggerDesktopNotification({
-            title: "Fana Cafe • Ready to serve",
+            title: "Amrogn Chicken • Ready to serve",
             message: `🔔 ${r.ticket.tableName}: ${r.name} x${r.quantity} is ready${more} • pick it up!`,
             tag: `fana-waiter-ready-${r.ticket.id}-${Date.now()}`,
           });
@@ -508,7 +510,7 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
             onAction: () => void openTicketById(b.id),
           });
           triggerDesktopNotification({
-            title: "Fana Cafe • Bill requested",
+            title: "Amrogn Chicken • Bill requested",
             message: `🧾 ${b.tableName} asked for the bill • ${b.totalAmount} ETB`,
             tag: `fana-waiter-bill-${b.id}`,
           });
@@ -519,7 +521,7 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
           const label = statusMoveLabel(m.to, m.ticket.tableName);
           if (label) {
             triggerDesktopNotification({
-              title: "Fana Cafe • Order update",
+              title: "Amrogn Chicken • Order update",
               message: label,
               tag: `fana-waiter-status-${m.ticket.id}-${m.to}`,
             });
@@ -545,7 +547,7 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
             onAction: () => void openTicketById(t0.id),
           });
           triggerDesktopNotification({
-            title: "Fana Cafe • Waiter Alert",
+            title: "Amrogn Chicken • Waiter Alert",
             message: `🍽 New order request • ${t0.tableName} • ${t0.totalAmount} ETB • go confirm!`,
             tag: `fana-waiter-${t0.id}`,
           });
@@ -563,7 +565,7 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
             onAction: () => void openTicketById(t0.id),
           });
           triggerDesktopNotification({
-            title: "Fana Cafe • Waiter Alert",
+            title: "Amrogn Chicken • Waiter Alert",
             message: stillPending
               ? `🍽 Guest added items • ${t0.tableName} • ${t0.totalAmount} ETB • go confirm!`
               : `🍽 Guest added items • ${t0.tableName} • ${t0.totalAmount} ETB • check the bill!`,
@@ -987,7 +989,7 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
     status === "waiting"
       ? "bg-violet-600 text-white"
       : status === "ready-for-payment"
-      ? "bg-amber-500 text-black"
+      ? "bg-yellow-500 text-black"
       : status === "preparing"
       ? "bg-orange-600 text-white"
       : status === "occupied"
@@ -1028,13 +1030,15 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
   /* ── LOGIN SCREEN ─────────────────────────────────────────── */
   if (view === "login") {
     return (
-      <div className="min-h-screen bg-[#1C120F] flex items-center justify-center p-4 text-white">
-        <div className="bg-[#2C1B17] border border-[#C9A227]/40 rounded-3xl p-8 w-full max-w-sm space-y-6 shadow-2xl">
+      <div className="min-h-screen bg-[#17171B] flex items-center justify-center p-4 text-white">
+        <div className="bg-[#1B1B20] border border-[#F6C51B]/40 rounded-3xl p-8 w-full max-w-sm space-y-6 shadow-2xl">
           <div className="text-center space-y-2">
-            <div className="w-14 h-14 rounded-2xl bg-[#C9A227] text-[#2C1B17] flex items-center justify-center mx-auto">
-              <Users className="w-7 h-7" />
+            <img src="/logo.png" alt="Amrogn Chicken" className="w-14 h-14 rounded-2xl object-contain bg-white p-1 mx-auto" />
+            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#F6C51B]">Amrogn Chicken • 4 Kilo</p>
+            <div className="w-12 h-12 rounded-2xl bg-[#D22630] text-white flex items-center justify-center mx-auto">
+              <Users className="w-6 h-6" />
             </div>
-            <h1 className="font-serif text-2xl font-bold text-amber-100">{roleLabel} Login</h1>
+            <h1 className="font-serif text-2xl font-bold text-white">{roleLabel} Login</h1>
             <p className="text-xs text-stone-400">Enter your name and PIN given by the admin.</p>
           </div>
 
@@ -1044,11 +1048,11 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
 
           <div className="space-y-4">
             <div>
-              <label className="text-xs font-bold text-amber-200 block mb-1">Your Name</label>
+              <label className="text-xs font-bold text-yellow-200 block mb-1">Your Name</label>
               <select
                 value={selectedName}
                 onChange={(e) => setSelectedName(e.target.value)}
-                className="w-full bg-[#3D2314] border border-stone-700 rounded-xl p-3 text-sm text-white"
+                className="w-full bg-[#2A2A31] border border-stone-700 rounded-xl p-3 text-sm text-white"
               >
                 <option value="">Select your name...</option>
                 {staffList.map((s) => (
@@ -1057,24 +1061,24 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
               </select>
             </div>
             <div>
-              <label className="text-xs font-bold text-amber-200 block mb-1">PIN</label>
+              <label className="text-xs font-bold text-yellow-200 block mb-1">PIN</label>
               <input
                 type="password"
                 inputMode="numeric"
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
                 placeholder="••••"
-                className="w-full bg-[#3D2314] border border-stone-700 rounded-xl p-3 text-sm text-white text-center tracking-[0.5em]"
+                className="w-full bg-[#2A2A31] border border-stone-700 rounded-xl p-3 text-sm text-white text-center tracking-[0.5em]"
               />
             </div>
             <button
               onClick={login}
               disabled={!selectedName || !pin}
-              className="w-full bg-gradient-to-r from-[#C9A227] to-[#B8921F] text-[#2C1B17] font-black text-sm uppercase py-4 rounded-xl disabled:opacity-40"
+              className="w-full bg-gradient-to-r from-[#F6C51B] to-[#D9A409] text-[#1B1B20] font-black text-sm uppercase py-4 rounded-xl disabled:opacity-40"
             >
               Login as {roleLabel}
             </button>
-            <a href="/" className="block text-center text-xs text-[#C9A227] hover:underline">← Back to public website</a>
+            <a href="/" className="block text-center text-xs text-[#F6C51B] hover:underline">← Back to public website</a>
           </div>
         </div>
       </div>
@@ -1083,16 +1087,14 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
 
   /* ── MAIN WAITER SHELL ────────────────────────────────────── */
   return (
-    <div className="min-h-screen bg-[#1C120F] text-white pb-24">
+    <div className="min-h-screen bg-[#17171B] text-white pb-24">
       {/* Top Bar */}
-      <div className="sticky top-0 z-30 bg-[#2C1B17]/95 backdrop-blur border-b border-[#C9A227]/30 px-4 py-3 flex items-center justify-between">
+      <div className="sticky top-0 z-30 bg-[#1B1B20]/95 backdrop-blur border-b border-[#F6C51B]/30 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-[#C9A227] flex items-center justify-center">
-            <Coffee className="w-4 h-4 text-[#2C1B17]" />
-          </div>
+          <img src="/logo.png" alt="Amrogn Chicken" className="w-8 h-8 rounded-full object-contain bg-white p-0.5" />
           <div>
-            <p className="text-xs font-bold text-amber-100 leading-none">{staffName}</p>
-            <p className="text-[10px] text-stone-400">{roleLabel} • Fana Cafe</p>
+            <p className="text-xs font-bold text-white leading-none">{staffName}</p>
+            <p className="text-[10px] text-[#F6C51B] font-bold uppercase tracking-wider">{roleLabel} • Amrogn Chicken • 4 Kilo</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -1107,12 +1109,12 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
           />
           <button
             onClick={enableAlerts}
-            className={`p-2 rounded-xl transition ${alertsOn ? "bg-emerald-600 text-white" : "bg-[#C9A227] text-[#2C1B17] animate-pulse"}`}
+            className={`p-2 rounded-xl transition ${alertsOn ? "bg-emerald-600 text-white" : "bg-[#F6C51B] text-[#1B1B20] animate-pulse"}`}
             title={alertsOn ? "Ring bell alerts ON" : "Enable ring bell alerts"}
           >
             <BellRing className="w-4 h-4" />
           </button>
-          <button onClick={loadAll} className="p-2 rounded-xl bg-white/10 text-amber-200" title="Refresh">
+          <button onClick={loadAll} className="p-2 rounded-xl bg-white/10 text-yellow-200" title="Refresh">
             <RefreshCw className="w-4 h-4" />
           </button>
           <button onClick={logout} className="p-2 rounded-xl bg-rose-600/80 text-white" title="Logout">
@@ -1138,7 +1140,7 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
 
           {/* ── MY BUNA ── the makers' own work, above the table grid ── */}
           {isBuna && (
-            <div className="bg-[#2C1B17] border-2 border-rose-500/40 rounded-2xl p-4">
+            <div className="bg-[#1B1B20] border-2 border-rose-500/40 rounded-2xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-serif font-bold text-rose-200 text-sm flex items-center gap-2">
                   🫖 My Buna
@@ -1178,18 +1180,18 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
                         <div className="flex-1 min-w-0">
                           <p
                             className={`font-bold ${
-                              line.stationStatus === "done" ? "text-stone-500 line-through" : "text-amber-100"
+                              line.stationStatus === "done" ? "text-stone-500 line-through" : "text-white"
                             }`}
                           >
-                            {line.name} <span className="text-[#C9A227]">x{line.quantity}</span>
+                            {line.name} <span className="text-[#F6C51B]">x{line.quantity}</span>
                           </p>
                           <p className="text-[11px] font-bold text-stone-300 mt-0.5">
                             {line.tableName} • waiting {waitingLabel(line.createdAt)}
                           </p>
                           {line.notes && (
                             <p
-                              className={`text-[11px] font-semibold mt-1 px-2 py-1 rounded-lg bg-amber-950/50 border border-amber-700/40 ${
-                                line.stationStatus === "done" ? "text-stone-500 line-through" : "text-amber-200"
+                              className={`text-[11px] font-semibold mt-1 px-2 py-1 rounded-lg bg-neutral-900/50 border border-neutral-700/40 ${
+                                line.stationStatus === "done" ? "text-stone-500 line-through" : "text-yellow-200"
                               }`}
                             >
                               📝 {line.notes}
@@ -1224,12 +1226,12 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
             </div>
           )}
           <div className="flex items-center justify-between">
-            <h1 className="font-serif text-xl font-bold text-amber-100">Select Table</h1>
+            <h1 className="font-serif text-xl font-bold text-white">Select Table</h1>
             <div className="flex gap-3 text-[10px]">
               <span className="flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />Free</span>
               <span className="flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-full bg-violet-500 inline-block" />Waiting</span>
             <span className="flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block" />{printQueueMode ? "Sent" : "Busy"}</span>
-              <span className="flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" />{printQueueMode ? "Bill" : "Pay"}</span>
+              <span className="flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-full bg-yellow-500 inline-block" />{printQueueMode ? "Bill" : "Pay"}</span>
             </div>
           </div>
 
@@ -1242,11 +1244,11 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
                   t.status === "available"
                     ? "border-emerald-500/60 bg-emerald-950/40"
                     : t.status === "ready-for-payment"
-                    ? "border-amber-400 bg-amber-950/40"
+                    ? "border-yellow-400 bg-neutral-900/40"
                     : "border-rose-500/60 bg-rose-950/30"
                 }`}
               >
-                <p className="font-serif font-bold text-lg text-amber-100">{t.name}</p>
+                <p className="font-serif font-bold text-lg text-white">{t.name}</p>
                 <span className={`inline-block mt-2 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${statusChip(t.status)}`}>
                   {printQueueMode
                     ? t.status === "available"
@@ -1270,7 +1272,7 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
                   <p className="text-xs font-bold text-stone-200 mt-1">{t.activeTicketTotal} ETB open</p>
                 ) : null}
                 {t.activeTicketBy ? (
-                  <p className="text-[11px] text-[#D8B93E] mt-1 font-black">👤 {t.activeTicketBy}</p>
+                  <p className="text-[11px] text-[#F6C51B] mt-1 font-black">👤 {t.activeTicketBy}</p>
                 ) : null}
                 {t.activeTicketAt ? (
                   <p className="text-[11px] text-stone-300 mt-0.5 font-bold">
@@ -1284,7 +1286,7 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
             ))}
           </div>
 
-          <div className="bg-[#2C1B17] border border-stone-800 rounded-2xl p-4">
+          <div className="bg-[#1B1B20] border border-stone-800 rounded-2xl p-4">
             <p className="text-xs text-stone-400 leading-relaxed">
               {printQueueMode ? (
                 <>
@@ -1309,25 +1311,25 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
           <div className="px-4 py-3 flex items-center gap-3 border-b border-stone-800">
             <button onClick={onGoBack} className="p-2 rounded-xl bg-white/10"><ArrowLeft className="w-4 h-4" /></button>
             <div className="flex-1">
-              <h2 className="font-serif font-bold text-amber-100 text-lg leading-none">{selectedTable.name}</h2>
+              <h2 className="font-serif font-bold text-white text-lg leading-none">{selectedTable.name}</h2>
               <p className="text-[11px] text-stone-400">{activeTicket ? "Adding items to existing bill" : "New order"}</p>
             </div>
             {activeTicket && (
-              <button onClick={() => setView("bill")} className="text-xs bg-[#C9A227]/20 text-[#C9A227] px-3 py-1.5 rounded-lg font-bold">
+              <button onClick={() => setView("bill")} className="text-xs bg-[#F6C51B]/20 text-[#F6C51B] px-3 py-1.5 rounded-lg font-bold">
                 View Bill
               </button>
             )}
           </div>
 
           {/* search + categories */}
-          <div className="p-4 space-y-3 sticky top-[57px] bg-[#1C120F] z-20">
+          <div className="p-4 space-y-3 sticky top-[57px] bg-[#17171B] z-20">
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-500" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search menu..."
-                className="w-full bg-[#2C1B17] border border-stone-700 rounded-xl pl-9 pr-3 py-2.5 text-sm"
+                className="w-full bg-[#1B1B20] border border-stone-700 rounded-xl pl-9 pr-3 py-2.5 text-sm"
               />
             </div>
             <div className="flex gap-2 overflow-x-auto pb-1">
@@ -1336,7 +1338,7 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
                   key={c.slug}
                   onClick={() => setCategory(c.slug)}
                   className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap ${
-                    category === c.slug ? "bg-[#C9A227] text-[#2C1B17]" : "bg-[#2C1B17] text-stone-300"
+                    category === c.slug ? "bg-[#F6C51B] text-[#1B1B20]" : "bg-[#1B1B20] text-stone-300"
                   }`}
                 >
                   {c.name}
@@ -1365,23 +1367,23 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
                       addToCart(m);
                     }
                   }}
-                  className={`bg-[#2C1B17] rounded-2xl overflow-hidden border transition relative ${out ? "border-stone-800 opacity-50" : "border-stone-700 active:scale-95 active:border-[#C9A227] cursor-pointer"}`}
+                  className={`bg-[#1B1B20] rounded-2xl overflow-hidden border transition relative ${out ? "border-stone-800 opacity-50" : "border-stone-700 active:scale-95 active:border-[#F6C51B] cursor-pointer"}`}
                 >
                   <div className="relative">
                     <img src={optimizeImageUrl(m.imageUrl, 300, 200)} alt={m.name} className="w-full h-24 object-cover bg-stone-900" onError={(e) => { const el = e.currentTarget; if (!el.src.includes("placeholder")) el.src = FALLBACK_FOOD_IMAGE; }} />
                     {inCart && (
-                      <span className="absolute top-1.5 right-1.5 bg-[#C9A227] text-[#2C1B17] text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center shadow-lg">
+                      <span className="absolute top-1.5 right-1.5 bg-[#F6C51B] text-[#1B1B20] text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center shadow-lg">
                         {inCart.quantity}
                       </span>
                     )}
                   </div>
                   <div className="p-2.5 space-y-1">
-                    <p className="text-xs font-bold text-amber-100 leading-tight line-clamp-2">{m.name}</p>
-                    <p className="text-[11px] text-[#C9A227] font-extrabold">{effectivePrice(m).onSale ? <span><span className="line-through text-stone-500 text-[10px]">{m.price} </span>{effectivePrice(m).price}</span> : m.price} ETB</p>
+                    <p className="text-xs font-bold text-white leading-tight line-clamp-2">{m.name}</p>
+                    <p className="text-[11px] text-[#F6C51B] font-extrabold">{effectivePrice(m).onSale ? <span><span className="line-through text-stone-500 text-[10px]">{m.price} </span>{effectivePrice(m).price}</span> : m.price} ETB</p>
                     {out ? (
                       <span className="text-[10px] font-bold text-rose-400 bg-rose-900/40 px-2 py-0.5 rounded">Unavailable</span>
                     ) : (
-                      <span className="w-full mt-1 bg-[#C9A227] text-[#2C1B17] text-[11px] font-extrabold py-1.5 rounded-lg flex items-center justify-center gap-1 pointer-events-none">
+                      <span className="w-full mt-1 bg-[#F6C51B] text-[#1B1B20] text-[11px] font-extrabold py-1.5 rounded-lg flex items-center justify-center gap-1 pointer-events-none">
                         <Plus className="w-3 h-3" /> {inCart ? `In cart (${inCart.quantity})` : "Add • tap anywhere"}
                       </span>
                     )}
@@ -1393,16 +1395,16 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
 
           {/* cart bottom sheet */}
           {cart.length > 0 && (
-            <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#2C1B17] border-t-2 border-[#C9A227] p-4 max-w-3xl mx-auto space-y-3">
+            <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#1B1B20] border-t-2 border-[#F6C51B] p-4 max-w-3xl mx-auto space-y-3">
               <div className="max-h-40 overflow-y-auto space-y-2">
                 {cart.map((c) => (
-                  <div key={c.menuItemId} className="bg-[#3D2314] rounded-xl p-2.5 space-y-1.5">
+                  <div key={c.menuItemId} className="bg-[#2A2A31] rounded-xl p-2.5 space-y-1.5">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-amber-100 flex-1 truncate">{c.name}</span>
+                      <span className="font-bold text-white flex-1 truncate">{c.name}</span>
                       <div className="flex items-center gap-2 shrink-0">
                         <button onClick={() => setCart(cart.map((x) => x.menuItemId === c.menuItemId ? { ...x, quantity: Math.max(1, x.quantity - 1) } : x))} className="w-6 h-6 bg-white/10 rounded-md flex items-center justify-center"><Minus className="w-3 h-3" /></button>
-                        <span className="font-extrabold text-[#C9A227] w-4 text-center">{c.quantity}</span>
-                        <button onClick={() => setCart(cart.map((x) => x.menuItemId === c.menuItemId ? { ...x, quantity: x.quantity + 1 } : x))} className="w-6 h-6 bg-[#C9A227] text-black rounded-md flex items-center justify-center"><Plus className="w-3 h-3" /></button>
+                        <span className="font-extrabold text-[#F6C51B] w-4 text-center">{c.quantity}</span>
+                        <button onClick={() => setCart(cart.map((x) => x.menuItemId === c.menuItemId ? { ...x, quantity: x.quantity + 1 } : x))} className="w-6 h-6 bg-[#F6C51B] text-black rounded-md flex items-center justify-center"><Plus className="w-3 h-3" /></button>
                         <button onClick={() => setCart(cart.filter((x) => x.menuItemId !== c.menuItemId))} className="text-rose-400 pl-1"><X className="w-4 h-4" /></button>
                       </div>
                     </div>
@@ -1418,7 +1420,7 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
               <button
                 onClick={sendOrder}
                 disabled={sending}
-                className="w-full bg-gradient-to-r from-[#C9A227] to-[#B8921F] text-[#2C1B17] font-black text-sm uppercase py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-xl"
+                className="w-full bg-gradient-to-r from-[#F6C51B] to-[#D9A409] text-[#1B1B20] font-black text-sm uppercase py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-xl"
               >
                 <Send className="w-4 h-4" />
                 {sending ? "Sending..." : `Send Order • ${cartTotal} ETB`}
@@ -1434,11 +1436,11 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
           <div className="flex items-center gap-3">
             <button onClick={onGoBack} className="p-2 rounded-xl bg-white/10"><ArrowLeft className="w-4 h-4" /></button>
             <div className="flex-1">
-              <h2 className="font-serif font-bold text-amber-100 text-lg leading-none">{selectedTable.name} • Bill</h2>
+              <h2 className="font-serif font-bold text-white text-lg leading-none">{selectedTable.name} • Bill</h2>
               <p className="text-xs font-bold text-stone-300 capitalize mt-0.5">Status: {ticketStatusLabel(activeTicket.status)}</p>
               {/* Group 8: WHEN the order arrived and WHO sent it — the two things
                   staff keep asking for — plus the guest's own bill request. */}
-              <p className="text-xs text-[#D8B93E] font-black mt-0.5">
+              <p className="text-xs text-[#F6C51B] font-black mt-0.5">
                 🕒 {formatDateTime(activeTicket.createdAt)} • by {activeTicket.confirmedBy || activeTicket.createdBy || "staff"}
               </p>
               {activeTicket.receiptRequestedAt && (
@@ -1448,20 +1450,20 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
               )}
             </div>
             {activeTicket.status !== "ready_for_payment" && (
-              <button onClick={() => setView("order")} className="text-xs bg-[#C9A227] text-[#2C1B17] px-3 py-2 rounded-lg font-bold flex items-center gap-1">
+              <button onClick={() => setView("order")} className="text-xs bg-[#F6C51B] text-[#1B1B20] px-3 py-2 rounded-lg font-bold flex items-center gap-1">
                 <Plus className="w-3.5 h-3.5" /> Add Items
               </button>
             )}
           </div>
 
-          <div className="bg-[#2C1B17] rounded-2xl border border-stone-800 divide-y divide-stone-800">
+          <div className="bg-[#1B1B20] rounded-2xl border border-stone-800 divide-y divide-stone-800">
             {billItems.map((i) => (
               <div key={i.id} className="p-3.5 space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-amber-100 flex-1">{i.name}</span>
-                  <span className="font-extrabold text-[#C9A227] shrink-0">{i.price * i.quantity} ETB</span>
+                  <span className="font-bold text-white flex-1">{i.name}</span>
+                  <span className="font-extrabold text-[#F6C51B] shrink-0">{i.price * i.quantity} ETB</span>
                 </div>
-                {i.notes && <p className="text-[11px] text-amber-300 italic">📝 {i.notes}</p>}
+                {i.notes && <p className="text-[11px] text-yellow-300 italic">📝 {i.notes}</p>}
                 {/* BILL EDITOR: a wrong dish, a wrong qty or a forgotten note is
                     fixed HERE — no walk to the cashier, no cancel-and-start-again.
                     Only dishes the crew has not started yet; once they are in the
@@ -1469,12 +1471,12 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
                 <p className="text-[11px] font-bold text-stone-400">× {i.quantity}</p>
                 {billEditable && itemEditable(i) ? (
                   editingItemId === i.id ? (
-                    <div className="bg-black/30 border border-[#C9A227]/50 rounded-xl p-2.5 space-y-2">
+                    <div className="bg-black/30 border border-[#F6C51B]/50 rounded-xl p-2.5 space-y-2">
                       <div className="flex items-center gap-2">
                         <span className="text-[11px] font-bold text-stone-300 flex-1">Qty</span>
                         <button onClick={() => setEditQty(Math.max(1, editQty - 1))} className="w-7 h-7 bg-white/10 rounded-lg flex items-center justify-center"><Minus className="w-3.5 h-3.5" /></button>
-                        <span className="text-sm font-extrabold text-[#C9A227] w-6 text-center">{editQty}</span>
-                        <button onClick={() => setEditQty(Math.min(100, editQty + 1))} className="w-7 h-7 bg-[#C9A227] text-black rounded-lg flex items-center justify-center"><Plus className="w-3.5 h-3.5" /></button>
+                        <span className="text-sm font-extrabold text-[#F6C51B] w-6 text-center">{editQty}</span>
+                        <button onClick={() => setEditQty(Math.min(100, editQty + 1))} className="w-7 h-7 bg-[#F6C51B] text-black rounded-lg flex items-center justify-center"><Plus className="w-3.5 h-3.5" /></button>
                       </div>
                       <input
                         value={editNotes}
@@ -1509,13 +1511,13 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
                   ) : (
                     <button
                       onClick={() => startEditItem(i)}
-                      className="text-[11px] font-extrabold text-[#C9A227] bg-[#C9A227]/10 border border-[#C9A227]/40 px-3 py-1.5 rounded-lg"
+                      className="text-[11px] font-extrabold text-[#F6C51B] bg-[#F6C51B]/10 border border-[#F6C51B]/40 px-3 py-1.5 rounded-lg"
                     >
                       ✎ Edit • note / qty / remove
                     </button>
                   )
                 ) : (
-                  <p className="text-[11px] text-amber-300/80">
+                  <p className="text-[11px] text-yellow-300/80">
                     {itemEditable(i)
                       ? "Bill is at the payment stage, ask the cashier for changes"
                       : "👨‍🍳 Kitchen started this, ask the cashier for changes"}
@@ -1530,9 +1532,9 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
             )}
           </div>
 
-          <div className="bg-[#2C1B17] rounded-2xl border border-[#C9A227]/40 p-4 flex items-center justify-between">
+          <div className="bg-[#1B1B20] rounded-2xl border border-[#F6C51B]/40 p-4 flex items-center justify-between">
             <span className="text-sm font-bold text-stone-300">Total Bill</span>
-            <span className="font-serif font-black text-2xl text-[#C9A227]">{billTotal} ETB</span>
+            <span className="font-serif font-black text-2xl text-[#F6C51B]">{billTotal} ETB</span>
           </div>
 
           {activeTicket.status === "pending_waiter" && (
@@ -1550,11 +1552,11 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
                   counter is the money system. Her only closing job is physical. */}
               {activeTicket.status === "confirmed" && (
                 activeTicket.confirmedAt ? (
-                  <div className="w-full bg-[#2C1B17] border border-emerald-500/40 rounded-xl px-4 py-3 text-center text-xs font-bold text-emerald-300">
+                  <div className="w-full bg-[#1B1B20] border border-emerald-500/40 rounded-xl px-4 py-3 text-center text-xs font-bold text-emerald-300">
                     ✓ Sent • the crews are cooking, the cashier is printing
                   </div>
                 ) : (
-                  <div className="w-full bg-[#2C1B17] border border-sky-500/40 rounded-xl px-4 py-3 text-center text-xs font-bold text-sky-300">
+                  <div className="w-full bg-[#1B1B20] border border-sky-500/40 rounded-xl px-4 py-3 text-center text-xs font-bold text-sky-300">
                     ⏸ Accepted • the cashier is holding it until the guest finishes ordering
                   </div>
                 )
@@ -1579,7 +1581,7 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
               {activeTicket.status !== "ready_for_payment" && activeTicket.status !== "pending_waiter" && (
                 <button
                   onClick={requestPayment}
-                  className="w-full bg-amber-500 text-black font-black text-sm uppercase py-4 rounded-xl flex items-center justify-center gap-2"
+                  className="w-full bg-yellow-500 text-black font-black text-sm uppercase py-4 rounded-xl flex items-center justify-center gap-2"
                 >
                   <CreditCard className="w-4 h-4" /> Request Payment
                 </button>
@@ -1603,15 +1605,15 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
         <div className="p-4 max-w-md mx-auto space-y-5">
           <div className="flex items-center gap-3">
             <button onClick={() => setView("bill")} className="p-2 rounded-xl bg-white/10"><ArrowLeft className="w-4 h-4" /></button>
-            <h2 className="font-serif font-bold text-amber-100 text-lg">Payment • {selectedTable.name}</h2>
+            <h2 className="font-serif font-bold text-white text-lg">Payment • {selectedTable.name}</h2>
           </div>
 
-          <div className="bg-[#2C1B17] rounded-2xl border border-[#C9A227]/40 p-4 text-center">
+          <div className="bg-[#1B1B20] rounded-2xl border border-[#F6C51B]/40 p-4 text-center">
             <p className="text-xs text-stone-400">Amount to collect</p>
-            <p className="font-serif font-black text-3xl text-[#C9A227]">{billTotal} ETB</p>
+            <p className="font-serif font-black text-3xl text-[#F6C51B]">{billTotal} ETB</p>
           </div>
 
-          <div className="bg-[#2C1B17] rounded-2xl border border-stone-700 p-4">
+          <div className="bg-[#1B1B20] rounded-2xl border border-stone-700 p-4">
             <p className="text-xs text-stone-300 leading-relaxed">
               Collect the <strong className="text-white">{billTotal} ETB</strong> from the customer, then confirm below.
               The cashier verifies and releases the table.
@@ -1619,9 +1621,9 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
           </div>
 
           {receiptEnabled && (
-            <div className="bg-[#2C1B17] rounded-2xl border border-stone-700 p-4 space-y-3">
-              <p className="text-xs font-bold text-amber-200 flex items-center gap-1.5">
-                <Camera className="w-4 h-4 text-[#C9A227]" /> Receipt Photo (optional)
+            <div className="bg-[#1B1B20] rounded-2xl border border-stone-700 p-4 space-y-3">
+              <p className="text-xs font-bold text-yellow-200 flex items-center gap-1.5">
+                <Camera className="w-4 h-4 text-[#F6C51B]" /> Receipt Photo (optional)
               </p>
               {receiptImage && <img src={receiptImage} alt="Receipt" className="w-full h-40 object-cover rounded-xl border border-stone-600" />}
               <label className="flex items-center justify-center gap-2 w-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold py-2.5 rounded-xl cursor-pointer">
@@ -1658,8 +1660,8 @@ export default function WaiterApp({ role = "waiter" }: { role?: "waiter" | "buna
             {sending ? "Confirming..." : "Confirm Payment"}
           </button>
 
-          <div className="flex items-center gap-2 text-[11px] text-stone-400 bg-[#2C1B17] rounded-xl p-3">
-            <ClipboardList className="w-4 h-4 text-[#C9A227] shrink-0" />
+          <div className="flex items-center gap-2 text-[11px] text-stone-400 bg-[#1B1B20] rounded-xl p-3">
+            <ClipboardList className="w-4 h-4 text-[#F6C51B] shrink-0" />
             After confirmation, the cashier verifies and marks the order <strong className="text-white">Paid</strong>. The table then becomes Available automatically.
           </div>
         </div>

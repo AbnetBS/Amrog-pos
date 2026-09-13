@@ -66,7 +66,7 @@ export async function POST(request: Request) {
         );
       }
       // Development only: a documented local bootstrap password.
-      storedPassword = "fana2026";
+      storedPassword = "amrogn2026";
     }
 
     const input = typeof password === "string" ? password : "";

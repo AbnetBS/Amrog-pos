@@ -19,13 +19,13 @@ export default function LanguageToggle({ className = "" }: { className?: string 
   return (
     <button
       onClick={() => setLang(isAm ? "en" : "am")}
-      className={`fixed bottom-5 right-5 z-40 flex items-center gap-2 bg-[#2C1B17] text-white border-2 border-[#C9A227] px-4 py-2.5 rounded-full shadow-2xl hover:scale-105 transition-transform ${className}`}
+      className={`fixed bottom-5 right-5 z-40 flex items-center gap-2 bg-[#1B1B20] text-white border-2 border-[#F6C51B] px-4 py-2.5 rounded-full shadow-2xl hover:scale-105 transition-transform ${className}`}
       aria-label={isAm ? "Switch to English" : "በአማርኛ ያንብቡ"}
       title={isAm ? "Switch to English" : "በአማርኛ ያንብቡ"}
     >
-      <Globe className="w-4 h-4 text-[#C9A227]" />
+      <Globe className="w-4 h-4 text-[#F6C51B]" />
       <span className="text-xs font-black tracking-wider">{isAm ? "English" : "አማርኛ"}</span>
-      <ArrowLeftRight className="w-3.5 h-3.5 text-[#C9A227]" />
+      <ArrowLeftRight className="w-3.5 h-3.5 text-[#F6C51B]" />
     </button>
   );
 }

@@ -24,9 +24,9 @@ export async function GET() {
     allSettings.forEach((s) => {
       // Never leak credentials (or their hashes) to any client.
       if (SECRET_KEYS.has(s.key)) return;
-      // Brand + address guard: business is "Fana Cafe & Restaurant" located in
-      // Town Square Building — never serve historical "FanaQueen" or
-      // "Golagul Building" text to any client, even if the DB still holds it.
+      // Brand + address guard: the business is "Amrogn Chicken" at the 4 Kilo
+      // branch (Ambassador Mall). Never serve the engine's old cafe name or
+      // address to any client, even if the DB still holds it.
       settingsMap[s.key] = fixSiteText(s.value);
     });
     return NextResponse.json(settingsMap, { status: 200, headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" } });

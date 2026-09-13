@@ -151,7 +151,7 @@ async function deliverToSubs(subs: PushSub[], payload: PushPayload): Promise<voi
     if (live.length === 0) return;
     const keys = await getVapidKeys();
     if (!keys) return;
-    webpush.setVapidDetails("mailto:owner@fanacafe.example", keys.publicKey, keys.privateKey);
+    webpush.setVapidDetails("mailto:owner@amrognchicken.example", keys.publicKey, keys.privateKey);
 
     await Promise.all(
       live.map(async (sub) => {

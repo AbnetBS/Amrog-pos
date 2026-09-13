@@ -38,22 +38,21 @@ export default function AdminPanel({
   const [activeTab, setActiveTab] = useState<Tab>("reports");
 
   const [settingsForm, setSettingsForm] = useState({
-    cafe_name: settings.cafe_name || "Fana Cafe & Restaurant",
-    tagline: settings.tagline || "Where Great Coffee Meets Beautiful Moments in Addis Ababa",
-    hero_title: settings.hero_title || "Where Great Coffee Meets Beautiful Moments",
+    cafe_name: settings.cafe_name || "Amrogn Chicken",
+    tagline: settings.tagline || "Home of Authentic Shawarma in Addis Ababa",
+    hero_title: settings.hero_title || "Home of Authentic Shawarma",
     hero_subtitle:
-      settings.hero_subtitle || "A cozy café and restaurant located at Town Square Building, 22 Square (Djibouti Street, Bole, Addis Ababa)...",
+      settings.hero_subtitle || "Amrogn Chicken, 4 Kilo branch on the ground floor of Ambassador Mall. Famous chicken shawarma, fire-grilled and roasted chicken, tandoor mofo and crispy fried chicken. Dine in, take away, or scan your table QR and order in English or Amharic.",
     hero_bg_image:
-      settings.hero_bg_image ||
-      "https://images.pexels.com/photos/16563658/pexels-photo-16563658.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=800&w=1200",
+      settings.hero_bg_image || "/images/menu/fried-hero.jpg",
     logo_url: String(settings.logo_url || ""),
     receipt_enabled: String(settings.receipt_enabled ?? "true"),
     cashier_mode: settings.cashier_mode === "full" ? "full" : "print-queue",
-    phone: settings.phone || "0911 065 022",
-    address: settings.address || "Town Square Building, 22 Square, Djibouti Street, Bole, Addis Ababa, Ethiopia",
-    plus_code: settings.plus_code || "2Q7Q+W2 Addis Ababa",
-    opening_hours: settings.opening_hours || "Open Daily Until 8:30 PM (Hours may vary during holidays)",
-    announcement: settings.announcement || "☕ Welcome to Fana Cafe & Restaurant (22 Square, Town Square Building)!",
+    phone: settings.phone || "097 895 7070",
+    address: settings.address || "Ambassador Mall, Ground Floor, 4 Kilo, Addis Ababa, Ethiopia",
+    plus_code: settings.plus_code || "2QM5+XFX Addis Ababa",
+    opening_hours: settings.opening_hours || "Open Daily 10:00 AM - 10:00 PM",
+    announcement: settings.announcement || "🍗 Welcome to Amrogn Chicken, 4 Kilo (Ambassador Mall)! Scan the QR on your table to order, no waiting for a waiter.",
   });
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsMsg, setSettingsMsg] = useState("");
@@ -206,23 +205,21 @@ export default function AdminPanel({
   ];
 
   return (
-    <div id="fana-admin" className="bg-[#1C120F] text-white min-h-screen p-4 sm:p-8">
+    <div id="fana-admin" className="bg-[#17171B] text-white min-h-screen p-4 sm:p-8">
       {/* Header (hidden when the owner prints a report) */}
-      <div className="no-print max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 pb-6 border-b border-[#C9A227]/30">
+      <div className="no-print max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 pb-6 border-b border-[#F6C51B]/30">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#C9A227] text-[#2C1B17] font-bold flex items-center justify-center">
-            <Lock className="w-5 h-5" />
-          </div>
+          <img src="/logo.png" alt="Amrogn Chicken" className="w-11 h-11 rounded-xl object-contain bg-white p-0.5" />
           <div>
-            <h1 className="font-serif font-black text-2xl text-amber-100">Fana Cafe • Owner Dashboard</h1>
-            <p className="text-xs text-amber-200/70">Menu, tables, staff, reports, reviews & business info • all under your control</p>
+            <h1 className="font-serif font-black text-xl sm:text-2xl text-white uppercase tracking-wide">Amrogn Chicken <span className="text-[#F6C51B]">• 4 Kilo Branch</span></h1>
+            <p className="text-xs text-yellow-200/70">Owner dashboard • menu, tables, staff, branch reports, reviews & business info</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <a href="/waiter" className="p-2 bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5">
             <Users className="w-4 h-4" /> Waiter App
           </a>
-          <button onClick={onRefreshData} className="p-2 bg-white/10 hover:bg-white/20 text-amber-200 rounded-xl text-xs flex items-center gap-1.5 font-semibold">
+          <button onClick={onRefreshData} className="p-2 bg-white/10 hover:bg-white/20 text-yellow-200 rounded-xl text-xs flex items-center gap-1.5 font-semibold">
             <RefreshCw className="w-4 h-4" />
           </button>
           <button onClick={onLogout} className="p-2 bg-rose-600/80 hover:bg-rose-600 text-white rounded-xl text-xs flex items-center gap-1.5 font-bold">
@@ -238,7 +235,7 @@ export default function AdminPanel({
             key={t.key}
             onClick={() => setActiveTab(t.key)}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition whitespace-nowrap ${
-              activeTab === t.key ? "bg-[#C9A227] text-[#2C1B17]" : "bg-[#2C1B17] text-stone-300 hover:bg-white/10"
+              activeTab === t.key ? "bg-[#F6C51B] text-[#1B1B20]" : "bg-[#1B1B20] text-stone-300 hover:bg-white/10"
             }`}
           >
             {t.icon}
@@ -268,13 +265,13 @@ export default function AdminPanel({
 
         {/* WEBSITE SETTINGS */}
         {activeTab === "settings" && (
-          <form onSubmit={handleSaveSettings} className="bg-[#2C1B17] p-6 sm:p-8 rounded-3xl border border-[#C9A227]/30 space-y-6">
+          <form onSubmit={handleSaveSettings} className="bg-[#1B1B20] p-6 sm:p-8 rounded-3xl border border-[#F6C51B]/30 space-y-6">
             <div className="flex items-center justify-between border-b border-stone-800 pb-4">
               <div>
-                <h2 className="text-xl font-serif font-bold text-amber-100">Business Info & Hero Photo</h2>
+                <h2 className="text-xl font-serif font-bold text-white">Business Info & Hero Photo</h2>
                 <p className="text-xs text-stone-400">Upload background photo, edit titles, phone, and announcement text.</p>
               </div>
-              <button type="submit" disabled={savingSettings} className="bg-[#C9A227] hover:bg-amber-400 text-[#2C1B17] font-bold text-xs uppercase px-6 py-3 rounded-xl flex items-center gap-2">
+              <button type="submit" disabled={savingSettings} className="bg-[#F6C51B] hover:bg-yellow-400 text-[#1B1B20] font-bold text-xs uppercase px-6 py-3 rounded-xl flex items-center gap-2">
                 <Save className="w-4 h-4" />
                 <span>{savingSettings ? "Saving..." : "Save Info"}</span>
               </button>
@@ -287,10 +284,10 @@ export default function AdminPanel({
               </div>
             )}
             {/* Receipt photo switch — controls waiter card/online payment flow */}
-            <div className="bg-[#3D2314] p-5 rounded-2xl border border-[#C9A227]/30 flex items-center justify-between gap-4">
+            <div className="bg-[#2A2A31] p-5 rounded-2xl border border-[#F6C51B]/30 flex items-center justify-between gap-4">
               <div className="flex-1">
-                <h3 className="text-sm font-bold text-amber-200 flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-[#C9A227]" /> Receipt Photo on Card/Telebirr Payments
+                <h3 className="text-sm font-bold text-yellow-200 flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-[#F6C51B]" /> Receipt Photo on Card/Telebirr Payments
                 </h3>
                 <p className="text-[11px] text-stone-400 mt-1">
                   ON = waiter photographs each card/Telebirr receipt (stored in DB, ~70KB each).
@@ -316,10 +313,10 @@ export default function AdminPanel({
             </div>
 
             {/* Cashier mode switch — print-queue (EFD workflow) vs full payment recording */}
-            <div className="bg-[#3D2314] p-5 rounded-2xl border border-[#C9A227]/30 flex items-center justify-between gap-4">
+            <div className="bg-[#2A2A31] p-5 rounded-2xl border border-[#F6C51B]/30 flex items-center justify-between gap-4">
               <div className="flex-1">
-                <h3 className="text-sm font-bold text-amber-200 flex items-center gap-2">
-                  <Monitor className="w-4 h-4 text-[#C9A227]" /> Cashier Print-Queue Mode
+                <h3 className="text-sm font-bold text-yellow-200 flex items-center gap-2">
+                  <Monitor className="w-4 h-4 text-[#F6C51B]" /> Cashier Print-Queue Mode
                 </h3>
                 <p className="text-[11px] text-stone-400 mt-1">
                   ON = cashier does ONE click per order (keys it into the EFD/POS, prints, taps ✓ PRINTED) • payments stay in the EFD; waiters free tables with &quot;Table cleared&quot;.
@@ -345,21 +342,21 @@ export default function AdminPanel({
             </div>
 
             {/* Logo upload */}
-            <div className="bg-[#3D2314] p-5 rounded-2xl border border-[#C9A227]/30 space-y-3">
-              <h3 className="text-sm font-bold text-amber-200 flex items-center gap-2">
-                <Camera className="w-4 h-4 text-[#C9A227]" /> Restaurant Logo (navbar, QR menu & staff apps)
+            <div className="bg-[#2A2A31] p-5 rounded-2xl border border-[#F6C51B]/30 space-y-3">
+              <h3 className="text-sm font-bold text-yellow-200 flex items-center gap-2">
+                <Camera className="w-4 h-4 text-[#F6C51B]" /> Restaurant Logo (navbar, QR menu & staff apps)
               </h3>
               <p className="text-[11px] text-stone-400">
-                Tip: the logo shows inside a <strong>small circle</strong>: a square or round icon (not wide text banners) looks best, like the official Fana Cafe badge.
+                Tip: the logo shows inside a <strong>small circle</strong>: a square or round icon (not wide text banners) looks best, like the Amrogn Chicken emblem.
               </p>
               <div className="flex items-center gap-4">
                 <img
                   src={settingsForm.logo_url || "/logo.png"}
                   alt="Logo preview"
-                  className="w-16 h-16 rounded-full object-contain bg-white border-2 border-[#C9A227] p-1"
+                  className="w-16 h-16 rounded-full object-contain bg-white border-2 border-[#F6C51B] p-1"
                 />
                 <div className="flex-1 space-y-2">
-                  <label className="flex items-center justify-center gap-2 w-full bg-[#C9A227] hover:bg-amber-400 text-[#2C1B17] font-extrabold text-xs py-2.5 px-4 rounded-xl cursor-pointer shadow transition">
+                  <label className="flex items-center justify-center gap-2 w-full bg-[#F6C51B] hover:bg-yellow-400 text-[#1B1B20] font-extrabold text-xs py-2.5 px-4 rounded-xl cursor-pointer shadow transition">
                     <Upload className="w-4 h-4" />
                     <span>Upload New Logo From Device</span>
                     <input
@@ -380,26 +377,26 @@ export default function AdminPanel({
                     type="text"
                     value={settingsForm.logo_url}
                     onChange={(e) => setSettingsForm({ ...settingsForm, logo_url: e.target.value })}
-                    placeholder="...or paste logo URL (empty = default Fana logo)"
-                    className="w-full bg-[#2C1B17] border border-stone-700 rounded-xl p-2.5 text-xs text-stone-200"
+                    placeholder="...or paste logo URL (empty = default Amrogn logo)"
+                    className="w-full bg-[#1B1B20] border border-stone-700 rounded-xl p-2.5 text-xs text-stone-200"
                   />
                 </div>
               </div>
             </div>
 
             {/* Hero background */}
-            <div className="bg-[#3D2314] p-5 rounded-2xl border border-[#C9A227]/30 space-y-3">
-              <h3 className="text-sm font-bold text-amber-200 flex items-center gap-2">
-                <ImageIcon className="w-4 h-4 text-[#C9A227]" /> Hero Background Photo
+            <div className="bg-[#2A2A31] p-5 rounded-2xl border border-[#F6C51B]/30 space-y-3">
+              <h3 className="text-sm font-bold text-yellow-200 flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-[#F6C51B]" /> Hero Background Photo
               </h3>
               {settingsForm.hero_bg_image && (
                 <div className="relative h-44 w-full rounded-2xl overflow-hidden border border-stone-700 bg-stone-900">
                   <img src={settingsForm.hero_bg_image} alt="Hero preview" className="w-full h-full object-cover" />
                 </div>
               )}
-              <label className="flex items-center justify-center gap-2 w-full bg-[#C9A227] hover:bg-amber-400 text-[#2C1B17] font-extrabold text-xs py-3 px-4 rounded-xl cursor-pointer shadow transition">
+              <label className="flex items-center justify-center gap-2 w-full bg-[#F6C51B] hover:bg-yellow-400 text-[#1B1B20] font-extrabold text-xs py-3 px-4 rounded-xl cursor-pointer shadow transition">
                 <Upload className="w-4 h-4" />
-                <span>Upload Custom Cafe Image From Device</span>
+                <span>Upload Custom Hero Image From Device</span>
                 <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) toBase64(f, (d) => { setSettingsForm((prev) => ({ ...prev, hero_bg_image: d })); autoSaveSetting("hero_bg_image", d, "Hero photo"); }); }} />
               </label>
               <input
@@ -407,7 +404,7 @@ export default function AdminPanel({
                 value={settingsForm.hero_bg_image}
                 onChange={(e) => setSettingsForm({ ...settingsForm, hero_bg_image: e.target.value })}
                 placeholder="...or paste image URL"
-                className="w-full bg-[#2C1B17] border border-stone-700 rounded-xl p-2.5 text-xs text-stone-200"
+                className="w-full bg-[#1B1B20] border border-stone-700 rounded-xl p-2.5 text-xs text-stone-200"
               />
             </div>
 
@@ -425,22 +422,22 @@ export default function AdminPanel({
                 ] as Array<[string, keyof typeof settingsForm]>
               ).map(([label, key]) => (
                 <div key={key} className={String(key).includes("hero_title") || String(key).includes("announcement") ? "md:col-span-2" : ""}>
-                  <label className="block text-xs font-bold text-amber-200 mb-1">{label}</label>
+                  <label className="block text-xs font-bold text-yellow-200 mb-1">{label}</label>
                   <input
                     type="text"
                     value={settingsForm[key]}
                     onChange={(e) => setSettingsForm({ ...settingsForm, [key]: e.target.value })}
-                    className="w-full bg-[#3D2314] border border-stone-700 rounded-xl p-3 text-xs text-white"
+                    className="w-full bg-[#2A2A31] border border-stone-700 rounded-xl p-3 text-xs text-white"
                   />
                 </div>
               ))}
               <div className="md:col-span-2">
-                <label className="block text-xs font-bold text-amber-200 mb-1">Hero Subtitle</label>
+                <label className="block text-xs font-bold text-yellow-200 mb-1">Hero Subtitle</label>
                 <textarea
                   rows={2}
                   value={settingsForm.hero_subtitle}
                   onChange={(e) => setSettingsForm({ ...settingsForm, hero_subtitle: e.target.value })}
-                  className="w-full bg-[#3D2314] border border-stone-700 rounded-xl p-3 text-xs text-white"
+                  className="w-full bg-[#2A2A31] border border-stone-700 rounded-xl p-3 text-xs text-white"
                 />
               </div>
             </div>
@@ -493,14 +490,14 @@ export default function AdminPanel({
         {activeTab === "menu" && (
           <div className="space-y-6">
             {/* 📂 CATEGORIES MANAGER — owner renames/reorders/adds food groups easily */}
-            <div className="bg-[#2C1B17] rounded-2xl border border-[#C9A227]/30 p-4 space-y-3">
+            <div className="bg-[#1B1B20] rounded-2xl border border-[#F6C51B]/30 p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-amber-200">📂 Menu Categories ({categories.length})</h3>
+                <h3 className="text-sm font-bold text-yellow-200">📂 Menu Categories ({categories.length})</h3>
                 <p className="text-[10px] text-stone-500">Rename or organize food groups, dishes follow automatically.</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 {categories.map((c) => (
-                  <div key={c.id} className="flex items-center gap-1.5 bg-[#3D2314] border border-stone-700 rounded-xl pl-2.5 pr-1 py-1">
+                  <div key={c.id} className="flex items-center gap-1.5 bg-[#2A2A31] border border-stone-700 rounded-xl pl-2.5 pr-1 py-1">
                     <input
                       defaultValue={c.name}
                       onBlur={(e) => {
@@ -513,7 +510,7 @@ export default function AdminPanel({
                           }).then(() => onRefreshData());
                         }
                       }}
-                      className="bg-transparent text-xs font-bold text-amber-100 w-28 focus:outline-none"
+                      className="bg-transparent text-xs font-bold text-white w-28 focus:outline-none"
                     />
                     {c.slug !== "all" && (
                       <button
@@ -556,37 +553,36 @@ export default function AdminPanel({
               >
                 <input
                   name="name"
-                  placeholder="New group name (e.g. Breakfast)"
-                  className="flex-1 min-w-[160px] bg-[#3D2314] border border-stone-700 rounded-xl px-3 py-2 text-xs text-white placeholder-stone-500"
+                  placeholder="New group name (e.g. Grilled Platters)"
+                  className="flex-1 min-w-[160px] bg-[#2A2A31] border border-stone-700 rounded-xl px-3 py-2 text-xs text-white placeholder-stone-500"
                 />
                 <select
                   name="icon"
                   defaultValue="Utensils"
-                  className="bg-[#3D2314] border border-stone-700 rounded-xl px-3 py-2 text-xs text-white"
+                  className="bg-[#2A2A31] border border-stone-700 rounded-xl px-3 py-2 text-xs text-white"
                 >
-                  <option value="Utensils">🍴 Default</option>
-                  <option value="Soup">🥣 Soup</option>
-                  <option value="Beef">🍔 Burger</option>
-                  <option value="UtensilsCrossed">🍝 Pasta</option>
-                  <option value="Salad">🥗 Salad</option>
-                  <option value="Pizza">🍕 Pizza</option>
-                  <option value="CookingPot">🍚 Rice</option>
-                  <option value="ChefHat">👨‍🍳 Traditional</option>
-                  <option value="Sandwich">🥪 Sandwich</option>
-                  <option value="Package">🌯 Wrap</option>
-                  <option value="GlassWater">🥤 Juice</option>
-                  <option value="Coffee">☕ Hot Drinks</option>
-                  <option value="CupSoda">🧃 Soft Drinks</option>
-                  <option value="Cake">🍰 Pastry</option>
+                  <option value="Utensils">🍽️ All Items</option>
+                  <option value="Sandwich">🌯 Shawarma</option>
+                  <option value="Drumstick">🍗 Chicken</option>
+                  <option value="Hamburger">🍔 Chicken Burgers</option>
+                  <option value="Popcorn">🍟 Sides</option>
+                  <option value="UtensilsCrossed">🍱 Combos</option>
+                  <option value="Users">👨‍👩‍👧 Family Meals</option>
+                  <option value="CupSoda">🥤 Drinks</option>
+                  <option value="Citrus">🧃 Fresh Juices</option>
+                  <option value="Flame">⭐ Specials</option>
+                  <option value="CookingPot">🍳 Kitchen / Other</option>
+                  <option value="Package">📦 Packaged</option>
+                  <option value="Cake">🍰 Dessert</option>
                 </select>
-                <button type="submit" className="bg-[#C9A227] hover:bg-amber-400 text-[#2C1B17] font-black text-xs uppercase px-4 py-2 rounded-xl flex items-center gap-1.5">
+                <button type="submit" className="bg-[#F6C51B] hover:bg-yellow-400 text-[#1B1B20] font-black text-xs uppercase px-4 py-2 rounded-xl flex items-center gap-1.5">
                   <Plus className="w-3.5 h-3.5" /> Add Group
                 </button>
               </form>
             </div>
 
             {/* 📋 BULK MENU IMPORT — paste your entire dish list at once */}
-            <div className="bg-[#2C1B17] rounded-2xl border border-emerald-700/40 p-5 space-y-3">
+            <div className="bg-[#1B1B20] rounded-2xl border border-emerald-700/40 p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-bold text-emerald-300">📋 Bulk Menu Import</h3>
@@ -637,17 +633,17 @@ export default function AdminPanel({
               <textarea
                 id="bulk-menu-text"
                 rows={5}
-                placeholder="Fresh Mango Juice | juices | 150 | 10 min | Pure mango blended with honey & lime&#10;Chicken Shawarma | snack-and-wrap | 380 | 15-20 min | Grilled chicken wrap with garlic sauce&#10;Classic Margherita | pizza | 420 | 20 min | mozzarella, basil & tomato sauce&#10;...paste more lines..."
+                placeholder="Chicken Shawarma | shawarma | 285 | 10 min | Char-grilled chicken, garlic sauce & pickles in saj bread&#10;Crispy Fried Chicken (2 pcs) | chicken | 380 | 15-20 min | Juicy inside, light & crispy outside&#10;Soft Drink | drinks | 70 | 2 min | Coca, Sprite or Fanta, ice cold&#10;...paste more lines..."
                 className="w-full bg-black/30 border border-stone-700 rounded-xl p-3 text-xs text-stone-200 font-mono leading-relaxed"
               />
               <p className="text-[10px] text-stone-500">
-                Format per line: <code className="text-[#C9A227]">Name | Category-slug | Price | PrepTime(optional) | Description(optional)</code>. Categories: soup, burger, pasta, salad, pizza, rice, ethiopian-traditional-meals, sandwich, snack-and-wrap, juices, hot-drinks, soft-drinks, pastry-and-cakes. Same name → updates the item (re-category, re-price, new prep time) instead of duplicating.
+                Format per line: <code className="text-[#F6C51B]">Name | Category-slug | Price | PrepTime(optional) | Description(optional)</code>. Categories: shawarma, chicken, burgers, sides, combos, family-meals, drinks, fresh-juices, specials (legacy cafe slugs still route). Same name → updates the item (re-category, re-price, new prep time) instead of duplicating.
               </p>
             </div>
 
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-serif font-bold text-amber-100">Menu Manager</h2>
+                <h2 className="text-xl font-serif font-bold text-white">Menu Manager</h2>
                 <p className="text-xs text-stone-400">Add/edit dishes, ETB prices, photos from device, In/Out of stock.</p>
               </div>
               <button
@@ -655,10 +651,10 @@ export default function AdminPanel({
                   setEditingItem({
                     id: undefined,
                     name: "",
-                    category: "signature-coffee",
-                    price: 120,
+                    category: "chicken",
+                    price: 285,
                     description: "",
-                    imageUrl: "https://images.pexels.com/photos/16563658/pexels-photo-16563658.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=300&w=480",
+                    imageUrl: "/images/menu/fried-hero.jpg",
                     isPopular: false,
                     isAvailable: true,
                     isBuna: false,
@@ -668,17 +664,17 @@ export default function AdminPanel({
                     badge: "",
                   })
                 }
-                className="bg-[#C9A227] hover:bg-amber-400 text-[#2C1B17] font-bold text-xs uppercase px-5 py-3 rounded-2xl flex items-center gap-2 shadow"
+                className="bg-[#F6C51B] hover:bg-yellow-400 text-[#1B1B20] font-bold text-xs uppercase px-5 py-3 rounded-2xl flex items-center gap-2 shadow"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Dish</span>
               </button>
             </div>
 
-            <div className="bg-[#2C1B17] rounded-3xl border border-[#C9A227]/30 overflow-hidden shadow-xl">
+            <div className="bg-[#1B1B20] rounded-3xl border border-[#F6C51B]/30 overflow-hidden shadow-xl">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-[#3D2314] text-amber-200 uppercase font-bold text-[10px] tracking-wider">
+                  <thead className="bg-[#2A2A31] text-yellow-200 uppercase font-bold text-[10px] tracking-wider">
                     <tr>
                       <th className="p-4">Dish & Photo</th>
                       <th className="p-4">Category</th>
@@ -691,36 +687,32 @@ export default function AdminPanel({
                     {menuItems.map((item) => (
                       <tr key={item.id} className="hover:bg-stone-900/40">
                         <td className="p-4 flex items-center gap-3">
-                          <img src={item.imageUrl} alt={item.name} className="w-12 h-12 rounded-xl object-cover shrink-0 border border-amber-500/30" />
+                          <img src={item.imageUrl} alt={item.name} className="w-12 h-12 rounded-xl object-cover shrink-0 border border-yellow-500/30" />
                           <div>
-                            <p className="font-bold text-amber-100 text-sm flex items-center gap-2 flex-wrap">
+                            <p className="font-bold text-white text-sm flex items-center gap-2 flex-wrap">
                               {item.name}
                               {item.isBuna && (
-                                <span className="text-[9px] font-black uppercase bg-amber-900/60 text-amber-300 border border-amber-700 rounded px-1.5 py-0.5">
-                                  🫖 Buna Makers
+                                <span className="text-[9px] font-black uppercase bg-lime-900/40 text-lime-300 border border-lime-700/60 rounded px-1.5 py-0.5">
+                                  🥤 Juice &amp; Drinks
                                 </span>
                               )}
-                              {item.stationOverride === "barista" && (
-                                <span className="text-[9px] font-black uppercase bg-amber-900/40 text-amber-300 border border-amber-700/60 rounded px-1.5 py-0.5">
-                                  ☕ Barista
+                              {(item.stationOverride === "barista" || item.stationOverride === "juice") && (
+                                <span className="text-[9px] font-black uppercase bg-lime-900/40 text-lime-300 border border-lime-700/60 rounded px-1.5 py-0.5">
+                                  🥤 Juice &amp; Drinks
                                 </span>
                               )}
                               {item.stationOverride === "kitchen" && (
                                 <span className="text-[9px] font-black uppercase bg-emerald-900/40 text-emerald-300 border border-emerald-700/60 rounded px-1.5 py-0.5">
-                                  🍳 Kitchen
+                                  🍗 Kitchen
                                 </span>
                               )}
-                              {item.stationOverride === "juice" && (
-                                <span className="text-[9px] font-black uppercase bg-lime-900/40 text-lime-300 border border-lime-700/60 rounded px-1.5 py-0.5">
-                                  🧃 Juice
-                                </span>
-                              )}
+
                             </p>
                             <p className="text-[11px] text-stone-400 line-clamp-1 max-w-xs">{item.description}</p>
                           </div>
                         </td>
                         <td className="p-4 font-semibold text-stone-300 capitalize">{item.category.replace("-", " ")}</td>
-                        <td className="p-4 font-serif font-black text-[#C9A227] text-sm">{item.price} ETB</td>
+                        <td className="p-4 font-serif font-black text-[#F6C51B] text-sm">{item.price} ETB</td>
                         <td className="p-4">
                           {item.isAvailable ? (
                             <span className="text-emerald-400 bg-emerald-950/60 px-2.5 py-1 rounded text-[10px] font-bold border border-emerald-800">In Stock</span>
@@ -729,7 +721,7 @@ export default function AdminPanel({
                           )}
                         </td>
                         <td className="p-4 text-right space-x-2">
-                          <button onClick={() => setEditingItem(item)} className="p-2 bg-amber-500/20 text-amber-300 hover:bg-amber-500 hover:text-black rounded-lg transition" title="Edit">
+                          <button onClick={() => setEditingItem(item)} className="p-2 bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500 hover:text-black rounded-lg transition" title="Edit">
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
                           <button onClick={() => handleDeleteMenuItem(item.id)} className="p-2 bg-rose-500/20 text-rose-300 hover:bg-rose-500 hover:text-white rounded-lg transition" title="Delete">
@@ -750,12 +742,12 @@ export default function AdminPanel({
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-serif font-bold text-amber-100">Gallery Manager</h2>
-                <p className="text-xs text-stone-400">Upload real cafe photos from your device.</p>
+                <h2 className="text-xl font-serif font-bold text-white">Gallery Manager</h2>
+                <p className="text-xs text-stone-400">Upload real Amrogn kitchen &amp; chicken photos from your device.</p>
               </div>
               <button
                 onClick={() => setEditingGallery({ title: "", category: "Interior", imageUrl: "", caption: "" })}
-                className="bg-[#C9A227] hover:bg-amber-400 text-[#2C1B17] font-bold text-xs uppercase px-5 py-3 rounded-2xl flex items-center gap-2 shadow"
+                className="bg-[#F6C51B] hover:bg-yellow-400 text-[#1B1B20] font-bold text-xs uppercase px-5 py-3 rounded-2xl flex items-center gap-2 shadow"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Photo</span>
@@ -764,19 +756,19 @@ export default function AdminPanel({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {galleryItems.map((gal) => (
-                <div key={gal.id} className="bg-[#2C1B17] rounded-3xl overflow-hidden border border-[#C9A227]/30 shadow-xl flex flex-col justify-between">
+                <div key={gal.id} className="bg-[#1B1B20] rounded-3xl overflow-hidden border border-[#F6C51B]/30 shadow-xl flex flex-col justify-between">
                   <div className="relative h-48 bg-stone-900">
                     <img src={gal.imageUrl} alt={gal.title} className="w-full h-full object-cover" />
-                    <span className="absolute top-3 left-3 bg-black/70 text-[#C9A227] text-[10px] font-bold uppercase px-2.5 py-1 rounded-full border border-[#C9A227]/40">
+                    <span className="absolute top-3 left-3 bg-black/70 text-[#F6C51B] text-[10px] font-bold uppercase px-2.5 py-1 rounded-full border border-[#F6C51B]/40">
                       {gal.category}
                     </span>
                   </div>
                   <div className="p-4 space-y-2">
-                    <h3 className="font-serif font-bold text-amber-100 text-sm">{gal.title}</h3>
+                    <h3 className="font-serif font-bold text-white text-sm">{gal.title}</h3>
                     {gal.caption && <p className="text-stone-400 text-xs line-clamp-2">{gal.caption}</p>}
                   </div>
                   <div className="p-4 pt-0 flex justify-end gap-2">
-                    <button onClick={() => setEditingGallery(gal)} className="p-2 bg-amber-500/20 text-amber-300 hover:bg-amber-500 hover:text-black rounded-lg text-xs font-bold transition flex items-center gap-1">
+                    <button onClick={() => setEditingGallery(gal)} className="p-2 bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500 hover:text-black rounded-lg text-xs font-bold transition flex items-center gap-1">
                       <Edit3 className="w-3.5 h-3.5" /> Edit
                     </button>
                     <button onClick={() => handleDeleteGalleryItem(gal.id)} className="p-2 bg-rose-500/20 text-rose-300 hover:bg-rose-500 hover:text-white rounded-lg text-xs font-bold transition flex items-center gap-1">
@@ -793,22 +785,22 @@ export default function AdminPanel({
         {activeTab === "reviews" && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-xl font-serif font-bold text-amber-100">Reviews Moderation</h2>
+              <h2 className="text-xl font-serif font-bold text-white">Reviews Moderation</h2>
               <p className="text-xs text-stone-400">New reviews are hidden until you approve them. Approve = publicly visible.</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {reviews.map((rev) => (
-                <div key={rev.id} className="bg-[#2C1B17] p-5 rounded-3xl border border-[#C9A227]/30 space-y-3">
+                <div key={rev.id} className="bg-[#1B1B20] p-5 rounded-3xl border border-[#F6C51B]/30 space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="font-bold text-amber-100 text-sm">{rev.customerName}</h4>
+                      <h4 className="font-bold text-white text-sm">{rev.customerName}</h4>
                       <p className="text-[10px] text-stone-400">{rev.reviewDate}</p>
                     </div>
-                    <div className="text-[#C9A227] font-bold">★ {rev.rating}/5</div>
+                    <div className="text-[#F6C51B] font-bold">★ {rev.rating}/5</div>
                   </div>
                   <p className="text-xs text-stone-300 italic">"{rev.reviewText}"</p>
                   <div className="pt-2 border-t border-stone-800 flex items-center justify-between text-xs">
-                    <span className={rev.isApproved ? "text-emerald-400" : "text-amber-400"}>
+                    <span className={rev.isApproved ? "text-emerald-400" : "text-yellow-400"}>
                       {rev.isApproved ? "✓ Publicly visible" : "⏳ Pending approval"}
                     </span>
                     <div className="flex gap-3">
@@ -846,29 +838,29 @@ export default function AdminPanel({
 
         {/* SECURITY */}
         {activeTab === "security" && (
-          <div className="bg-[#2C1B17] p-6 sm:p-8 rounded-3xl border border-[#C9A227]/30 max-w-lg mx-auto space-y-6">
+          <div className="bg-[#1B1B20] p-6 sm:p-8 rounded-3xl border border-[#F6C51B]/30 max-w-lg mx-auto space-y-6">
             <div>
-              <h2 className="text-xl font-serif font-bold text-amber-100">Update Owner Password</h2>
+              <h2 className="text-xl font-serif font-bold text-white">Update Owner Password</h2>
               <p className="text-xs text-stone-400">Master password that protects this dashboard.</p>
             </div>
-            {passwordMsg && <div className="bg-amber-900/60 border border-amber-500 text-amber-200 text-xs p-3 rounded-xl">{passwordMsg}</div>}
+            {passwordMsg && <div className="bg-neutral-800/60 border border-yellow-500 text-yellow-200 text-xs p-3 rounded-xl">{passwordMsg}</div>}
             <form onSubmit={handleChangePassword} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-amber-200 mb-1">New Admin Password</label>
+                <label className="block text-xs font-bold text-yellow-200 mb-1">New Admin Password</label>
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Enter new admin password"
-                    className="w-full bg-[#3D2314] border border-stone-700 rounded-xl p-3 text-xs text-white pr-10"
+                    className="w-full bg-[#2A2A31] border border-stone-700 rounded-xl p-3 text-xs text-white pr-10"
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-white">
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
-              <button type="submit" className="w-full bg-[#C9A227] text-[#2C1B17] font-black text-xs uppercase tracking-wider py-3.5 rounded-xl hover:bg-amber-400 transition">
+              <button type="submit" className="w-full bg-[#F6C51B] text-[#1B1B20] font-black text-xs uppercase tracking-wider py-3.5 rounded-xl hover:bg-yellow-400 transition">
                 Update Master Password
               </button>
             </form>
@@ -879,67 +871,67 @@ export default function AdminPanel({
       {/* EDIT MENU MODAL */}
       {editingItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="bg-[#2C1B17] rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 border border-[#C9A227] shadow-2xl text-white space-y-4">
+          <div className="bg-[#1B1B20] rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 border border-[#F6C51B] shadow-2xl text-white space-y-4">
             <div className="flex items-center justify-between border-b border-stone-800 pb-3">
-              <h3 className="font-serif font-bold text-lg text-amber-100">{editingItem.id ? "Edit Dish" : "Add New Dish"}</h3>
+              <h3 className="font-serif font-bold text-lg text-white">{editingItem.id ? "Edit Dish" : "Add New Dish"}</h3>
               <button onClick={() => setEditingItem(null)} className="text-stone-400 hover:text-white">✕</button>
             </div>
 
             <form onSubmit={handleSaveMenuItem} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-amber-200 mb-1">Name *</label>
-                <input type="text" required value={editingItem.name || ""} onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })} placeholder="e.g. Famous Fana Macchiato" className="w-full bg-[#3D2314] border border-stone-700 rounded-xl p-2.5 text-xs text-white" />
+                <label className="block text-xs font-bold text-yellow-200 mb-1">Name *</label>
+                <input type="text" required value={editingItem.name || ""} onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })} placeholder="e.g. Chicken Shawarma" className="w-full bg-[#2A2A31] border border-stone-700 rounded-xl p-2.5 text-xs text-white" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-amber-200 mb-1">Category *</label>
-                  <select value={editingItem.category || "signature-coffee"} onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value })} className="w-full bg-[#3D2314] border border-stone-700 rounded-xl p-2.5 text-xs text-white">
+                  <label className="block text-xs font-bold text-yellow-200 mb-1">Category *</label>
+                  <select value={editingItem.category || "chicken"} onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value })} className="w-full bg-[#2A2A31] border border-stone-700 rounded-xl p-2.5 text-xs text-white">
                     {categories.filter((c) => c.slug !== "all").map((c) => (
                       <option key={c.slug} value={c.slug}>{c.name}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-amber-200 mb-1">Price (ETB) *</label>
-                  <input type="number" required value={editingItem.price || 0} onChange={(e) => setEditingItem({ ...editingItem, price: Number(e.target.value) })} className="w-full bg-[#3D2314] border border-stone-700 rounded-xl p-2.5 text-xs text-white font-bold" />
+                  <label className="block text-xs font-bold text-yellow-200 mb-1">Price (ETB) *</label>
+                  <input type="number" required value={editingItem.price || 0} onChange={(e) => setEditingItem({ ...editingItem, price: Number(e.target.value) })} className="w-full bg-[#2A2A31] border border-stone-700 rounded-xl p-2.5 text-xs text-white font-bold" />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-bold text-amber-200 mb-1">Description *</label>
-                <textarea rows={2} required value={editingItem.description || ""} onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })} placeholder="Taste, ingredients..." className="w-full bg-[#3D2314] border border-stone-700 rounded-xl p-2.5 text-xs text-white" />
+                <label className="block text-xs font-bold text-yellow-200 mb-1">Description *</label>
+                <textarea rows={2} required value={editingItem.description || ""} onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })} placeholder="Taste, ingredients..." className="w-full bg-[#2A2A31] border border-stone-700 rounded-xl p-2.5 text-xs text-white" />
               </div>
 
               {/* Photo */}
-              <div className="bg-[#3D2314] p-4 rounded-2xl border border-[#C9A227]/30 space-y-3">
-                <label className="text-xs font-bold text-amber-200 flex items-center gap-1.5">
-                  <ImageIcon className="w-4 h-4 text-[#C9A227]" /> Food Photo
+              <div className="bg-[#2A2A31] p-4 rounded-2xl border border-[#F6C51B]/30 space-y-3">
+                <label className="text-xs font-bold text-yellow-200 flex items-center gap-1.5">
+                  <ImageIcon className="w-4 h-4 text-[#F6C51B]" /> Food Photo
                 </label>
                 {editingItem.imageUrl && (
                   <div className="relative h-32 w-full rounded-xl overflow-hidden border border-stone-700 bg-stone-900">
                     <img src={editingItem.imageUrl} alt="Preview" className="w-full h-full object-cover" />
                   </div>
                 )}
-                <label className="flex items-center justify-center gap-2 w-full bg-[#C9A227] hover:bg-amber-400 text-[#2C1B17] font-extrabold text-xs py-2.5 px-4 rounded-xl cursor-pointer shadow transition">
+                <label className="flex items-center justify-center gap-2 w-full bg-[#F6C51B] hover:bg-yellow-400 text-[#1B1B20] font-extrabold text-xs py-2.5 px-4 rounded-xl cursor-pointer shadow transition">
                   <Upload className="w-4 h-4" />
                   <span>Upload Photo From Device</span>
                   <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) toBase64(f, (d) => setEditingItem((prev) => ({ ...prev, imageUrl: d }))); }} />
                 </label>
-                <input type="text" value={editingItem.imageUrl || ""} onChange={(e) => setEditingItem({ ...editingItem, imageUrl: e.target.value })} placeholder="...or paste image URL" className="w-full bg-[#2C1B17] border border-stone-700 rounded-xl p-2 text-xs text-stone-200" />
+                <input type="text" value={editingItem.imageUrl || ""} onChange={(e) => setEditingItem({ ...editingItem, imageUrl: e.target.value })} placeholder="...or paste image URL" className="w-full bg-[#1B1B20] border border-stone-700 rounded-xl p-2 text-xs text-stone-200" />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-amber-200 mb-1">Badge (optional)</label>
-                  <input type="text" value={editingItem.badge || ""} onChange={(e) => setEditingItem({ ...editingItem, badge: e.target.value })} placeholder="e.g. Best Seller" className="w-full bg-[#3D2314] border border-stone-700 rounded-xl p-2.5 text-xs text-white" />
+                  <label className="block text-xs font-bold text-yellow-200 mb-1">Badge (optional)</label>
+                  <input type="text" value={editingItem.badge || ""} onChange={(e) => setEditingItem({ ...editingItem, badge: e.target.value })} placeholder="e.g. Best Seller" className="w-full bg-[#2A2A31] border border-stone-700 rounded-xl p-2.5 text-xs text-white" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-amber-200 mb-1">Prep Time (optional)</label>
-                  <input type="text" value={editingItem.prepTime || "10 min"} onChange={(e) => setEditingItem({ ...editingItem, prepTime: e.target.value })} className="w-full bg-[#3D2314] border border-stone-700 rounded-xl p-2.5 text-xs text-white" />
+                  <label className="block text-xs font-bold text-yellow-200 mb-1">Prep Time (optional)</label>
+                  <input type="text" value={editingItem.prepTime || "10 min"} onChange={(e) => setEditingItem({ ...editingItem, prepTime: e.target.value })} className="w-full bg-[#2A2A31] border border-stone-700 rounded-xl p-2.5 text-xs text-white" />
                 </div>
               </div>
 
               {/* SCHEDULED SALE PRICE — automatically applies between dates, auto-reverts after */}
-              <div className="bg-[#3D2314] p-4 rounded-2xl border border-emerald-700/40 space-y-3">
+              <div className="bg-[#2A2A31] p-4 rounded-2xl border border-emerald-700/40 space-y-3">
                 <p className="text-xs font-bold text-emerald-300">🏷 Auto Sale Price (optional)</p>
                 <p className="text-[10px] text-stone-400">Sets a SALE price between the start & end dates. After the end date, the normal price returns automatically.</p>
                 <div className="grid grid-cols-3 gap-2">
@@ -950,7 +942,7 @@ export default function AdminPanel({
                       value={editingItem.salePrice ?? ""}
                       onChange={(e) => setEditingItem({ ...editingItem, salePrice: e.target.value ? Number(e.target.value) : null })}
                       placeholder="e.g. 180"
-                      className="w-full bg-[#2C1B17] border border-stone-700 rounded-xl p-2 text-xs text-white"
+                      className="w-full bg-[#1B1B20] border border-stone-700 rounded-xl p-2 text-xs text-white"
                     />
                   </div>
                   <div>
@@ -959,7 +951,7 @@ export default function AdminPanel({
                       type="date"
                       value={editingItem.saleStart || ""}
                       onChange={(e) => setEditingItem({ ...editingItem, saleStart: e.target.value })}
-                      className="w-full bg-[#2C1B17] border border-stone-700 rounded-xl p-2 text-xs text-white"
+                      className="w-full bg-[#1B1B20] border border-stone-700 rounded-xl p-2 text-xs text-white"
                     />
                   </div>
                   <div>
@@ -968,19 +960,19 @@ export default function AdminPanel({
                       type="date"
                       value={editingItem.saleEnd || ""}
                       onChange={(e) => setEditingItem({ ...editingItem, saleEnd: e.target.value })}
-                      className="w-full bg-[#2C1B17] border border-stone-700 rounded-xl p-2 text-xs text-white"
+                      className="w-full bg-[#1B1B20] border border-stone-700 rounded-xl p-2 text-xs text-white"
                     />
                   </div>
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-4 pt-2">
-                <label className="flex items-center gap-2 text-xs font-bold text-amber-100 cursor-pointer">
-                  <input type="checkbox" checked={editingItem.isAvailable ?? true} onChange={(e) => setEditingItem({ ...editingItem, isAvailable: e.target.checked })} className="w-4 h-4 accent-[#C9A227]" />
+                <label className="flex items-center gap-2 text-xs font-bold text-white cursor-pointer">
+                  <input type="checkbox" checked={editingItem.isAvailable ?? true} onChange={(e) => setEditingItem({ ...editingItem, isAvailable: e.target.checked })} className="w-4 h-4 accent-[#F6C51B]" />
                   <span>In Stock</span>
                 </label>
-                <label className="flex items-center gap-2 text-xs font-bold text-amber-100 cursor-pointer">
-                  <input type="checkbox" checked={editingItem.isPopular ?? false} onChange={(e) => setEditingItem({ ...editingItem, isPopular: e.target.checked })} className="w-4 h-4 accent-[#C9A227]" />
+                <label className="flex items-center gap-2 text-xs font-bold text-white cursor-pointer">
+                  <input type="checkbox" checked={editingItem.isPopular ?? false} onChange={(e) => setEditingItem({ ...editingItem, isPopular: e.target.checked })} className="w-4 h-4 accent-[#F6C51B]" />
                   <span>Popular Highlights</span>
                 </label>
               </div>
@@ -988,8 +980,8 @@ export default function AdminPanel({
               {/* WHO PREPARES IT — the per-item station switch. "Automatic" follows
                   the category routing from the Stations tab; the other three point
                   this ONE item at a specific crew, whatever its category says. */}
-              <div className="bg-[#3D2314] p-4 rounded-2xl border border-[#C9A227]/30 space-y-2">
-                <label className="block text-xs font-bold text-amber-200">👨‍🍳 Prepared by (which crew makes it)</label>
+              <div className="bg-[#2A2A31] p-4 rounded-2xl border border-[#F6C51B]/30 space-y-2">
+                <label className="block text-xs font-bold text-yellow-200">👨‍🍳 Prepared by (which crew makes it)</label>
                 <select
                   value={editingItem.isBuna ? "buna" : editingItem.stationOverride || "auto"}
                   onChange={(e) => {
@@ -1002,23 +994,20 @@ export default function AdminPanel({
                       stationOverride: v === "barista" || v === "kitchen" || v === "juice" ? v : null,
                     });
                   }}
-                  className="w-full bg-[#2C1B17] border border-stone-700 rounded-xl p-2.5 text-xs text-white"
+                  className="w-full bg-[#1B1B20] border border-stone-700 rounded-xl p-2.5 text-xs text-white"
                 >
                   <option value="auto">Automatic (follow the category, Stations tab)</option>
-                  <option value="barista">☕ Barista (machine coffee, cold drinks...)</option>
-                  <option value="kitchen">🍳 Kitchen / Chef (food, take away bag...)</option>
-                  <option value="juice">🧃 Juice Maker (fresh juices, spris, punches...)</option>
-                  <option value="buna">🫖 Buna Makers (traditional buna)</option>
+                  <option value="kitchen">🍗 Amrogn Kitchen (chicken, shawarma, burgers, sides, take away...)</option>
+                  <option value="juice">🥤 Juice &amp; Cold Drinks (juices, spris, soft drinks, cold beverages...)</option>
                 </select>
                 <p className="text-[11px] text-stone-400 leading-relaxed">
-                  Use this when one category mixes crews, like <strong className="text-amber-200">Extra Things</strong>:
-                  a coffee cup goes to the <strong className="text-amber-200">Barista</strong>, a take away bag goes to the{" "}
-                  <strong className="text-amber-200">Kitchen</strong>, whatever the category routing says. Traditional buna
-                  always goes to the Buna Makers and rings only their phones.
+                  Almost everything follows the category automatically. Use this only when a single item breaks the
+                  rule: a bottled drink stored with the food still goes to{" "}
+                  <strong className="text-yellow-200">Juice &amp; Cold Drinks</strong>, whatever the category routing says.
                 </p>
               </div>
 
-              <button type="submit" disabled={isMenuSubmitting} className="w-full bg-gradient-to-r from-[#C9A227] to-[#B8921F] text-[#2C1B17] font-black text-xs uppercase tracking-wider py-3.5 rounded-xl shadow-xl transition mt-4">
+              <button type="submit" disabled={isMenuSubmitting} className="w-full bg-gradient-to-r from-[#F6C51B] to-[#D9A409] text-[#1B1B20] font-black text-xs uppercase tracking-wider py-3.5 rounded-xl shadow-xl transition mt-4">
                 {isMenuSubmitting ? "Saving..." : "Save Dish"}
               </button>
             </form>
@@ -1029,45 +1018,45 @@ export default function AdminPanel({
       {/* EDIT GALLERY MODAL */}
       {editingGallery && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="bg-[#2C1B17] rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 border border-[#C9A227] shadow-2xl text-white space-y-4">
+          <div className="bg-[#1B1B20] rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 border border-[#F6C51B] shadow-2xl text-white space-y-4">
             <div className="flex items-center justify-between border-b border-stone-800 pb-3">
-              <h3 className="font-serif font-bold text-lg text-amber-100">{editingGallery.id ? "Edit Gallery Photo" : "Add Gallery Photo"}</h3>
+              <h3 className="font-serif font-bold text-lg text-white">{editingGallery.id ? "Edit Gallery Photo" : "Add Gallery Photo"}</h3>
               <button onClick={() => setEditingGallery(null)} className="text-stone-400 hover:text-white">✕</button>
             </div>
             <form onSubmit={handleSaveGalleryItem} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-amber-200 mb-1">Photo Title *</label>
-                <input type="text" required value={editingGallery.title || ""} onChange={(e) => setEditingGallery({ ...editingGallery, title: e.target.value })} placeholder="e.g. Cozy seating at 22 Square" className="w-full bg-[#3D2314] border border-stone-700 rounded-xl p-2.5 text-xs text-white" />
+                <label className="block text-xs font-bold text-yellow-200 mb-1">Photo Title *</label>
+                <input type="text" required value={editingGallery.title || ""} onChange={(e) => setEditingGallery({ ...editingGallery, title: e.target.value })} placeholder="e.g. Shawarma on the grill at 4 Kilo" className="w-full bg-[#2A2A31] border border-stone-700 rounded-xl p-2.5 text-xs text-white" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-amber-200 mb-1">Category</label>
-                <select value={editingGallery.category || "Interior"} onChange={(e) => setEditingGallery({ ...editingGallery, category: e.target.value })} className="w-full bg-[#3D2314] border border-stone-700 rounded-xl p-2.5 text-xs text-white">
-                  {["Interior", "Outdoor", "Coffee", "Juices", "Meals", "Desserts", "Vibe"].map((c) => (
+                <label className="block text-xs font-bold text-yellow-200 mb-1">Category</label>
+                <select value={editingGallery.category || "Interior"} onChange={(e) => setEditingGallery({ ...editingGallery, category: e.target.value })} className="w-full bg-[#2A2A31] border border-stone-700 rounded-xl p-2.5 text-xs text-white">
+                  {["Shawarma", "Fried", "Grilled", "Mofo", "Burgers", "Interior", "Vibe"].map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
               </div>
-              <div className="bg-[#3D2314] p-4 rounded-2xl border border-[#C9A227]/30 space-y-3">
-                <label className="text-xs font-bold text-amber-200 flex items-center gap-1.5">
-                  <Camera className="w-4 h-4 text-[#C9A227]" /> Photo *
+              <div className="bg-[#2A2A31] p-4 rounded-2xl border border-[#F6C51B]/30 space-y-3">
+                <label className="text-xs font-bold text-yellow-200 flex items-center gap-1.5">
+                  <Camera className="w-4 h-4 text-[#F6C51B]" /> Photo *
                 </label>
                 {editingGallery.imageUrl && (
                   <div className="relative h-36 w-full rounded-xl overflow-hidden border border-stone-700 bg-stone-900">
                     <img src={editingGallery.imageUrl} alt="Preview" className="w-full h-full object-cover" />
                   </div>
                 )}
-                <label className="flex items-center justify-center gap-2 w-full bg-[#C9A227] hover:bg-amber-400 text-[#2C1B17] font-extrabold text-xs py-2.5 px-4 rounded-xl cursor-pointer shadow transition">
+                <label className="flex items-center justify-center gap-2 w-full bg-[#F6C51B] hover:bg-yellow-400 text-[#1B1B20] font-extrabold text-xs py-2.5 px-4 rounded-xl cursor-pointer shadow transition">
                   <Upload className="w-4 h-4" />
                   <span>Upload From Device</span>
                   <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) toBase64(f, (d) => setEditingGallery((prev) => ({ ...prev, imageUrl: d }))); }} />
                 </label>
-                <input type="text" value={editingGallery.imageUrl || ""} onChange={(e) => setEditingGallery({ ...editingGallery, imageUrl: e.target.value })} placeholder="...or paste photo URL" className="w-full bg-[#2C1B17] border border-stone-700 rounded-xl p-2 text-xs text-stone-200" />
+                <input type="text" value={editingGallery.imageUrl || ""} onChange={(e) => setEditingGallery({ ...editingGallery, imageUrl: e.target.value })} placeholder="...or paste photo URL" className="w-full bg-[#1B1B20] border border-stone-700 rounded-xl p-2 text-xs text-stone-200" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-amber-200 mb-1">Caption</label>
-                <input type="text" value={editingGallery.caption || ""} onChange={(e) => setEditingGallery({ ...editingGallery, caption: e.target.value })} placeholder="Short description" className="w-full bg-[#3D2314] border border-stone-700 rounded-xl p-2.5 text-xs text-white" />
+                <label className="block text-xs font-bold text-yellow-200 mb-1">Caption</label>
+                <input type="text" value={editingGallery.caption || ""} onChange={(e) => setEditingGallery({ ...editingGallery, caption: e.target.value })} placeholder="Short description" className="w-full bg-[#2A2A31] border border-stone-700 rounded-xl p-2.5 text-xs text-white" />
               </div>
-              <button type="submit" disabled={isGallerySubmitting} className="w-full bg-gradient-to-r from-[#C9A227] to-[#B8921F] text-[#2C1B17] font-black text-xs uppercase tracking-wider py-3.5 rounded-xl shadow-xl transition mt-4">
+              <button type="submit" disabled={isGallerySubmitting} className="w-full bg-gradient-to-r from-[#F6C51B] to-[#D9A409] text-[#1B1B20] font-black text-xs uppercase tracking-wider py-3.5 rounded-xl shadow-xl transition mt-4">
                 {isGallerySubmitting ? "Saving..." : "Save Photo"}
               </button>
             </form>

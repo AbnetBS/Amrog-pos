@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import {
   Search, Plus, Minus, Coffee, GlassWater, CookingPot, Sandwich, Cake, Utensils, UtensilsCrossed,
   Soup, Beef, Pizza, Salad, ChefHat, Package, CupSoda, Clock, Info,
+  Drumstick, Hamburger, Popcorn, Users, Citrus, Flame, Gift,
 } from "lucide-react";
 import { MenuItem, Category } from "@/types";
 import { useT, useMenuText } from "@/lib/i18n";
@@ -55,6 +56,24 @@ export default function MenuSection({ items, categories, onAddToCart, cartMap = 
         return <Package className="w-4 h-4" />;
       case "utensilscrossed":
         return <UtensilsCrossed className="w-4 h-4" />;
+      // Amrogn chicken-menu icons
+      case "drumstick":
+        return <Drumstick className="w-4 h-4" />;
+      case "hamburger":
+      case "burger":
+        return <Hamburger className="w-4 h-4" />;
+      case "popcorn":
+      case "frenchfries":
+        return <Popcorn className="w-4 h-4" />;
+      case "users":
+      case "family":
+        return <Users className="w-4 h-4" />;
+      case "citrus":
+        return <Citrus className="w-4 h-4" />;
+      case "flame":
+        return <Flame className="w-4 h-4" />;
+      case "gift":
+        return <Gift className="w-4 h-4" />;
       default:
         return <Utensils className="w-4 h-4" />;
     }
@@ -77,17 +96,17 @@ export default function MenuSection({ items, categories, onAddToCart, cartMap = 
   }, [items, selectedCategory, searchQuery, menuText]);
 
   return (
-    <section id="menu" className="py-20 bg-[#FAF6F0] relative min-h-screen">
+    <section id="menu" className="py-20 bg-[#FCFAF6] relative min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Header Title */}
         <div className="text-center max-w-3xl mx-auto mb-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#4E342E]/10 border border-[#4E342E]/20 text-[#4E342E] text-xs font-bold uppercase tracking-widest mb-3">
-            <Utensils className="w-3.5 h-3.5 text-[#C9A227]" />
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#36363E]/10 border border-[#36363E]/20 text-[#36363E] text-xs font-bold uppercase tracking-widest mb-3">
+            <Utensils className="w-3.5 h-3.5 text-[#F6C51B]" />
             <span>{t("menu_badge_full")}</span>
           </div>
 
-          <h2 className="text-3xl sm:text-5xl font-serif font-bold text-[#2C1B17]">
+          <h2 className="text-3xl sm:text-5xl font-serif font-bold text-[#1B1B20]">
             {t("sec_menu")}
           </h2>
 
@@ -107,7 +126,7 @@ export default function MenuSection({ items, categories, onAddToCart, cartMap = 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t("search_menu_ph")}
-              className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white border border-[#C9A227]/30 shadow-md focus:outline-none focus:ring-2 focus:ring-[#C9A227] text-sm text-[#2C1B17] placeholder-stone-400"
+              className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white border border-[#F6C51B]/30 shadow-md focus:outline-none focus:ring-2 focus:ring-[#F6C51B] text-sm text-[#1B1B20] placeholder-stone-400"
             />
             {searchQuery && (
               <button
@@ -129,11 +148,11 @@ export default function MenuSection({ items, categories, onAddToCart, cartMap = 
                   onClick={() => setSelectedCategory(cat.slug)}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-bold tracking-wide transition-all whitespace-nowrap shrink-0 shadow-sm ${
                     isActive
-                      ? "bg-[#4E342E] text-amber-200 border border-[#C9A227] scale-105 shadow-md"
-                      : "bg-white text-stone-700 hover:bg-[#FAF6F0] border border-stone-200"
+                      ? "bg-[#36363E] text-yellow-200 border border-[#F6C51B] scale-105 shadow-md"
+                      : "bg-white text-stone-700 hover:bg-[#FCFAF6] border border-stone-200"
                   }`}
                 >
-                  <span className={isActive ? "text-[#C9A227]" : "text-stone-500"}>
+                  <span className={isActive ? "text-[#F6C51B]" : "text-stone-500"}>
                     {renderCategoryIcon(cat.icon)}
                   </span>
                   <span>{menuText(cat.name)}</span>
@@ -152,7 +171,7 @@ export default function MenuSection({ items, categories, onAddToCart, cartMap = 
           {selectedCategory !== "all" && (
             <button
               onClick={() => setSelectedCategory("all")}
-              className="text-[#C9A227] hover:underline font-semibold"
+              className="text-[#F6C51B] hover:underline font-semibold"
             >
               {t("reset_filter")}
             </button>
@@ -163,14 +182,14 @@ export default function MenuSection({ items, categories, onAddToCart, cartMap = 
         {filteredItems.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-3xl border border-dashed border-stone-300">
             <Utensils className="w-12 h-12 text-stone-300 mx-auto mb-3" />
-            <h3 className="text-lg font-bold text-[#2C1B17]">{t("no_match_title")}</h3>
+            <h3 className="text-lg font-bold text-[#1B1B20]">{t("no_match_title")}</h3>
             <p className="text-xs text-stone-500 mt-1">{t("no_match_sub")}</p>
             <button
               onClick={() => {
                 setSearchQuery("");
                 setSelectedCategory("all");
               }}
-              className="mt-4 px-4 py-2 bg-[#4E342E] text-amber-200 text-xs font-bold rounded-full hover:bg-[#3D2314]"
+              className="mt-4 px-4 py-2 bg-[#36363E] text-yellow-200 text-xs font-bold rounded-full hover:bg-[#2A2A31]"
             >
               {t("show_all")}
             </button>
@@ -183,7 +202,7 @@ export default function MenuSection({ items, categories, onAddToCart, cartMap = 
               return (
                 <div
                   key={item.id}
-                  className="bg-white rounded-3xl border border-[#C9A227]/20 shadow-lg hover:shadow-2xl transition-all duration-300 flex flex-col overflow-hidden group hover:-translate-y-1"
+                  className="bg-white rounded-3xl border border-[#F6C51B]/20 shadow-lg hover:shadow-2xl transition-all duration-300 flex flex-col overflow-hidden group hover:-translate-y-1"
                 >
                   {/* Image Header with Badge */}
                   <div className="relative h-52 overflow-hidden bg-stone-100 cursor-pointer" onClick={() => setActiveItemModal(item)}>
@@ -198,14 +217,14 @@ export default function MenuSection({ items, categories, onAddToCart, cartMap = 
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
 
                     {item.badge && (
-                      <span className="absolute top-3 left-3 bg-[#C9A227] text-[#2C1B17] text-[10px] font-extrabold uppercase tracking-widest px-3 py-1 rounded-full shadow-md">
+                      <span className="absolute top-3 left-3 bg-[#F6C51B] text-[#1B1B20] text-[10px] font-extrabold uppercase tracking-widest px-3 py-1 rounded-full shadow-md">
                         {menuText(item.badge)}
                       </span>
                     )}
 
                     {item.prepTime && (
                       <span className="absolute top-3 right-3 bg-black/60 backdrop-blur-md text-stone-200 text-[10px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-[#C9A227]" />
+                        <Clock className="w-3 h-3 text-[#F6C51B]" />
                         {item.prepTime}
                       </span>
                     )}
@@ -228,11 +247,11 @@ export default function MenuSection({ items, categories, onAddToCart, cartMap = 
                       <div className="flex items-start justify-between gap-2">
                         <h3
                           onClick={() => setActiveItemModal(item)}
-                          className="text-lg font-serif font-bold text-[#2C1B17] hover:text-[#C9A227] cursor-pointer transition-colors"
+                          className="text-lg font-serif font-bold text-[#1B1B20] hover:text-[#F6C51B] cursor-pointer transition-colors"
                         >
                           {menuText(item.name)}
                         </h3>
-                        <span className="text-lg font-serif font-black text-[#4E342E] whitespace-nowrap bg-amber-100/60 px-2.5 py-0.5 rounded-lg border border-amber-300/40">
+                        <span className="text-lg font-serif font-black text-[#36363E] whitespace-nowrap bg-yellow-100/60 px-2.5 py-0.5 rounded-lg border border-yellow-300/40">
                           {item.price} ETB
                         </span>
                       </div>
@@ -260,7 +279,7 @@ export default function MenuSection({ items, categories, onAddToCart, cartMap = 
                     <div className="pt-3 border-t border-stone-100 flex items-center justify-between gap-2">
                       <button
                         onClick={() => setActiveItemModal(item)}
-                        className="text-xs text-stone-500 hover:text-[#4E342E] flex items-center gap-1 font-semibold"
+                        className="text-xs text-stone-500 hover:text-[#36363E] flex items-center gap-1 font-semibold"
                       >
                         <Info className="w-3.5 h-3.5" />
                         <span>{t("details")}</span>
@@ -274,18 +293,18 @@ export default function MenuSection({ items, categories, onAddToCart, cartMap = 
                         )
                       ) : item.isAvailable ? (
                         qtyInCart > 0 ? (
-                          <div className="flex items-center gap-2 bg-[#4E342E] text-white rounded-full p-1 shadow-md">
+                          <div className="flex items-center gap-2 bg-[#36363E] text-white rounded-full p-1 shadow-md">
                             <button
                               onClick={() => onAddToCart?.(item, qtyInCart - 1)}
-                              className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-amber-200"
+                              className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-yellow-200"
                               title="Decrease"
                             >
                               <Minus className="w-3.5 h-3.5" />
                             </button>
-                            <span className="text-xs font-bold px-1 text-amber-300">{qtyInCart}</span>
+                            <span className="text-xs font-bold px-1 text-yellow-300">{qtyInCart}</span>
                             <button
                               onClick={() => onAddToCart?.(item, qtyInCart + 1)}
-                              className="w-7 h-7 rounded-full bg-[#C9A227] text-[#2C1B17] hover:bg-amber-400 flex items-center justify-center font-bold"
+                              className="w-7 h-7 rounded-full bg-[#F6C51B] text-[#1B1B20] hover:bg-yellow-400 flex items-center justify-center font-bold"
                               title="Increase"
                             >
                               <Plus className="w-3.5 h-3.5" />
@@ -294,9 +313,9 @@ export default function MenuSection({ items, categories, onAddToCart, cartMap = 
                         ) : (
                           <button
                             onClick={() => onAddToCart?.(item, 1)}
-                            className="inline-flex items-center gap-1.5 bg-[#4E342E] hover:bg-[#3D2314] text-amber-200 font-bold text-xs px-4 py-2 rounded-full shadow transition hover:scale-105"
+                            className="inline-flex items-center gap-1.5 bg-[#36363E] hover:bg-[#2A2A31] text-yellow-200 font-bold text-xs px-4 py-2 rounded-full shadow transition hover:scale-105"
                           >
-                            <Plus className="w-3.5 h-3.5 text-[#C9A227]" />
+                            <Plus className="w-3.5 h-3.5 text-[#F6C51B]" />
                             <span>{t("add_to_order")}</span>
                           </button>
                         )
@@ -321,7 +340,7 @@ export default function MenuSection({ items, categories, onAddToCart, cartMap = 
       {/* Item Detail Modal */}
       {activeItemModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-[#C9A227] relative animate-scaleUp">
+          <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-[#F6C51B] relative animate-scaleUp">
             
             <button
               onClick={() => setActiveItemModal(null)}
@@ -341,7 +360,7 @@ export default function MenuSection({ items, categories, onAddToCart, cartMap = 
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
               <div className="absolute bottom-4 left-6 right-6 text-white">
-                <span className="text-xs font-bold uppercase tracking-widest text-[#C9A227] bg-black/50 px-2.5 py-1 rounded">
+                <span className="text-xs font-bold uppercase tracking-widest text-[#F6C51B] bg-black/50 px-2.5 py-1 rounded">
                   {menuText(activeItemModal.category.replace(/-/g, " "))}
                 </span>
                 <h3 className="text-2xl font-serif font-bold mt-1 text-white">{menuText(activeItemModal.name)}</h3>
@@ -350,7 +369,7 @@ export default function MenuSection({ items, categories, onAddToCart, cartMap = 
 
             <div className="p-6 space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-2xl font-serif font-black text-[#4E342E]">
+                <span className="text-2xl font-serif font-black text-[#36363E]">
                   {activeItemModal.price} ETB
                 </span>
                 <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
@@ -369,7 +388,7 @@ export default function MenuSection({ items, categories, onAddToCart, cartMap = 
                     {activeItemModal.dietaryTags.split(",").map((tag, i) => (
                       <span
                         key={i}
-                        className="text-xs font-semibold text-[#2C1B17] bg-amber-100 px-3 py-1 rounded-full border border-amber-300/50"
+                        className="text-xs font-semibold text-[#1B1B20] bg-yellow-100 px-3 py-1 rounded-full border border-yellow-300/50"
                       >
                         ✓ {menuText(tag.trim())}
                       </span>
@@ -387,7 +406,7 @@ export default function MenuSection({ items, categories, onAddToCart, cartMap = 
                       onAddToCart?.(activeItemModal, currentQty + 1);
                       setActiveItemModal(null);
                     }}
-                    className="bg-gradient-to-r from-[#C9A227] to-[#B8921F] text-[#2C1B17] font-bold text-sm px-6 py-2.5 rounded-full shadow-lg hover:scale-105 transition"
+                    className="bg-gradient-to-r from-[#F6C51B] to-[#D9A409] text-[#1B1B20] font-bold text-sm px-6 py-2.5 rounded-full shadow-lg hover:scale-105 transition"
                   >
                     {t("add_to_order")} ({activeItemModal.price} ETB)
                   </button>

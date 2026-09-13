@@ -344,10 +344,10 @@ const urgentFor = (alerts: RoleAlert[], role: string) =>
   pass("a flagged item goes to the buna station whatever its category", /if \(isBunaItem\) return "buna"/.test(stationsLib));
   pass("the order route uses that rule (buna flag + per-item override + category routing)", /stationForOrder\(\s*routing,\s*catSlug,\s*bunaById\.get/.test(tickets) && /overrideById\.get/.test(tickets));
   pass("the instant-release push keeps every crew's lane apart (per-station titles)",
-    /single === "buna" \? "🫖 New buna"/.test(tickets) &&
-    /single === "juice" \? "🧃 New juices"/.test(tickets) &&
-    /single === "barista" \? "☕ New drinks"/.test(tickets) &&
-    /single === "kitchen" \? "👨‍🍳 New items to cook"/.test(tickets));
+    /single === "buna" \? "🥤 New drinks"/.test(tickets) &&
+    /single === "juice" \? "🥤 New drinks"/.test(tickets) &&
+    /single === "barista" \? "🥤 New drinks"/.test(tickets) &&
+    /single === "kitchen" \? "🍗 New order"/.test(tickets));
   pass("food ready still finds its owner by NAME, whatever role they hold",
     /\.where\(eq\(pushSubscriptions\.name, name\)\)/.test(read("src/lib/push.ts")));
 }
@@ -389,7 +389,7 @@ const urgentFor = (alerts: RoleAlert[], role: string) =>
   pass("every staff app offers the off-duty switch",
     /Off duty: silence my phone/.test(chip) && /Back on duty: ring my phone/.test(chip) && /notificationsEnabled/.test(chip));
   pass("the chip tells an off-duty person the truth without crying wolf",
-    /state === "offduty"\s*\n\s*\? "bg-amber-500\/15/.test(chip) && /animate-pulse/.test(chip) && !/offduty"[^"]*animate-pulse/.test(chip));
+    /state === "offduty"\s*\n\s*\? "bg-yellow-500\/15/.test(chip) && /animate-pulse/.test(chip) && !/offduty"[^"]*animate-pulse/.test(chip));
   pass("a test ring while off duty explains itself instead of looking broken",
     /Your alerts are switched OFF \(off duty\)/.test(testRoute));
   pass("the owner can see whose alerts are off (admin staff list)",

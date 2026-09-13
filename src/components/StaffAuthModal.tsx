@@ -3,12 +3,10 @@
 import { useState, useEffect } from "react";
 import {
   X,
-  Lock,
   UtensilsCrossed,
   Receipt,
-  Coffee,
-  ChefHat,
-  Flame,
+  Drumstick,
+  CupSoda,
   ShieldCheck,
   ArrowLeft,
   KeyRound,
@@ -159,47 +157,31 @@ export default function StaffAuthModal({ isOpen, onClose }: StaffAuthModalProps)
       id: "waiter" as const,
       title: "Waiter",
       description: "Floor, tables & orders",
-      icon: <UtensilsCrossed className="w-6 h-6 text-amber-300" />,
-      color: "from-amber-600/30 to-amber-900/30 border-amber-500/40 hover:border-amber-400",
-      badgeBg: "bg-amber-500/20 text-amber-300 border-amber-500/40",
+      icon: <UtensilsCrossed className="w-6 h-6 text-yellow-300" />,
+      color: "from-neutral-600/30 to-neutral-900/30 border-yellow-500/40 hover:border-yellow-400",
+      badgeBg: "bg-yellow-500/20 text-yellow-300 border-yellow-500/40",
     },
     {
       id: "cashier" as const,
       title: "Cashier",
-      description: "Billing, printing & settlement",
+      description: "Billing, printing & receipts",
       icon: <Receipt className="w-6 h-6 text-purple-300" />,
       color: "from-purple-600/30 to-purple-900/30 border-purple-500/40 hover:border-purple-400",
       badgeBg: "bg-purple-500/20 text-purple-300 border-purple-500/40",
     },
     {
-      id: "barista" as const,
-      title: "Barista",
-      description: "Coffee, drinks & cake station",
-      icon: <Coffee className="w-6 h-6 text-emerald-300" />,
-      color: "from-emerald-600/30 to-emerald-900/30 border-emerald-500/40 hover:border-emerald-400",
-      badgeBg: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
-    },
-    {
       id: "kitchen" as const,
-      title: "Kitchen",
-      description: "Food preparation station",
-      icon: <ChefHat className="w-6 h-6 text-orange-300" />,
+      title: "Amrogn Kitchen",
+      description: "Chicken, shawarma, burgers & sides",
+      icon: <Drumstick className="w-6 h-6 text-orange-300" />,
       color: "from-orange-600/30 to-orange-900/30 border-orange-500/40 hover:border-orange-400",
       badgeBg: "bg-orange-500/20 text-orange-300 border-orange-500/40",
     },
     {
-      id: "buna" as const,
-      title: "Buna Maker",
-      description: "Traditional coffee, orders too",
-      icon: <Flame className="w-6 h-6 text-rose-300" />,
-      color: "from-rose-600/30 to-rose-900/30 border-rose-500/40 hover:border-rose-400",
-      badgeBg: "bg-rose-500/20 text-rose-300 border-rose-500/40",
-    },
-    {
       id: "juice" as const,
-      title: "Juice Maker",
-      description: "Fresh juices, spris & punches",
-      icon: <UtensilsCrossed className="w-6 h-6 text-lime-300" />,
+      title: "Juice & Cold Drinks",
+      description: "Fresh juices, spris & cold beverages",
+      icon: <CupSoda className="w-6 h-6 text-lime-300" />,
       color: "from-lime-600/30 to-lime-900/30 border-lime-500/40 hover:border-lime-400",
       badgeBg: "bg-lime-500/20 text-lime-300 border-lime-500/40",
     },
@@ -207,9 +189,9 @@ export default function StaffAuthModal({ isOpen, onClose }: StaffAuthModalProps)
       id: "admin" as const,
       title: "Admin / Owner",
       description: "Management & site settings",
-      icon: <ShieldCheck className="w-6 h-6 text-[#C9A227]" />,
-      color: "from-[#C9A227]/20 to-yellow-900/30 border-[#C9A227]/50 hover:border-[#C9A227]",
-      badgeBg: "bg-[#C9A227]/20 text-[#C9A227] border-[#C9A227]/40",
+      icon: <ShieldCheck className="w-6 h-6 text-[#F6C51B]" />,
+      color: "from-[#F6C51B]/20 to-yellow-900/30 border-[#F6C51B]/50 hover:border-[#F6C51B]",
+      badgeBg: "bg-[#F6C51B]/20 text-[#F6C51B] border-[#F6C51B]/40",
     },
   ];
 
@@ -217,7 +199,7 @@ export default function StaffAuthModal({ isOpen, onClose }: StaffAuthModalProps)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg bg-[#1C120F] border border-[#C9A227]/40 rounded-3xl p-6 md:p-8 text-white shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-lg bg-[#17171B] border border-[#F6C51B]/40 rounded-3xl p-6 md:p-8 text-white shadow-2xl overflow-hidden">
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -229,14 +211,15 @@ export default function StaffAuthModal({ isOpen, onClose }: StaffAuthModalProps)
 
         {/* Modal Header */}
         <div className="text-center space-y-2 mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-[#C9A227] text-[#2C1B17] flex items-center justify-center mx-auto shadow-lg font-bold">
-            <Lock className="w-6 h-6" />
-          </div>
-          <h2 className="text-2xl font-serif font-bold text-amber-100">
-            Staff & Owner Portal
+          <img src="/logo.png" alt="Amrogn Chicken" className="w-14 h-14 rounded-2xl object-contain bg-white p-1 mx-auto shadow-lg" />
+          <h2 className="text-xl font-serif font-black text-white uppercase tracking-wide">
+            Amrogn Chicken <span className="text-[#F6C51B]">• 4 Kilo</span>
           </h2>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#F6C51B]">
+            Staff & Owner Portal
+          </p>
           <p className="text-xs text-stone-300">
-            Select your role to access your operational dashboard
+            Select your role to open your station screen
           </p>
         </div>
 
@@ -265,7 +248,7 @@ export default function StaffAuthModal({ isOpen, onClose }: StaffAuthModalProps)
                     {r.icon}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-white group-hover:text-amber-200 transition">
+                    <p className="text-sm font-bold text-white group-hover:text-yellow-200 transition">
                       {r.title}
                     </p>
                     <p className="text-[11px] text-stone-300 truncate">
@@ -286,7 +269,7 @@ export default function StaffAuthModal({ isOpen, onClose }: StaffAuthModalProps)
               <button
                 type="button"
                 onClick={() => setSelectedRole(null)}
-                className="flex items-center gap-1.5 text-xs text-amber-300 hover:text-white bg-white/10 px-3 py-1.5 rounded-full transition"
+                className="flex items-center gap-1.5 text-xs text-yellow-300 hover:text-white bg-white/10 px-3 py-1.5 rounded-full transition"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Change Role</span>
@@ -299,19 +282,19 @@ export default function StaffAuthModal({ isOpen, onClose }: StaffAuthModalProps)
               </div>
             </div>
 
-            {/* FORM FOR STAFF (Waiter / Cashier / Barista / Kitchen) */}
+            {/* FORM FOR STAFF (Waiter / Cashier / Kitchen / Juice & Drinks) */}
             {selectedRole !== "admin" ? (
               <form onSubmit={handleStaffLogin} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-amber-200 mb-1 flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-[#C9A227]" />
+                  <label className="block text-xs font-bold text-yellow-200 mb-1 flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-[#F6C51B]" />
                     <span>Select Staff Member</span>
                   </label>
                   {staffList.length > 0 ? (
                     <select
                       value={selectedName}
                       onChange={(e) => setSelectedName(e.target.value)}
-                      className="w-full bg-[#2C1B17] border border-stone-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#C9A227]"
+                      className="w-full bg-[#1B1B20] border border-stone-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#F6C51B]"
                     >
                       {staffList.map((s) => (
                         <option key={s.id} value={s.name}>
@@ -326,14 +309,14 @@ export default function StaffAuthModal({ isOpen, onClose }: StaffAuthModalProps)
                       value={customName}
                       onChange={(e) => setCustomName(e.target.value)}
                       placeholder="Enter your name..."
-                      className="w-full bg-[#2C1B17] border border-stone-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#C9A227]"
+                      className="w-full bg-[#1B1B20] border border-stone-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#F6C51B]"
                     />
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-amber-200 mb-1 flex items-center gap-1.5">
-                    <KeyRound className="w-3.5 h-3.5 text-[#C9A227]" />
+                  <label className="block text-xs font-bold text-yellow-200 mb-1 flex items-center gap-1.5">
+                    <KeyRound className="w-3.5 h-3.5 text-[#F6C51B]" />
                     <span>Enter 4-Digit PIN</span>
                   </label>
                   <input
@@ -346,14 +329,14 @@ export default function StaffAuthModal({ isOpen, onClose }: StaffAuthModalProps)
                     value={pin}
                     onChange={(e) => setPin(e.target.value)}
                     placeholder="••••"
-                    className="w-full bg-[#2C1B17] border border-stone-700 rounded-xl px-4 py-3 text-sm text-white tracking-widest focus:outline-none focus:border-[#C9A227]"
+                    className="w-full bg-[#1B1B20] border border-stone-700 rounded-xl px-4 py-3 text-sm text-white tracking-widest focus:outline-none focus:border-[#F6C51B]"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-gradient-to-r from-[#C9A227] to-[#B8921F] hover:from-[#d6ad2a] hover:to-[#c29b21] text-[#2C1B17] font-black text-xs uppercase tracking-wider py-3.5 rounded-xl shadow-xl transition disabled:opacity-50"
+                  className="w-full bg-gradient-to-r from-[#F6C51B] to-[#D9A409] hover:from-[#F9D34A] hover:to-[#E5B110] text-[#1B1B20] font-black text-xs uppercase tracking-wider py-3.5 rounded-xl shadow-xl transition disabled:opacity-50"
                 >
                   {loading ? "Logging in..." : `Login as ${activeRoleConfig?.title}`}
                 </button>
@@ -362,8 +345,8 @@ export default function StaffAuthModal({ isOpen, onClose }: StaffAuthModalProps)
               /* FORM FOR ADMIN / OWNER */
               <form onSubmit={handleAdminLogin} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-amber-200 mb-1 flex items-center gap-1.5">
-                    <KeyRound className="w-3.5 h-3.5 text-[#C9A227]" />
+                  <label className="block text-xs font-bold text-yellow-200 mb-1 flex items-center gap-1.5">
+                    <KeyRound className="w-3.5 h-3.5 text-[#F6C51B]" />
                     <span>Owner Password</span>
                   </label>
                   <input
@@ -373,14 +356,14 @@ export default function StaffAuthModal({ isOpen, onClose }: StaffAuthModalProps)
                     value={adminPassword}
                     onChange={(e) => setAdminPassword(e.target.value)}
                     placeholder="Enter owner password..."
-                    className="w-full bg-[#2C1B17] border border-stone-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#C9A227]"
+                    className="w-full bg-[#1B1B20] border border-stone-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#F6C51B]"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-gradient-to-r from-[#C9A227] to-[#B8921F] hover:from-[#d6ad2a] hover:to-[#c29b21] text-[#2C1B17] font-black text-xs uppercase tracking-wider py-3.5 rounded-xl shadow-xl transition disabled:opacity-50"
+                  className="w-full bg-gradient-to-r from-[#F6C51B] to-[#D9A409] hover:from-[#F9D34A] hover:to-[#E5B110] text-[#1B1B20] font-black text-xs uppercase tracking-wider py-3.5 rounded-xl shadow-xl transition disabled:opacity-50"
                 >
                   {loading ? "Unlocking..." : "Login To Owner Dashboard"}
                 </button>

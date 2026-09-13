@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import {
-  Coffee, RefreshCw, LogOut, BellRing, CheckCircle2, XCircle,
-  Users, Clock, Image as ImageIcon, Monitor, Printer, AlertTriangle,
+  Wallet, RefreshCw, LogOut, BellRing, CheckCircle2, XCircle,
+  Users, Clock, Image as ImageIcon, Printer, AlertTriangle,
 } from "lucide-react";
 import { Ticket, TicketItem, CafeTable, StaffUser } from "@/types";
 import { triggerDesktopNotification } from "@/lib/notifications";
@@ -47,7 +47,7 @@ export default function CashierDashboard() {
   const prevCountRef = useRef(0);
 
   // ── GROUP 9: PRINT-QUEUE MODE ──
-  // Fana's real workflow: the cashier's ONLY system job is one click per order —
+  // Amrogn's real workflow: the cashier's ONLY system job is one click per order —
   // she keys the bill into the government EFD/POS on her desktop, prints the
   // order paper, and taps ✓ PRINTED here. Payment tracking stays in the EFD
   // world; waiters close bills by tapping "Table cleared". Mode comes from the
@@ -146,7 +146,7 @@ export default function CashierDashboard() {
       void pocket.refreshStatus();
     }
     playAlarm();
-    triggerDesktopNotification({ title: "Fana Cafe • Cashier", message: "🔔 Ring bell + desktop + pocket alerts are now ON for this device!" });
+    triggerDesktopNotification({ title: "Amrogn Chicken • Cashier", message: "🔔 Ring bell + desktop + pocket alerts are now ON for this device!" });
   };
 
   const eventMessage = (t: Ticket): string | null => {
@@ -273,7 +273,7 @@ export default function CashierDashboard() {
         const first = loudEvents[0];
         if (first) {
           triggerDesktopNotification({
-            title: "Fana Cafe • Cashier Alert",
+            title: "Amrogn Chicken • Cashier Alert",
             message: eventMessage(first) || `${first.tableName} updated`,
             tag: `fana-cashier-${first.id}`,
           });
@@ -637,13 +637,15 @@ export default function CashierDashboard() {
   /* ── LOGIN ── */
   if (!staffName) {
     return (
-      <div className="min-h-screen bg-[#1C120F] flex items-center justify-center p-4 text-white">
-        <div className="bg-[#2C1B17] border border-[#C9A227]/40 rounded-3xl p-8 w-full max-w-sm space-y-6 shadow-2xl">
+      <div className="min-h-screen bg-[#17171B] flex items-center justify-center p-4 text-white">
+        <div className="bg-[#1B1B20] border border-[#F6C51B]/40 rounded-3xl p-8 w-full max-w-sm space-y-6 shadow-2xl">
           <div className="text-center space-y-2">
-            <div className="w-14 h-14 rounded-2xl bg-[#C9A227] text-[#2C1B17] flex items-center justify-center mx-auto">
-              <Monitor className="w-7 h-7" />
+            <img src="/logo.png" alt="Amrogn Chicken" className="w-14 h-14 rounded-2xl object-contain bg-white p-1 mx-auto" />
+            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#F6C51B]">Amrogn Chicken • 4 Kilo</p>
+            <div className="w-12 h-12 rounded-2xl bg-[#D22630] text-white flex items-center justify-center mx-auto">
+              <Wallet className="w-6 h-6" />
             </div>
-            <h1 className="font-serif text-2xl font-bold text-amber-100">Cashier Login</h1>
+            <h1 className="font-serif text-2xl font-bold text-white">Cashier Login</h1>
             <p className="text-xs text-stone-400">Enter your name and PIN given by the admin.</p>
           </div>
           {loginError && (
@@ -653,7 +655,7 @@ export default function CashierDashboard() {
             <select
               value={selectedName}
               onChange={(e) => setSelectedName(e.target.value)}
-              className="w-full bg-[#3D2314] border border-stone-700 rounded-xl p-3 text-sm text-white"
+              className="w-full bg-[#2A2A31] border border-stone-700 rounded-xl p-3 text-sm text-white"
             >
               <option value="">Select your name...</option>
               {staffList.map((s) => (
@@ -666,16 +668,16 @@ export default function CashierDashboard() {
               value={pin}
               onChange={(e) => setPin(e.target.value)}
               placeholder="••••"
-              className="w-full bg-[#3D2314] border border-stone-700 rounded-xl p-3 text-sm text-white text-center tracking-[0.5em]"
+              className="w-full bg-[#2A2A31] border border-stone-700 rounded-xl p-3 text-sm text-white text-center tracking-[0.5em]"
             />
             <button
               onClick={login}
               disabled={!selectedName || !pin}
-              className="w-full bg-gradient-to-r from-[#C9A227] to-[#B8921F] text-[#2C1B17] font-black text-sm uppercase py-4 rounded-xl disabled:opacity-40"
+              className="w-full bg-gradient-to-r from-[#F6C51B] to-[#D9A409] text-[#1B1B20] font-black text-sm uppercase py-4 rounded-xl disabled:opacity-40"
             >
               Login as Cashier
             </button>
-            <a href="/" className="block text-center text-xs text-[#C9A227] hover:underline">← Back to public website</a>
+            <a href="/" className="block text-center text-xs text-[#F6C51B] hover:underline">← Back to public website</a>
           </div>
         </div>
       </div>
@@ -723,7 +725,7 @@ export default function CashierDashboard() {
 
   const statusMeta: Record<string, { label: string; cls: string }> = {
     pending_waiter: { label: "⏳ NEEDS CONFIRMATION", cls: "bg-violet-600 text-white" },
-    confirmed: { label: "🔔 CONFIRMED • NEW", cls: "bg-amber-500 text-black" },
+    confirmed: { label: "🔔 CONFIRMED • NEW", cls: "bg-yellow-500 text-black" },
     preparing: { label: "👨‍🍳 Preparing", cls: "bg-orange-600 text-white" },
     ready_for_payment: { label: "💳 Payment Requested", cls: "bg-purple-600 text-white" },
     completed: { label: "✓ Paid (verify)", cls: "bg-emerald-600 text-white" },
@@ -748,16 +750,14 @@ export default function CashierDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#14100C] text-white pb-10">
+    <div className="min-h-screen bg-[#101012] text-white pb-10">
       {/* Header */}
-      <div className="sticky top-0 z-30 bg-[#2C1B17]/95 backdrop-blur border-b border-[#C9A227]/30 px-4 md:px-8 py-3.5 flex items-center justify-between">
+      <div className="sticky top-0 z-30 bg-[#1B1B20]/95 backdrop-blur border-b border-[#F6C51B]/30 px-4 md:px-8 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#C9A227] flex items-center justify-center">
-            <Coffee className="w-5 h-5 text-[#2C1B17]" />
-          </div>
+          <img src="/logo.png" alt="Amrogn Chicken" className="w-9 h-9 rounded-xl object-contain bg-white p-0.5" />
           <div>
-            <h1 className="font-serif font-bold text-amber-100 leading-none">Fana Cafe • Cashier</h1>
-            <p className="text-[10px] text-stone-400">{staffName} • coordinating waiters & kitchen</p>
+            <h1 className="font-serif font-black text-white leading-none uppercase tracking-wide">Amrogn Chicken • Cashier</h1>
+            <p className="text-[10px] text-[#F6C51B] font-bold uppercase tracking-wider">4 Kilo Branch • {staffName}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -797,7 +797,7 @@ export default function CashierDashboard() {
             className={`text-[10px] font-black px-3 py-1.5 rounded-full flex items-center gap-1.5 transition ${
               alertsOn
                 ? "bg-emerald-600 text-white"
-                : "bg-[#C9A227] text-[#2C1B17] animate-pulse"
+                : "bg-[#F6C51B] text-[#1B1B20] animate-pulse"
             }`}
             title={alertsOn ? "Ring bell + desktop alerts enabled" : "Click once to enable ring bell & desktop alerts"}
           >
@@ -807,7 +807,7 @@ export default function CashierDashboard() {
           {printQueueMode ? (
             <>
               {printQueue.length > 0 && (
-                <span className="bg-amber-500 text-black text-[10px] font-black px-2.5 py-1 rounded-full animate-pulse flex items-center gap-1">
+                <span className="bg-yellow-500 text-black text-[10px] font-black px-2.5 py-1 rounded-full animate-pulse flex items-center gap-1">
                   <Printer className="w-3 h-3" /> {printQueue.length} TO PRINT
                 </span>
               )}
@@ -830,7 +830,7 @@ export default function CashierDashboard() {
                 </span>
               )}
               {newCount > 0 && (
-                <span className="bg-amber-500 text-black text-[10px] font-black px-2.5 py-1 rounded-full animate-pulse flex items-center gap-1">
+                <span className="bg-yellow-500 text-black text-[10px] font-black px-2.5 py-1 rounded-full animate-pulse flex items-center gap-1">
                   <BellRing className="w-3 h-3" /> {newCount} NEW
                 </span>
               )}
@@ -839,7 +839,7 @@ export default function CashierDashboard() {
               )}
             </>
           )}
-          <button onClick={() => { loadAll(); loadHistory(); }} className="p-2 rounded-xl bg-white/10 text-amber-200" title="Refresh">
+          <button onClick={() => { loadAll(); loadHistory(); }} className="p-2 rounded-xl bg-white/10 text-yellow-200" title="Refresh">
             <RefreshCw className="w-4 h-4" />
           </button>
           <button onClick={logout} className="p-2 rounded-xl bg-rose-600/80 text-white" title="Logout">
@@ -872,8 +872,8 @@ export default function CashierDashboard() {
 
         {/* TABLE OVERVIEW */}
         <section>
-          <h2 className="text-xs font-bold uppercase tracking-widest text-amber-200/80 mb-3 flex items-center gap-2">
-            <Users className="w-4 h-4 text-[#C9A227]" /> Tables Overview
+          <h2 className="text-xs font-bold uppercase tracking-widest text-yellow-200/80 mb-3 flex items-center gap-2">
+            <Users className="w-4 h-4 text-[#F6C51B]" /> Tables Overview
           </h2>
           <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-10 gap-2">
             {tables.map((t) => (
@@ -885,13 +885,13 @@ export default function CashierDashboard() {
                     : t.status === "waiting"
                     ? "border-violet-500/60 bg-violet-950/30"
                     : t.status === "ready-for-payment"
-                    ? "border-amber-400 bg-amber-950/30"
+                    ? "border-yellow-400 bg-neutral-900/30"
                     : t.status === "preparing"
                     ? "border-orange-500/60 bg-orange-950/30"
                     : "border-rose-500/50 bg-rose-950/30"
                 }`}
               >
-                <p className="text-[11px] font-bold text-amber-100">{t.name}</p>
+                <p className="text-[11px] font-bold text-white">{t.name}</p>
                 <p
                   className={`text-[9px] font-extrabold uppercase mt-1 ${
                     t.status === "available"
@@ -899,7 +899,7 @@ export default function CashierDashboard() {
                       : t.status === "waiting"
                       ? "text-violet-400"
                       : t.status === "ready-for-payment"
-                      ? "text-amber-300"
+                      ? "text-yellow-300"
                       : t.status === "preparing"
                       ? "text-orange-400"
                       : "text-rose-400"
@@ -933,9 +933,9 @@ export default function CashierDashboard() {
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {waitingConfirm.map((t) => (
-                    <div key={t.id} className="bg-[#241714] border border-violet-700/60 rounded-2xl p-4 flex items-center justify-between gap-3">
+                    <div key={t.id} className="bg-[#1D1D22] border border-violet-700/60 rounded-2xl p-4 flex items-center justify-between gap-3">
                       <div className="min-w-0 space-y-0.5">
-                        <p className="font-serif font-bold text-amber-100">
+                        <p className="font-serif font-bold text-white">
                           {t.tableName}
                           {t.orderNumber && <span className="ml-1.5 text-[10px] font-black text-stone-400">#{t.orderNumber}</span>}
                         </p>
@@ -973,47 +973,47 @@ export default function CashierDashboard() {
                     const visible = items.filter((i) => !i.removed);
                     const problem = problemOpen.has(t.id);
                     return (
-                      <div key={t.id} className="bg-[#241714] border-2 border-sky-500/70 rounded-2xl p-4 space-y-3">
+                      <div key={t.id} className="bg-[#1D1D22] border-2 border-sky-500/70 rounded-2xl p-4 space-y-3">
                         <div className="flex items-start justify-between gap-2">
                           <div className="space-y-0.5">
-                            <p className="font-serif font-bold text-xl text-amber-100">
+                            <p className="font-serif font-bold text-xl text-white">
                               {t.tableName}
                               {t.orderNumber && (
-                                <span className="ml-2 align-middle text-[10px] font-black bg-stone-800 border border-[#C9A227]/40 text-[#C9A227] px-2 py-0.5 rounded-full">
+                                <span className="ml-2 align-middle text-[10px] font-black bg-stone-800 border border-[#F6C51B]/40 text-[#F6C51B] px-2 py-0.5 rounded-full">
                                   #{t.orderNumber}
                                 </span>
                               )}
                             </p>
                             <p className="text-xs font-bold text-stone-300 flex items-center gap-1">
-                              <Clock className="w-3.5 h-3.5 text-[#C9A227]" /> arrived {formatClock(t.createdAt)} • waiting {waitingLabel(t.createdAt)}
+                              <Clock className="w-3.5 h-3.5 text-[#F6C51B]" /> arrived {formatClock(t.createdAt)} • waiting {waitingLabel(t.createdAt)}
                             </p>
                             <p className="text-xs font-bold text-stone-300 truncate">by {t.createdBy || "Customer (QR)"}</p>
                           </div>
                           <div className="text-right shrink-0">
                             <span className="inline-block text-[11px] font-black px-2.5 py-1 rounded-full bg-sky-500 text-black">⏸ HELD</span>
-                            <p className="font-serif font-black text-2xl text-[#C9A227] mt-1">{t.totalAmount} ETB</p>
+                            <p className="font-serif font-black text-2xl text-[#F6C51B] mt-1">{t.totalAmount} ETB</p>
                             <p className="text-[11px] font-bold text-stone-300">{visible.reduce((s, i) => s + i.quantity, 0)} items • nothing sent yet</p>
                           </div>
                         </div>
 
                         <p className="text-xs font-bold text-sky-300 bg-sky-950/40 border border-sky-700/40 rounded-xl px-3 py-2">
-                          Accepted. The kitchen, barista, buna and juice makers do NOT have this order yet. If the guest is still ordering, wait; when they finish tap CONFIRM & SEND.
+                          Accepted. The kitchen and the drinks / juice stations do NOT have this order yet. If the guest is still ordering, wait; when they finish tap CONFIRM & SEND.
                         </p>
 
-                        <div className="bg-[#3D2314] rounded-xl divide-y divide-stone-800">
+                        <div className="bg-[#2A2A31] rounded-xl divide-y divide-stone-800">
                           {visible.map((i) => (
                             <div key={i.id} className="p-2.5 text-xs flex items-center justify-between gap-2">
                               <div className="flex-1 min-w-0">
-                                <p className="font-bold text-amber-100 truncate">
+                                <p className="font-bold text-white truncate">
                                   {i.name} <span className="text-stone-300 font-bold">({i.price} ETB)</span>
                                 </p>
-                                {i.notes && <p className="text-[11px] font-semibold text-amber-300 italic">📝 {i.notes}</p>}
+                                {i.notes && <p className="text-[11px] font-semibold text-yellow-300 italic">📝 {i.notes}</p>}
                               </div>
-                              <span className="font-extrabold text-amber-100 shrink-0">× {i.quantity}</span>
+                              <span className="font-extrabold text-white shrink-0">× {i.quantity}</span>
                               {!i.removed && (
                                 <button
                                   onClick={() => setEditTarget({ item: i })}
-                                  className="px-2 py-1 bg-[#C9A227]/15 text-[#C9A227] border border-[#C9A227]/40 rounded text-[10px] font-black hover:bg-[#C9A227] hover:text-black shrink-0"
+                                  className="px-2 py-1 bg-[#F6C51B]/15 text-[#F6C51B] border border-[#F6C51B]/40 rounded text-[10px] font-black hover:bg-[#F6C51B] hover:text-black shrink-0"
                                   title="Fix this item's note or quantity, or remove it. Saving never prints • the card stays in your queue."
                                 >
                                   ✎ Edit
@@ -1037,7 +1037,7 @@ export default function CashierDashboard() {
                           <button
                             onClick={() => confirmAndSend(t)}
                             className="flex-1 bg-sky-600 hover:bg-sky-500 text-white text-sm font-black py-4 rounded-xl flex items-center justify-center gap-2"
-                            title="Sends this order to the kitchen/barista/buna/juice makers now. Afterwards key it into the EFD and tap ✓ PRINTED"
+                            title="Sends this order to the kitchen and drinks/juice stations now. Afterwards key it into the EFD and tap ✓ PRINTED"
                           >
                             <CheckCircle2 className="w-5 h-5" /> ✓ CONFIRM & SEND
                           </button>
@@ -1070,11 +1070,11 @@ export default function CashierDashboard() {
 
             {/* THE PRINT QUEUE — key the card into the EFD, print the order paper, tap ✓ PRINTED */}
             <section>
-              <h2 className="text-xs font-bold uppercase tracking-widest text-amber-200/80 mb-3 flex items-center gap-2">
-                <Printer className="w-4 h-4 text-[#C9A227]" /> To Print ({printQueue.length}) → key into EFD → print → tap ✓
+              <h2 className="text-xs font-bold uppercase tracking-widest text-yellow-200/80 mb-3 flex items-center gap-2">
+                <Printer className="w-4 h-4 text-[#F6C51B]" /> To Print ({printQueue.length}) → key into EFD → print → tap ✓
               </h2>
               {printQueue.length === 0 ? (
-                <div className="bg-[#2C1B17] border border-stone-800 rounded-2xl p-8 text-center text-stone-500 text-sm">
+                <div className="bg-[#1B1B20] border border-stone-800 rounded-2xl p-8 text-center text-stone-500 text-sm">
                   Nothing to print. Orders the waiters send appear here instantly.
                 </div>
               ) : (
@@ -1094,20 +1094,20 @@ export default function CashierDashboard() {
                     const newCount = newItems.reduce((s, i) => s + i.quantity, 0);
                     const problem = problemOpen.has(t.id);
                     return (
-                      <div key={t.id} className={`bg-[#2C1B17] rounded-2xl border-2 p-4 space-y-3 ${added ? "border-amber-400" : "border-[#C9A227]/70"}`}>
+                      <div key={t.id} className={`bg-[#1B1B20] rounded-2xl border-2 p-4 space-y-3 ${added ? "border-yellow-400" : "border-[#F6C51B]/70"}`}>
                         {/* header */}
                         <div className="flex items-start justify-between gap-2">
                           <div className="space-y-0.5">
-                            <p className="font-serif font-bold text-xl text-amber-100">
+                            <p className="font-serif font-bold text-xl text-white">
                               {t.tableName}
                               {t.orderNumber && (
-                                <span className="ml-2 align-middle text-[10px] font-black bg-stone-800 border border-[#C9A227]/40 text-[#C9A227] px-2 py-0.5 rounded-full">
+                                <span className="ml-2 align-middle text-[10px] font-black bg-stone-800 border border-[#F6C51B]/40 text-[#F6C51B] px-2 py-0.5 rounded-full">
                                   #{t.orderNumber}
                                 </span>
                               )}
                             </p>
                             <p className="text-xs font-bold text-stone-300 flex items-center gap-1">
-                              <Clock className="w-3.5 h-3.5 text-[#C9A227]" /> {t.confirmedBy ? `by ${t.confirmedBy}` : `by ${t.createdBy || "waiter"}`}
+                              <Clock className="w-3.5 h-3.5 text-[#F6C51B]" /> {t.confirmedBy ? `by ${t.confirmedBy}` : `by ${t.createdBy || "waiter"}`}
                             </p>
                             <p className="text-xs font-bold text-stone-300">
                               🕒 arrived {formatClock(t.createdAt)} • waiting {waitingLabel(t.createdAt)}
@@ -1115,20 +1115,20 @@ export default function CashierDashboard() {
                           </div>
                           <div className="text-right shrink-0">
                             {added ? (
-                              <span className="inline-block text-[11px] font-black px-2.5 py-1 rounded-full bg-amber-400 text-black animate-pulse">
+                              <span className="inline-block text-[11px] font-black px-2.5 py-1 rounded-full bg-yellow-400 text-black animate-pulse">
                                 ⚠ {newCount} NEW item{newCount === 1 ? "" : "s"} on existing bill
                               </span>
                             ) : (
-                              <span className="inline-block text-[11px] font-black px-2.5 py-1 rounded-full bg-amber-500 text-black">🔔 NEW ORDER</span>
+                              <span className="inline-block text-[11px] font-black px-2.5 py-1 rounded-full bg-yellow-500 text-black">🔔 NEW ORDER</span>
                             )}
                             {added ? (
                               <>
-                                <p className="font-serif font-black text-2xl text-amber-400 mt-1">{newTotal} ETB</p>
+                                <p className="font-serif font-black text-2xl text-yellow-400 mt-1">{newTotal} ETB</p>
                                 <p className="text-[11px] font-bold text-stone-300">new items only • whole bill {t.totalAmount} ETB</p>
                               </>
                             ) : (
                               <>
-                                <p className="font-serif font-black text-2xl text-[#C9A227] mt-1">{t.totalAmount} ETB</p>
+                                <p className="font-serif font-black text-2xl text-[#F6C51B] mt-1">{t.totalAmount} ETB</p>
                                 <p className="text-[11px] font-bold text-stone-300">{visible.reduce((s, i) => s + i.quantity, 0)} items</p>
                               </>
                             )}
@@ -1136,7 +1136,7 @@ export default function CashierDashboard() {
                         </div>
 
                         {added && (
-                          <p className="text-xs font-bold text-amber-300 bg-amber-950/40 border border-amber-700/40 rounded-xl px-3 py-2">
+                          <p className="text-xs font-bold text-yellow-300 bg-neutral-900/40 border border-neutral-700/40 rounded-xl px-3 py-2">
                             This bill was already printed. Key ONLY the new item{newCount === 1 ? "" : "s"} below into the EFD and print receipt #2. The crews already have them • your ✓ only records the print.
                           </p>
                         )}
@@ -1162,28 +1162,28 @@ export default function CashierDashboard() {
                             Additions card: ONLY new items by default; the full
                             bill expands on demand with the new items highlighted.
                             Corrections only appear when ✗ Problem is open. */}
-                        <div className="bg-[#3D2314] rounded-xl divide-y divide-stone-800">
+                        <div className="bg-[#2A2A31] rounded-xl divide-y divide-stone-800">
                           {(showFullBill ? visible : newItems).map((i) => {
                             const isNew = added && isNewUnprinted(i, t);
                             return (
                               <div
                                 key={i.id}
                                 className={`p-2.5 text-xs flex items-center justify-between gap-2 ${
-                                  i.removed ? "opacity-40 line-through" : isNew ? "bg-amber-400/15" : ""
+                                  i.removed ? "opacity-40 line-through" : isNew ? "bg-yellow-400/15" : ""
                                 }`}
                               >
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-bold text-amber-100 truncate">
-                                    {added && showFullBill && isNew ? <span className="text-amber-300 font-black">NEW • </span> : null}
+                                  <p className="font-bold text-white truncate">
+                                    {added && showFullBill && isNew ? <span className="text-yellow-300 font-black">NEW • </span> : null}
                                     {i.name} <span className="text-stone-300 font-bold">({i.price} ETB)</span>
                                   </p>
-                                  {i.notes && <p className="text-[11px] font-semibold text-amber-300 italic">📝 {i.notes}</p>}
+                                  {i.notes && <p className="text-[11px] font-semibold text-yellow-300 italic">📝 {i.notes}</p>}
                                 </div>
-                                <span className="font-extrabold text-amber-100 shrink-0">× {i.quantity}</span>
+                                <span className="font-extrabold text-white shrink-0">× {i.quantity}</span>
                                 {!i.removed && (
                                   <button
                                     onClick={() => setEditTarget({ item: i })}
-                                    className="px-2 py-1 bg-[#C9A227]/15 text-[#C9A227] border border-[#C9A227]/40 rounded text-[10px] font-black hover:bg-[#C9A227] hover:text-black shrink-0"
+                                    className="px-2 py-1 bg-[#F6C51B]/15 text-[#F6C51B] border border-[#F6C51B]/40 rounded text-[10px] font-black hover:bg-[#F6C51B] hover:text-black shrink-0"
                                     title="Fix this item's note or quantity, or remove it. Saving never prints • the card stays in your queue."
                                   >
                                     ✎ Edit
@@ -1207,7 +1207,7 @@ export default function CashierDashboard() {
                         {added && (
                           <button
                             onClick={() => toggleFullBill(t.id)}
-                            className="w-full text-xs font-black py-2 rounded-xl bg-stone-800/80 text-amber-200 hover:bg-stone-700 flex items-center justify-center gap-1.5"
+                            className="w-full text-xs font-black py-2 rounded-xl bg-stone-800/80 text-yellow-200 hover:bg-stone-700 flex items-center justify-center gap-1.5"
                           >
                             {showFullBill
                               ? "▲ Show new items only"
@@ -1262,11 +1262,11 @@ export default function CashierDashboard() {
         <>
         {/* ACTIVE TICKETS */}
         <section>
-          <h2 className="text-xs font-bold uppercase tracking-widest text-amber-200/80 mb-3">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-yellow-200/80 mb-3">
             Active Orders ({activeTickets.length})
           </h2>
           {activeTickets.length === 0 ? (
-            <div className="bg-[#2C1B17] border border-stone-800 rounded-2xl p-8 text-center text-stone-500 text-sm">
+            <div className="bg-[#1B1B20] border border-stone-800 rounded-2xl p-8 text-center text-stone-500 text-sm">
               No active orders. Tickets sent by waiters appear here instantly.
             </div>
           ) : (
@@ -1278,23 +1278,23 @@ export default function CashierDashboard() {
                 return (
                   <div
                     key={t.id}
-                    className={`bg-[#2C1B17] rounded-2xl border-2 p-4 space-y-3 ${
-                      t.status === "pending_waiter" ? "border-violet-500/70 animate-pulse" : t.status === "confirmed" ? "border-amber-400/70" : t.status === "completed" ? "border-emerald-500/70" : t.status === "ready_for_payment" ? "border-purple-500/60" : t.status === "preparing" ? "border-orange-500/60" : "border-stone-700"
+                    className={`bg-[#1B1B20] rounded-2xl border-2 p-4 space-y-3 ${
+                      t.status === "pending_waiter" ? "border-violet-500/70 animate-pulse" : t.status === "confirmed" ? "border-yellow-400/70" : t.status === "completed" ? "border-emerald-500/70" : t.status === "ready_for_payment" ? "border-purple-500/60" : t.status === "preparing" ? "border-orange-500/60" : "border-stone-700"
                     }`}
                   >
                     {/* header */}
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-serif font-bold text-lg text-amber-100">
+                        <p className="font-serif font-bold text-lg text-white">
                           {t.tableName}
                           {t.orderNumber && (
-                            <span className="ml-2 align-middle text-[10px] font-black bg-stone-800 border border-[#C9A227]/40 text-[#C9A227] px-2 py-0.5 rounded-full">
+                            <span className="ml-2 align-middle text-[10px] font-black bg-stone-800 border border-[#F6C51B]/40 text-[#F6C51B] px-2 py-0.5 rounded-full">
                               #{t.orderNumber}
                             </span>
                           )}
                         </p>
                         <p className="text-xs font-bold text-stone-300 flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5 text-[#C9A227]" /> {t.confirmedBy ? `by ${t.confirmedBy}` : `by ${t.createdBy || "waiter"}`}
+                          <Clock className="w-3.5 h-3.5 text-[#F6C51B]" /> {t.confirmedBy ? `by ${t.confirmedBy}` : `by ${t.createdBy || "waiter"}`}
                         </p>
                         {/* When the order ARRIVED and how long the table has been
                             waiting — the question staff keep asking. */}
@@ -1304,7 +1304,7 @@ export default function CashierDashboard() {
                       </div>
                       <div className="text-right">
                         <span className={`inline-block text-[10px] font-black px-2.5 py-1 rounded-full ${meta.cls}`}>{meta.label}</span>
-                        <p className="font-serif font-black text-xl text-[#C9A227] mt-1">{t.totalAmount} ETB</p>
+                        <p className="font-serif font-black text-xl text-[#F6C51B] mt-1">{t.totalAmount} ETB</p>
                       </div>
                     </div>
 
@@ -1326,18 +1326,18 @@ export default function CashierDashboard() {
                     )}
 
                     {/* items (editable: qty adjust + remove) */}
-                    <div className="bg-[#3D2314] rounded-xl divide-y divide-stone-800">
+                    <div className="bg-[#2A2A31] rounded-xl divide-y divide-stone-800">
                       {items.map((i) => (
                         <div key={i.id} className={`p-2.5 text-xs flex items-center justify-between gap-2 ${i.removed ? "opacity-40 line-through" : ""}`}>
                           <div className="flex-1 min-w-0">
-                            <p className="font-bold text-amber-100 truncate">{i.name}</p>
-                            {i.notes && <p className="text-[10px] text-amber-300 italic">📝 {i.notes}</p>}
+                            <p className="font-bold text-white truncate">{i.name}</p>
+                            {i.notes && <p className="text-[10px] text-yellow-300 italic">📝 {i.notes}</p>}
                           </div>
                           {!i.removed ? (
                             <div className="flex items-center gap-1.5 shrink-0">
                               <button onClick={() => updateItemQty(i, Math.max(1, i.quantity - 1))} className="w-6 h-6 bg-white/10 rounded text-xs">−</button>
                               <span className="font-extrabold w-4 text-center">{i.quantity}</span>
-                              <button onClick={() => updateItemQty(i, i.quantity + 1)} className="w-6 h-6 bg-[#C9A227] text-black rounded text-xs font-bold">+</button>
+                              <button onClick={() => updateItemQty(i, i.quantity + 1)} className="w-6 h-6 bg-[#F6C51B] text-black rounded text-xs font-bold">+</button>
                               <button
                                 onClick={() => removeItem(i.id)}
                                 className="ml-1 px-2 py-1 bg-rose-900/60 text-rose-300 rounded text-[10px] font-bold hover:bg-rose-700 hover:text-white"
@@ -1369,7 +1369,7 @@ export default function CashierDashboard() {
                           <select
                             value={t.paymentStatus && t.paymentStatus !== "unpaid" ? "paid" : "unpaid"}
                             onChange={(e) => setPaymentStatus(t.id, e.target.value)}
-                            className="bg-[#2C1B17] border border-stone-700 rounded-lg px-2 py-1.5 text-[11px] font-bold text-white flex-1"
+                            className="bg-[#1B1B20] border border-stone-700 rounded-lg px-2 py-1.5 text-[11px] font-bold text-white flex-1"
                             title="Record whether this bill was paid (order status is separate)"
                           >
                             <option value="unpaid">Unpaid</option>
@@ -1409,7 +1409,7 @@ export default function CashierDashboard() {
                       )}
                       {t.status === "confirmed" && (
                         <button onClick={() => setStatus(t.id, "preparing")} className="flex-1 bg-orange-600 hover:bg-orange-500 text-white text-xs font-black py-2.5 rounded-xl">
-                          Accept → Kitchen / Barista / Pastry
+                          Accept → Kitchen / Drinks / Juice
                         </button>
                       )}
                       {t.status === "preparing" && (
@@ -1449,7 +1449,7 @@ export default function CashierDashboard() {
                 <button
                   onClick={() => setHistoryDay("today")}
                   className={`text-[10px] font-black px-3 py-1.5 rounded-full flex items-center gap-1.5 transition ${
-                    historyDay === "today" ? "bg-emerald-600 text-white" : "bg-[#2C1B17] border border-stone-700 text-stone-300 hover:bg-white/10"
+                    historyDay === "today" ? "bg-emerald-600 text-white" : "bg-[#1B1B20] border border-stone-700 text-stone-300 hover:bg-white/10"
                   }`}
                 >
                   <Printer className="w-3 h-3" /> PRINTED TODAY ({historyToday.length})
@@ -1457,7 +1457,7 @@ export default function CashierDashboard() {
                 <button
                   onClick={() => setHistoryDay("yesterday")}
                   className={`text-[10px] font-black px-3 py-1.5 rounded-full flex items-center gap-1.5 transition ${
-                    historyDay === "yesterday" ? "bg-emerald-600 text-white" : "bg-[#2C1B17] border border-stone-700 text-stone-300 hover:bg-white/10"
+                    historyDay === "yesterday" ? "bg-emerald-600 text-white" : "bg-[#1B1B20] border border-stone-700 text-stone-300 hover:bg-white/10"
                   }`}
                   title="Every bill printed yesterday, in case the morning needs to re-check last night's receipts"
                 >
@@ -1493,28 +1493,28 @@ export default function CashierDashboard() {
                   <button
                     key={t.id}
                     onClick={() => setBillModal(t)}
-                    className={`text-left bg-[#241714] rounded-xl p-3 flex items-center justify-between gap-2 transition hover:bg-[#2e1d18] active:scale-[0.98] ${
-                      waiting ? "border-2 border-amber-400 animate-pulse" : "border border-stone-800"
+                    className={`text-left bg-[#1D1D22] rounded-xl p-3 flex items-center justify-between gap-2 transition hover:bg-[#202026] active:scale-[0.98] ${
+                      waiting ? "border-2 border-yellow-400 animate-pulse" : "border border-stone-800"
                     }`}
                     title="Tap to see the full bill"
                   >
                     <div className="min-w-0 space-y-0.5">
-                      <p className="text-sm font-black text-amber-100">{t.tableName}</p>
+                      <p className="text-sm font-black text-white">{t.tableName}</p>
                       {printQueueMode ? (
                         <p className="text-[11px] font-bold text-stone-300 truncate flex items-center gap-1">
-                          <Printer className="w-3 h-3 text-[#C9A227] shrink-0" /> printed {formatClock(t.printedAt)} • {t.printedBy || "cashier"}
+                          <Printer className="w-3 h-3 text-[#F6C51B] shrink-0" /> printed {formatClock(t.printedAt)} • {t.printedBy || "cashier"}
                         </p>
                       ) : (
                         <p className="text-[11px] font-bold text-stone-300 flex items-center gap-1">✓ Paid</p>
                       )}
                       {/* Group 8: table, date, time and waiter on every history card. */}
                       <p className="text-[11px] font-bold text-stone-300 truncate">🕒 {formatDateTime(printQueueMode ? (t.printedAt || t.createdAt) : (t.closedAt || t.updatedAt || t.createdAt))}</p>
-                      <p className="text-[11px] font-bold text-[#D8B93E] truncate">👤 {t.confirmedBy || t.createdBy || "staff"}</p>
+                      <p className="text-[11px] font-bold text-[#F6C51B] truncate">👤 {t.confirmedBy || t.createdBy || "staff"}</p>
                       {printQueueMode && (
                         cleared ? (
                           <p className="text-[10px] font-black text-stone-400 uppercase">✓ cleared {t.closedAt ? formatClock(t.closedAt) : ""}</p>
                         ) : waiting ? (
-                          <p className="text-[10px] font-black text-amber-300 uppercase">⚠ new item waiting</p>
+                          <p className="text-[10px] font-black text-yellow-300 uppercase">⚠ new item waiting</p>
                         ) : (
                           <p className="text-[10px] font-black text-emerald-400 uppercase">● open</p>
                         )
@@ -1544,12 +1544,12 @@ export default function CashierDashboard() {
           onClick={() => setBillModal(null)}
         >
           <div
-            className="bg-[#2C1B17] border-2 border-[#C9A227]/50 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto"
+            className="bg-[#1B1B20] border-2 border-[#F6C51B]/50 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="sticky top-0 bg-[#2C1B17] border-b border-stone-800 px-5 py-4 flex items-start justify-between gap-3">
+            <div className="sticky top-0 bg-[#1B1B20] border-b border-stone-800 px-5 py-4 flex items-start justify-between gap-3">
               <div>
-                <h3 className="font-serif font-black text-xl text-amber-100">{billModal.tableName}</h3>
+                <h3 className="font-serif font-black text-xl text-white">{billModal.tableName}</h3>
                 <p className="text-xs font-bold text-stone-300 mt-0.5">
                   {billModal.orderNumber ? `#${billModal.orderNumber} • ` : ""}
                   printed {billModal.printedAt ? formatDateTime(billModal.printedAt) : "?"} • by {billModal.printedBy || "cashier"}
@@ -1567,28 +1567,28 @@ export default function CashierDashboard() {
               </button>
             </div>
             <div className="px-5 py-4 space-y-3">
-              <div className="bg-[#3D2314] rounded-xl divide-y divide-stone-800">
+              <div className="bg-[#2A2A31] rounded-xl divide-y divide-stone-800">
                 {(billModal.items || []).filter((i) => !i.removed).map((i) => {
                   const isNew = !!billModal.printedAt && !!i.createdAt &&
                     new Date(i.createdAt).getTime() > new Date(billModal.printedAt!).getTime();
                   return (
-                    <div key={i.id} className={`p-3 flex items-center justify-between gap-3 ${isNew ? "bg-amber-400/15" : ""}`}>
+                    <div key={i.id} className={`p-3 flex items-center justify-between gap-3 ${isNew ? "bg-yellow-400/15" : ""}`}>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-amber-100 truncate">
-                          {isNew && <span className="text-amber-300 font-black">NEW • </span>}
+                        <p className="text-sm font-bold text-white truncate">
+                          {isNew && <span className="text-yellow-300 font-black">NEW • </span>}
                           {i.name}
                         </p>
                         <p className="text-xs font-semibold text-stone-300">{i.quantity} × {i.price} ETB</p>
-                        {i.notes && <p className="text-[11px] font-semibold text-amber-300 italic mt-0.5">📝 {i.notes}</p>}
+                        {i.notes && <p className="text-[11px] font-semibold text-yellow-300 italic mt-0.5">📝 {i.notes}</p>}
                       </div>
-                      <span className="text-sm font-black text-[#C9A227] shrink-0">{i.price * i.quantity} ETB</span>
+                      <span className="text-sm font-black text-[#F6C51B] shrink-0">{i.price * i.quantity} ETB</span>
                     </div>
                   );
                 })}
               </div>
-              <div className="bg-[#3D2314] border border-[#C9A227]/40 rounded-xl px-4 py-3 flex items-center justify-between">
+              <div className="bg-[#2A2A31] border border-[#F6C51B]/40 rounded-xl px-4 py-3 flex items-center justify-between">
                 <span className="text-sm font-black text-stone-200">Bill total</span>
-                <span className="font-serif font-black text-2xl text-[#C9A227]">{billModal.totalAmount} ETB</span>
+                <span className="font-serif font-black text-2xl text-[#F6C51B]">{billModal.totalAmount} ETB</span>
               </div>
               <button
                 onClick={() => setBillModal(null)}
@@ -1618,7 +1618,7 @@ export default function CashierDashboard() {
       {/* receipt image modal */}
       {receiptModal && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={() => setReceiptModal(null)}>
-          <img src={receiptModal} alt="Payment receipt" className="max-h-[85vh] max-w-full rounded-2xl border border-[#C9A227]" />
+          <img src={receiptModal} alt="Payment receipt" className="max-h-[85vh] max-w-full rounded-2xl border border-[#F6C51B]" />
         </div>
       )}
     </div>
@@ -1671,31 +1671,31 @@ function EditItemModal({ item, onClose, onSaved }: { item: TicketItem; onClose: 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="bg-[#2C1B17] border-2 border-[#C9A227]/50 rounded-2xl w-full max-w-sm p-5 space-y-4"
+        className="bg-[#1B1B20] border-2 border-[#F6C51B]/50 rounded-2xl w-full max-w-sm p-5 space-y-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div>
-          <h3 className="font-serif font-black text-lg text-amber-100">✎ Fix item</h3>
+          <h3 className="font-serif font-black text-lg text-white">✎ Fix item</h3>
           <p className="text-xs font-bold text-stone-300 mt-0.5">{item.name} • {item.price} ETB each</p>
         </div>
-        <div className="flex items-center gap-3 bg-[#3D2314] rounded-xl p-3">
+        <div className="flex items-center gap-3 bg-[#2A2A31] rounded-xl p-3">
           <span className="text-xs font-bold text-stone-300 flex-1">Quantity</span>
           <button onClick={() => setQty(Math.max(1, qty - 1))} className="w-9 h-9 bg-white/10 rounded-xl text-lg font-black">−</button>
-          <span className="text-lg font-black text-[#C9A227] w-8 text-center">{qty}</span>
-          <button onClick={() => setQty(Math.min(100, qty + 1))} className="w-9 h-9 bg-[#C9A227] text-black rounded-xl text-lg font-black">+</button>
+          <span className="text-lg font-black text-[#F6C51B] w-8 text-center">{qty}</span>
+          <button onClick={() => setQty(Math.min(100, qty + 1))} className="w-9 h-9 bg-[#F6C51B] text-black rounded-xl text-lg font-black">+</button>
         </div>
         <div>
-          <label className="block text-xs font-bold text-amber-200 mb-1">Note for the crew</label>
+          <label className="block text-xs font-bold text-yellow-200 mb-1">Note for the crew</label>
           <input
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="No Sugar, Extra Mayo, Less Spicy..."
-            className="w-full bg-[#3D2314] border border-stone-700 rounded-xl p-3 text-xs text-white"
+            className="w-full bg-[#2A2A31] border border-stone-700 rounded-xl p-3 text-xs text-white"
           />
         </div>
-        <div className="bg-[#3D2314] border border-[#C9A227]/40 rounded-xl px-4 py-2.5 flex items-center justify-between">
+        <div className="bg-[#2A2A31] border border-[#F6C51B]/40 rounded-xl px-4 py-2.5 flex items-center justify-between">
           <span className="text-xs font-black text-stone-200">Line total</span>
-          <span className="font-serif font-black text-xl text-[#C9A227]">{item.price * qty} ETB</span>
+          <span className="font-serif font-black text-xl text-[#F6C51B]">{item.price * qty} ETB</span>
         </div>
         <p className="text-[11px] font-bold text-stone-400">
           Saving only fixes the bill • it never prints. The card stays in your queue until you tap ✓ PRINTED.

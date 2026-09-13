@@ -226,7 +226,7 @@ export async function pocketAlertsStatus(): Promise<PocketAlertsStatus> {
       armed: false,
       needsIosInstall,
       reason: needsIosInstall
-        ? "Add Fana to your Home Screen first (Share → Add to Home Screen)."
+        ? "Add Amrogn to your Home Screen first (Share → Add to Home Screen)."
         : "This browser cannot do pocket alerts. Use Chrome on Android.",
     };
   }

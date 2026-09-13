@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 /**
  * Route-group layout for INTERNAL / PRIVATE application pages
- * (/admin, /waiter, /cashier, /kitchen, /barista).
+ * (/admin, /waiter, /cashier, /kitchen, /juice; /barista & /buna redirect).
  *
  * These pages are staff/owner tools, not customer-facing content, so they must
  * never be indexed by search engines. The route group `(internal)` does not

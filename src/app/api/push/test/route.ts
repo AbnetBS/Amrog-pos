@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     }
 
     const payload = {
-      title: "🔔 Fana test alert",
+      title: "🍗 Amrogn test alert",
       body:
         delaySeconds > 0
           ? `Pocket test for ${staff.name || staff.role}. If you hear this with the screen off, alerts work.`

@@ -98,7 +98,7 @@ const i18n = read("src/lib/i18n.ts");
   // Bumped to 2026-09-09-1 when the crew-action audit (station_status_by/at)
   // + the bill-edit audit (items_edited_at) were added: an existing
   // production database only runs the migration when this constant moves.
-  pass("the schema version was bumped so deployments migrate", /SCHEMA_VERSION = "2026-09-09-1"/.test(migrate));
+  pass("the schema version was bumped so deployments migrate", /SCHEMA_VERSION = "2026-09-13-amrogn-2"/.test(migrate));
 }
 
 /* ── 3. duplicate lines merge in the DATABASE, not just on screen ─────────── */

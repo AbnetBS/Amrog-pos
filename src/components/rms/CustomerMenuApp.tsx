@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  Coffee, Plus, Minus, Search, Send, CheckCircle2, Clock, X, Phone, Utensils, Loader2, QrCode,
+  Drumstick, Plus, Minus, Search, Send, CheckCircle2, Clock, X, Phone, Utensils, Loader2, QrCode,
   ChevronLeft, ChevronRight, MapPin, Star, MessageSquare, Camera, Music2,
 } from "lucide-react";
 import { MenuItem, Category, CafeTable, SiteSettings, Announcement, GalleryItem, Review } from "@/types";
@@ -36,6 +36,24 @@ import { FACEBOOK_URL, GOOGLE_MAPS_DIRECTIONS_URL, INSTAGRAM_URL, TIKTOK_URL } f
  * on a metered connection.
  */
 const NEXT_SCREEN_PHOTOS = 4;
+
+/**
+ * Category emojis keyed by slug — the bold Amrogn category chips
+ * (🍗 Chicken, 🌯 Shawarma, 🍔 Burgers…). Unknown/owner-added categories
+ * simply render without an emoji.
+ */
+const CATEGORY_EMOJI: Record<string, string> = {
+  all: "🍽️",
+  shawarma: "🌯",
+  chicken: "🍗",
+  burgers: "🍔",
+  sides: "🍟",
+  combos: "🍱",
+  "family-meals": "👨‍👩‍👧",
+  drinks: "🥤",
+  "fresh-juices": "🧃",
+  specials: "⭐",
+};
 
 interface CartEntry {
   /** Stable per-cart-line key: promotions can contain the same menu item twice. */
@@ -125,8 +143,8 @@ export default function CustomerMenuApp() {
   const [reviewSent, setReviewSent] = useState(false);
 
   const logoUrl = String(settings.logo_url || "/logo.png");
-  // Brand guard: business is Fana Cafe & Restaurant — never show FanaQueen text
-  const brandName = fixBrandText(settings.cafe_name || "Fana Cafe & Restaurant");
+  // Brand guard: business is Amrogn Chicken — never show old cafe-engine text
+  const brandName = fixBrandText(settings.cafe_name || "Amrogn Chicken");
 
   // SPEED: show cached menu + announcements INSTANTLY on repeat visits,
   // then refresh silently in the background (stale-while-revalidate)
@@ -479,23 +497,23 @@ export default function CustomerMenuApp() {
   if (submitted) {
     return (
       <OrderStatusProvider tableId={tableId ?? 0} refreshKey={statusRefreshKey}>
-      <div className="min-h-screen bg-[#FAF6F0] flex items-center justify-center p-6">
+      <div className="min-h-screen bg-[#FCFAF6] flex items-center justify-center p-6">
         {/* The guest just ordered and wants to see WHAT they ordered: the same
             floating status pill as on the menu, above the language button. */}
         <OrderStatusDock />
-        <div className="bg-white rounded-3xl border-2 border-[#C9A227] p-8 max-w-sm w-full text-center space-y-4 shadow-2xl">
+        <div className="bg-white rounded-3xl border-2 border-[#F6C51B] p-8 max-w-sm w-full text-center space-y-4 shadow-2xl">
           <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-9 h-9 text-emerald-600" />
           </div>
-          <h1 className="font-serif text-2xl font-bold text-[#2C1B17]">{t("order_sent_title")}</h1>
+          <h1 className="font-serif text-2xl font-bold text-[#1B1B20]">{t("order_sent_title")}</h1>
           {lastOrderNumber && (
-            <p className="inline-block bg-[#2C1B17] text-[#C9A227] font-black text-sm px-4 py-1.5 rounded-full">
+            <p className="inline-block bg-[#1B1B20] text-[#F6C51B] font-black text-sm px-4 py-1.5 rounded-full">
               Order #{lastOrderNumber}
             </p>
           )}
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-1">
-            <p className="text-sm font-bold text-[#2C1B17] flex items-center justify-center gap-1.5">
-              <Clock className="w-4 h-4 text-[#C9A227]" /> {t("waiting_confirmation")}
+          <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 space-y-1">
+            <p className="text-sm font-bold text-[#1B1B20] flex items-center justify-center gap-1.5">
+              <Clock className="w-4 h-4 text-[#F6C51B]" /> {t("waiting_confirmation")}
             </p>
             <p className="text-xs text-stone-600">
               {t("waiter_walking", { table: menuText(tableName) })}
@@ -504,7 +522,7 @@ export default function CustomerMenuApp() {
           <p className="text-xs text-stone-500">{t("add_more_note")}</p>
           <button
             onClick={() => setSubmitted(false)}
-            className="w-full bg-[#4E342E] text-amber-200 font-bold text-sm py-3.5 rounded-xl"
+            className="w-full bg-[#36363E] text-yellow-200 font-bold text-sm py-3.5 rounded-xl"
           >
             {t("back_to_menu")}
           </button>
@@ -517,10 +535,11 @@ export default function CustomerMenuApp() {
   /* ── Invalid table ── */
   if (!tableId) {
     return (
-      <div className="min-h-screen bg-[#FAF6F0] flex items-center justify-center p-6 text-center">
-        <div className="bg-white rounded-3xl p-8 max-w-sm w-full border border-[#C9A227]/40 space-y-3">
-          <QrCode className="w-10 h-10 text-[#C9A227] mx-auto" />
-          <h1 className="font-serif text-xl font-bold">{t("scan_qr_title")}</h1>
+      <div className="min-h-screen bg-[#FCFAF6] flex items-center justify-center p-6 text-center">
+        <div className="bg-white rounded-3xl p-8 max-w-sm w-full border border-[#F6C51B]/40 space-y-3">
+          <img src={logoUrl} alt="Amrogn Chicken" className="w-16 h-16 rounded-full object-contain bg-white border-2 border-[#D22630] mx-auto p-0.5" />
+          <QrCode className="w-10 h-10 text-[#D22630] mx-auto" />
+          <h1 className="font-serif text-xl font-black text-[#1B1B20] uppercase tracking-wide">{t("scan_qr_title")}</h1>
           <p className="text-sm text-stone-600">{t("scan_qr_sub")}</p>
         </div>
       </div>
@@ -530,10 +549,10 @@ export default function CustomerMenuApp() {
   /* ── REVIEW MODE (before submit) ── */
   if (reviewMode) {
     return (
-      <div className="min-h-screen bg-[#FAF6F0] pb-32">
-        <header className="bg-[#2C1B17] text-white sticky top-0 z-40 px-4 py-3 flex items-center gap-3 shadow-xl">
-          <button onClick={() => setReviewMode(false)} className="text-amber-200"><X className="w-5 h-5" /></button>
-          <h1 className="font-serif font-bold">{t("review_your_order")} • {menuText(tableName)}</h1>
+      <div className="min-h-screen bg-[#FCFAF6] pb-32">
+        <header className="bg-[#D22630] text-white sticky top-0 z-40 px-4 py-3 flex items-center gap-3 shadow-xl">
+          <button onClick={() => setReviewMode(false)} className="text-[#F6C51B]"><X className="w-5 h-5" /></button>
+          <h1 className="font-serif font-black uppercase tracking-wide">{t("review_your_order")} • {menuText(tableName)}</h1>
         </header>
 
         <div className="max-w-lg mx-auto p-4 space-y-3">
@@ -542,29 +561,29 @@ export default function CustomerMenuApp() {
           {cart.map((c, cartIndex) => {
             const isFirstSpecialLine = c.promotionId !== undefined && !cart.slice(0, cartIndex).some((entry) => entry.promotionId === c.promotionId);
             return (
-              <div key={c.lineId} className="bg-white rounded-2xl border border-[#C9A227]/30 p-4 space-y-2 shadow-sm">
+              <div key={c.lineId} className="bg-white rounded-2xl border border-[#F6C51B]/30 p-4 space-y-2 shadow-sm">
                 {c.promotionId !== undefined && (
                   <div className="flex items-center gap-1.5">
-                    <span className="bg-amber-100 text-amber-900 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full">{t("special_applied")}</span>
+                    <span className="bg-yellow-100 text-neutral-900 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full">{t("special_applied")}</span>
                     {c.isFree && <span className="bg-emerald-100 text-emerald-700 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full">{t("free")}</span>}
                   </div>
                 )}
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="font-bold text-[#2C1B17] text-sm">{menuText(c.name)}</p>
+                    <p className="font-bold text-[#1B1B20] text-sm">{menuText(c.name)}</p>
                     {c.promotionTitle && <p className="text-[10px] font-semibold text-stone-500 mt-0.5">{menuText(c.promotionTitle)}</p>}
-                    {c.promotionLabel && <p className="text-[10px] font-black text-amber-700 mt-0.5">{c.promotionLabel}</p>}
+                    {c.promotionLabel && <p className="text-[10px] font-black text-neutral-700 mt-0.5">{c.promotionLabel}</p>}
                   </div>
                   <div className="text-right whitespace-nowrap">
                     {c.regularTotal !== undefined && c.promotionLineTotal !== undefined && c.regularTotal !== c.promotionLineTotal && (
                       <p className="text-[10px] text-stone-400 line-through">{c.regularTotal} ETB</p>
                     )}
-                    <p className={`font-extrabold ${c.isFree ? "text-emerald-700" : "text-[#4E342E]"}`}>{c.isFree ? `${t("free")} · 0 ETB` : `${c.promotionLineTotal ?? c.price * c.quantity} ETB`}</p>
+                    <p className={`font-extrabold ${c.isFree ? "text-emerald-700" : "text-[#36363E]"}`}>{c.isFree ? `${t("free")} · 0 ETB` : `${c.promotionLineTotal ?? c.price * c.quantity} ETB`}</p>
                   </div>
                 </div>
                 {c.promotionId !== undefined ? (
                   <div className="flex items-center gap-2 min-h-7">
-                    <span className="text-xs font-extrabold text-[#2C1B17]">× {c.quantity}</span>
+                    <span className="text-xs font-extrabold text-[#1B1B20]">× {c.quantity}</span>
                     <span className="text-[10px] text-stone-500">{t("special_quantities_fixed")}</span>
                     {isFirstSpecialLine && (
                       <button onClick={() => removeDailySpecial(c.promotionId!)} className="ml-auto text-rose-500 text-xs font-bold">
@@ -580,10 +599,10 @@ export default function CustomerMenuApp() {
                     >
                       <Minus className="w-3.5 h-3.5" />
                     </button>
-                    <span className="font-extrabold w-5 text-center text-[#2C1B17]">{c.quantity}</span>
+                    <span className="font-extrabold w-5 text-center text-[#1B1B20]">{c.quantity}</span>
                     <button
                       onClick={() => setCart(cart.map((x) => (x.lineId === c.lineId ? { ...x, quantity: x.quantity + 1 } : x)))}
-                      className="w-7 h-7 rounded-lg bg-[#C9A227] flex items-center justify-center"
+                      className="w-7 h-7 rounded-lg bg-[#F6C51B] flex items-center justify-center"
                     >
                       <Plus className="w-3.5 h-3.5" />
                     </button>
@@ -596,7 +615,7 @@ export default function CustomerMenuApp() {
                   value={c.notes}
                   onChange={(e) => setCart(cart.map((x) => (x.lineId === c.lineId ? { ...x, notes: e.target.value } : x)))}
                   placeholder={t("note_ph")}
-                  className="w-full bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-[#2C1B17] placeholder-stone-400"
+                  className="w-full bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2 text-xs text-[#1B1B20] placeholder-stone-400"
                 />
               </div>
             );
@@ -604,16 +623,16 @@ export default function CustomerMenuApp() {
         </div>
 
         {/* submit bar */}
-        <div className="fixed bottom-0 left-0 right-0 bg-[#2C1B17] border-t-2 border-[#C9A227] p-4">
+        <div className="fixed bottom-0 left-0 right-0 bg-[#1B1B20] border-t-2 border-[#F6C51B] p-4">
           <div className="max-w-lg mx-auto flex items-center gap-3">
             <div className="flex-1">
               <p className="text-[10px] text-stone-400 uppercase font-bold">{cartCount} {t("items_label")}</p>
-              <p className="font-serif font-black text-xl text-[#C9A227]">{cartTotal} ETB</p>
+              <p className="font-serif font-black text-xl text-[#F6C51B]">{cartTotal} ETB</p>
             </div>
             <button
               onClick={submitOrder}
               disabled={submitting}
-              className="flex-1 bg-gradient-to-r from-[#C9A227] to-amber-500 text-[#2C1B17] font-black text-sm uppercase py-3.5 rounded-xl flex items-center justify-center gap-2 disabled:opacity-50"
+              className="flex-1 bg-gradient-to-r from-[#F6C51B] to-yellow-500 text-[#1B1B20] font-black text-sm uppercase py-3.5 rounded-xl flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               {submitting ? t("sending") : t("submit_order")}
@@ -627,30 +646,30 @@ export default function CustomerMenuApp() {
   /* ── MAIN MENU ── */
   return (
     <OrderStatusProvider tableId={tableId ?? 0} refreshKey={statusRefreshKey}>
-    <div className="min-h-screen bg-[#FAF6F0] pb-28">
+    <div className="min-h-screen bg-[#FCFAF6] pb-28">
       <LanguageToggle />
       {/* Floating order-status pill (above the language button): the dish list
           with live Accepted / Preparing / Ready chips. Renders nothing until
           this table has an order, whoever sent it. */}
       <OrderStatusDock />
-      {/* Header with logo */}
-      <header className="bg-[#2C1B17] text-white sticky top-0 z-40 shadow-xl">
+      {/* Header with logo — Amrogn red */}
+      <header className="bg-[#D22630] text-white sticky top-0 z-40 shadow-xl">
         <div className="px-4 py-2.5 flex items-center justify-between max-w-lg mx-auto">
           <div className="flex items-center gap-2.5">
-            <img src={logoUrl} alt="Fana" className="w-10 h-10 rounded-full object-contain bg-white p-0.5" />
+            <img src={logoUrl} alt="Amrogn Chicken" className="w-10 h-10 rounded-full object-contain bg-white p-0.5" />
             <div>
-              <p className="font-serif font-bold text-sm text-amber-100 leading-none">{menuText(brandName)}</p>
-              <p className="text-[10px] text-[#C9A227] font-bold uppercase tracking-wider">{t("menu_label")} • {menuText(tableName)}</p>
+              <p className="font-serif font-black text-sm text-white leading-none uppercase tracking-wide">{menuText(brandName)}</p>
+              <p className="text-[10px] text-[#F6C51B] font-black uppercase tracking-wider">4 Kilo Branch • {t("menu_label")} • {menuText(tableName)}</p>
             </div>
           </div>
-          <a href={`tel:${phone.replace(/\s+/g, "")}`} className="flex items-center gap-1 bg-[#C9A227] text-[#2C1B17] text-[11px] font-extrabold px-3 py-1.5 rounded-full">
+          <a href={`tel:${phone.replace(/\s+/g, "")}`} className="flex items-center gap-1 bg-[#F6C51B] text-[#1B1B20] text-[11px] font-extrabold px-3 py-1.5 rounded-full">
             <Phone className="w-3 h-3" /> {t("waiter")}
           </a>
         </div>
       </header>
 
       {/* intro */}
-      <div className="bg-gradient-to-r from-[#4E342E] to-[#2C1B17] text-amber-100 text-center text-xs py-2.5 px-4">
+      <div className="bg-gradient-to-r from-[#36363E] to-[#1B1B20] text-white text-center text-xs py-2.5 px-4">
         {t("intro")}
       </div>
 
@@ -702,13 +721,13 @@ export default function CustomerMenuApp() {
                 )}
 
                 {/* gold promo card style when there's no image */}
-                {!hasPhoto && <div className="absolute inset-0 bg-gradient-to-r from-[#C9A227] via-[#E2B93B] to-[#C9A227]" />}
+                {!hasPhoto && <div className="absolute inset-0 bg-gradient-to-r from-[#F6C51B] via-[#F8D23A] to-[#F6C51B]" />}
 
                 {/* content overlay */}
                 <div className={`relative z-10 p-5 ${announcements.length > 1 ? "pb-8" : ""} min-h-[175px] flex flex-col justify-end`}>
                   <p
                     className={`font-serif font-black text-xl leading-tight ${
-                      hasPhoto ? "text-white drop-shadow-[0_2px_5px_rgba(0,0,0,0.9)]" : "text-[#2C1B17]"
+                      hasPhoto ? "text-white drop-shadow-[0_2px_5px_rgba(0,0,0,0.9)]" : "text-[#1B1B20]"
                     }`}
                   >
                     {menuText(a?.title || "")}
@@ -716,14 +735,14 @@ export default function CustomerMenuApp() {
                   {a?.description && (
                     <p
                       className={`text-[13px] font-semibold mt-0.5 leading-snug ${
-                        hasPhoto ? "text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]" : "text-[#3D2314]"
+                        hasPhoto ? "text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]" : "text-[#2A2A31]"
                       }`}
                     >
                       {menuText(a.description)}
                     </p>
                   )}
                   {promotion && promotionLines && (
-                    <div className={`mt-2 text-[11px] font-bold ${hasPhoto ? "text-amber-100 drop-shadow" : "text-[#3D2314]"}`}>
+                    <div className={`mt-2 text-[11px] font-bold ${hasPhoto ? "text-white drop-shadow" : "text-[#2A2A31]"}`}>
                       <span>{dailyPromotionLabel(promotion)}</span>
                       {regularPromotionTotal !== promotionTotal && (
                         <span className="ml-2"><span className="line-through opacity-75">{regularPromotionTotal} ETB</span> → {promotionTotal} ETB</span>
@@ -732,7 +751,7 @@ export default function CustomerMenuApp() {
                   )}
                   {promotion && (
                     <span className={`mt-3 inline-flex self-start items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-wide ${
-                      hasPhoto ? "bg-white/90 text-[#2C1B17]" : "bg-[#2C1B17] text-amber-200"
+                      hasPhoto ? "bg-white/90 text-[#1B1B20]" : "bg-[#1B1B20] text-yellow-200"
                     }`}>
                       <Plus className="w-3.5 h-3.5" />
                       {specialIsInCart ? t("offer_added") : canOrderSpecial ? t("tap_to_add_offer") : t("offer_unavailable")}
@@ -748,7 +767,7 @@ export default function CustomerMenuApp() {
                     type="button"
                     onClick={() => addDailySpecial(a)}
                     disabled={specialIsInCart}
-                    className="relative block w-full min-h-[175px] text-left overflow-hidden cursor-pointer transition duration-200 hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#2C1B17] disabled:cursor-default"
+                    className="relative block w-full min-h-[175px] text-left overflow-hidden cursor-pointer transition duration-200 hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#1B1B20] disabled:cursor-default"
                     aria-label={specialIsInCart ? t("offer_added") : t("tap_to_add_offer")}
                   >
                     {boardContent}
@@ -797,14 +816,14 @@ export default function CustomerMenuApp() {
       )}
 
       {/* search + categories */}
-      <div ref={stickyBarRef} className="sticky top-[61px] z-30 bg-[#FAF6F0] px-4 pt-3 pb-2 space-y-2 max-w-lg mx-auto">
+      <div ref={stickyBarRef} className="sticky top-[61px] z-30 bg-[#FCFAF6] px-4 pt-3 pb-2 space-y-2 max-w-lg mx-auto">
         <div className="relative">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t("search_ph")}
-            className="w-full bg-white border border-[#C9A227]/40 rounded-xl pl-9 pr-3 py-2.5 text-sm shadow-sm"
+            className="w-full bg-white border border-[#D22630]/25 rounded-xl pl-9 pr-3 py-2.5 text-sm shadow-sm focus:border-[#D22630]"
           />
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1.5 scrollbar-none">
@@ -813,10 +832,10 @@ export default function CustomerMenuApp() {
               key={c.slug}
               onClick={() => selectCategory(c.slug)}
               className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap border transition ${
-                category === c.slug ? "bg-[#4E342E] text-amber-200 border-[#C9A227]" : "bg-white text-stone-600 border-stone-200"
+                category === c.slug ? "bg-[#D22630] text-white border-[#D22630] shadow-sm" : "bg-white text-stone-600 border-stone-200"
               }`}
             >
-              {menuText(c.name)}
+              {CATEGORY_EMOJI[c.slug] ? `${CATEGORY_EMOJI[c.slug]} ` : ""}{menuText(c.name)}
             </button>
           ))}
         </div>
@@ -827,22 +846,22 @@ export default function CustomerMenuApp() {
         <div className="px-4 glass-skeleton max-w-lg mx-auto space-y-4 pt-2">
           <div className="text-center py-6 space-y-2">
             <div className="relative w-14 h-14 mx-auto">
-              <img src={logoUrl} alt="Loading" className="w-14 h-14 rounded-full object-contain bg-white border-2 border-[#C9A227] p-0.5 animate-pulse" />
-              <span className="absolute inset-0 rounded-full border-2 border-[#C9A227] animate-ping opacity-30" />
+              <img src={logoUrl} alt="Loading" className="w-14 h-14 rounded-full object-contain bg-white border-2 border-[#F6C51B] p-0.5 animate-pulse" />
+              <span className="absolute inset-0 rounded-full border-2 border-[#F6C51B] animate-ping opacity-30" />
             </div>
-            <p className="font-serif font-bold text-sm text-[#2C1B17]">{t("loading_menu")}</p>
+            <p className="font-serif font-bold text-sm text-[#1B1B20]">{t("loading_menu")}</p>
             <p className="text-[11px] text-stone-500">{t("loading_sub")}</p>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl overflow-hidden border border-stone-200 shadow-sm animate-pulse">
-                <div className="w-full h-28 bg-stone-200" />
-                <div className="p-3 space-y-2">
-                  <div className="h-3 bg-stone-200 rounded w-4/5" />
-                  <div className="h-2.5 bg-stone-200 rounded w-2/3" />
-                  <div className="flex justify-between pt-1">
-                    <div className="h-4 bg-stone-200 rounded w-14" />
-                    <div className="h-6 bg-stone-200 rounded w-16" />
+          <div className="grid grid-cols-1 gap-3.5">
+            {[...Array(2)].map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl overflow-hidden border border-[#D22630]/15 shadow-sm animate-pulse">
+                <div className="w-full h-36 bg-stone-200" />
+                <div className="p-3.5 space-y-2">
+                  <div className="h-3.5 bg-stone-200 rounded w-3/5" />
+                  <div className="h-2.5 bg-stone-200 rounded w-4/5" />
+                  <div className="flex justify-between items-center pt-1">
+                    <div className="h-5 bg-stone-200 rounded w-16" />
+                    <div className="h-8 bg-stone-200 rounded w-20" />
                   </div>
                 </div>
               </div>
@@ -858,12 +877,12 @@ export default function CustomerMenuApp() {
         urls={firstScreenPhotoUrls}
         onReleased={() => setReleasedFor(firstScreenSignature)}
       >
-        <div ref={menuGridRef} className="px-4 grid grid-cols-2 gap-3 max-w-lg mx-auto">
+        <div ref={menuGridRef} className="px-4 grid grid-cols-1 gap-3.5 max-w-lg mx-auto">
           {filteredMenu.map((m, index) => {
             const qty = cartQty(m.id);
             const out = !m.isAvailable;
             return (
-              <div key={m.id} className={`bg-white rounded-2xl overflow-hidden border shadow-sm ${out ? "opacity-60 border-stone-200" : "border-[#C9A227]/25"}`}>
+              <div key={m.id} className={`bg-white rounded-2xl overflow-hidden border shadow-sm ${out ? "opacity-60 border-stone-200" : "border-[#D22630]/15"}`}>
                 {/* Tap photo or name → BIG detail view with full description */}
                 <button
                   onClick={() => setDetailItem(m)}
@@ -874,61 +893,66 @@ export default function CustomerMenuApp() {
                     src={optimizeImageUrl(m.imageUrl, MENU_CARD_IMG_W, MENU_CARD_IMG_H)}
                     alt={menuText(m.name)}
                     eager={index < FIRST_SCREEN_PHOTOS}
-                    className="w-full h-28 object-cover bg-stone-100"
+                    className="w-full h-36 object-cover bg-stone-100"
                   />
-                  <span className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[9px] font-bold px-2 py-0.5 rounded-full backdrop-blur-sm">
+                  <span className="absolute top-2 right-2 bg-black/60 text-white text-[9px] font-bold px-2 py-0.5 rounded-full backdrop-blur-sm">
                     🔍 {t("details")}
                   </span>
+                  {m.isPopular && !out && (
+                    <span className="absolute top-2 left-2 bg-[#F6C51B] text-[#1B1B20] text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full">
+                      ⭐ Popular
+                    </span>
+                  )}
                   {out && (
                     <span className="absolute top-2 left-2 bg-rose-600 text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full">
                       {t("out_of_stock")}
                     </span>
                   )}
                 </button>
-                <div className="p-3 space-y-1.5">
+                <div className="p-3.5 space-y-1.5">
                   <button onClick={() => setDetailItem(m)} className="text-left w-full">
-                    <p className="text-xs font-bold text-[#2C1B17] leading-tight line-clamp-2 min-h-[2rem] hover:text-[#C9A227] transition-colors">{menuText(m.name)}</p>
+                    <p className="text-[15px] font-extrabold text-[#1B1B20] leading-tight line-clamp-2 hover:text-[#D22630] transition-colors">{menuText(m.name)}</p>
                   </button>
-                  <p className="text-[10px] text-stone-500 line-clamp-2">{menuText(m.description)}</p>
-                  <div className="flex items-center justify-between pt-1 gap-1">
+                  <p className="text-xs text-stone-600 leading-snug line-clamp-2">{menuText(m.description)}</p>
+                  <div className="flex items-center justify-between pt-2 gap-2">
                     {(() => {
                       const ep = effectivePrice(m);
                       return ep.onSale ? (
                         <span className="flex flex-col leading-none">
                           <span className="text-[10px] line-through text-stone-400 font-semibold">{m.price} ETB</span>
-                          <span className="font-extrabold text-emerald-700 text-sm">{ep.price} ETB <span className="text-[9px] bg-emerald-600 text-white px-1.5 py-0.5 rounded font-extrabold">{t("sale")}</span></span>
+                          <span className="font-black text-[#D22630] text-base">{ep.price} ETB <span className="text-[9px] bg-emerald-600 text-white px-1.5 py-0.5 rounded font-extrabold">{t("sale")}</span></span>
                         </span>
                       ) : (
-                        <span className="font-extrabold text-[#4E342E] text-sm">{m.price} ETB</span>
+                        <span className="font-black text-[#D22630] text-base">{m.price} ETB</span>
                       );
                     })()}
                     {out ? (
                       <span className="text-[10px] text-stone-400 font-bold">n/a</span>
                     ) : qty > 0 ? (
                     // Inline −/+ stepper — customer can decrease or remove
-                      <div className="flex items-center gap-1.5 bg-stone-100 rounded-lg p-1">
+                      <div className="flex items-center gap-2 bg-stone-100 rounded-xl p-1">
                         <button
                           onClick={() => setQty(m, qty - 1)}
-                          className="w-7 h-7 rounded-md bg-white shadow-sm flex items-center justify-center text-[#2C1B17] font-bold hover:bg-rose-50"
+                          className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-[#1B1B20] font-bold hover:bg-rose-50"
                           aria-label="Decrease"
                         >
-                          <Minus className="w-3.5 h-3.5" />
+                          <Minus className="w-4 h-4" />
                         </button>
-                        <span className="font-extrabold w-5 text-center text-[#2C1B17] text-sm">{qty}</span>
+                        <span className="font-extrabold w-6 text-center text-[#1B1B20]">{qty}</span>
                         <button
                           onClick={() => setQty(m, qty + 1)}
-                          className="w-7 h-7 rounded-md bg-emerald-600 shadow-sm flex items-center justify-center text-white font-bold"
+                          className="w-8 h-8 rounded-lg bg-[#D22630] shadow-sm flex items-center justify-center text-white font-bold hover:bg-[#B71F28]"
                           aria-label="Increase"
                         >
-                          <Plus className="w-3.5 h-3.5" />
+                          <Plus className="w-4 h-4" />
                         </button>
                       </div>
                     ) : (
                       <button
                         onClick={() => setQty(m, 1)}
-                        className="text-[11px] font-extrabold px-3 py-1.5 rounded-lg flex items-center gap-1 transition bg-[#C9A227] text-[#2C1B17]"
+                        className="text-xs font-extrabold px-4 py-2 rounded-xl flex items-center gap-1.5 transition bg-[#F6C51B] text-[#1B1B20] shadow-sm hover:bg-yellow-400"
                       >
-                        <Plus className="w-3 h-3" /> {t("add")}
+                        <Plus className="w-3.5 h-3.5" /> {t("add")}
                       </button>
                     )}
                   </div>
@@ -937,7 +961,7 @@ export default function CustomerMenuApp() {
             );
           })}
           {!menuLoading && filteredMenu.length === 0 && (
-            <div className="col-span-2 text-center py-12 text-stone-400 text-sm">
+            <div className="col-span-1 text-center py-12 text-stone-400 text-sm">
               <Utensils className="w-8 h-8 mx-auto mb-2 text-stone-300" />
               {t("nothing_found")}
             </div>
@@ -967,7 +991,7 @@ export default function CustomerMenuApp() {
                 <X className="w-5 h-5" />
               </button>
               {detailItem.badge && (
-                <span className="absolute top-3 left-3 bg-[#C9A227] text-[#2C1B17] text-[10px] font-extrabold uppercase px-3 py-1 rounded-full">
+                <span className="absolute top-3 left-3 bg-[#F6C51B] text-[#1B1B20] text-[10px] font-extrabold uppercase px-3 py-1 rounded-full">
                   {menuText(detailItem.badge)}
                 </span>
               )}
@@ -975,7 +999,7 @@ export default function CustomerMenuApp() {
 
             <div className="p-5 space-y-4">
               <div className="flex items-start justify-between gap-3">
-                <h2 className="font-serif font-bold text-xl text-[#2C1B17] flex-1">{menuText(detailItem.name)}</h2>
+                <h2 className="font-serif font-bold text-xl text-[#1B1B20] flex-1">{menuText(detailItem.name)}</h2>
                 {(() => {
                   const ep = effectivePrice(detailItem);
                   return ep.onSale ? (
@@ -987,7 +1011,7 @@ export default function CustomerMenuApp() {
                       <span className="text-[10px] text-emerald-600 font-bold mt-0.5">{t("you_save")} {ep.savings} ETB{detailItem.saleEnd ? ` • ${t("until")} ${detailItem.saleEnd}` : ""}</span>
                     </span>
                   ) : (
-                    <span className="font-serif font-black text-xl text-[#4E342E] whitespace-nowrap">{detailItem.price} ETB</span>
+                    <span className="font-serif font-black text-xl text-[#36363E] whitespace-nowrap">{detailItem.price} ETB</span>
                   );
                 })()}
               </div>
@@ -1000,7 +1024,7 @@ export default function CustomerMenuApp() {
 
               <div className="flex flex-wrap items-center gap-2 text-[11px]">
                 {detailItem.prepTime && (
-                  <span className="flex items-center gap-1 bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-1 rounded-full font-bold">
+                  <span className="flex items-center gap-1 bg-yellow-50 text-neutral-800 border border-yellow-200 px-2.5 py-1 rounded-full font-bold">
                     ⏱ {detailItem.prepTime}
                   </span>
                 )}
@@ -1027,7 +1051,7 @@ export default function CustomerMenuApp() {
                   ) : (
                     <button
                       onClick={() => setQty(detailItem, 1)}
-                      className="flex-1 bg-gradient-to-r from-[#C9A227] to-amber-500 text-[#2C1B17] font-black text-sm uppercase py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-lg"
+                      className="flex-1 bg-gradient-to-r from-[#F6C51B] to-yellow-500 text-[#1B1B20] font-black text-sm uppercase py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-lg"
                     >
                       <Plus className="w-4 h-4" /> {t("add_to_order")} • {effectivePrice(detailItem).price} ETB
                     </button>
@@ -1047,12 +1071,12 @@ export default function CustomerMenuApp() {
       <div className="max-w-lg mx-auto px-4 mt-10 space-y-10">
 
         {/* 3. ABOUT US — short, 2–3 sentences */}
-        <section className="bg-white rounded-2xl p-5 border border-[#C9A227]/25 shadow-sm">
-          <h3 className="font-serif font-bold text-lg text-[#2C1B17] flex items-center gap-2">{t("about_us")}</h3>
+        <section className="bg-white rounded-2xl p-5 border border-[#F6C51B]/25 shadow-sm">
+          <h3 className="font-serif font-bold text-lg text-[#1B1B20] flex items-center gap-2">{t("about_us")}</h3>
           <p className="text-sm text-stone-600 leading-relaxed mt-2">
             {menuText(
               settings.about_description?.split(".").slice(0, 2).join(".") ||
-                "Since 2018, Fana Cafe has served premium Ethiopian coffee, fresh pastries, and traditional meals in a comfortable atmosphere. Made with love in Addis Ababa."
+                "Since 2018, Amrogn Chicken has served Addis Ababa its famous chicken shawarma, crispy fried and fire-grilled chicken, carved fresh and made to order. The home of authentic shawarma, now at 4 Kilo."
             )}
           </p>
         </section>
@@ -1060,8 +1084,8 @@ export default function CustomerMenuApp() {
         {/* 4. GALLERY — photos to browse while waiting */}
         {galleryPhotos.length > 0 && (
           <section>
-            <h3 className="font-serif font-bold text-lg text-[#2C1B17] mb-3 flex items-center gap-2">
-              <Camera className="w-5 h-5 text-[#C9A227]" /> {t("gallery")}
+            <h3 className="font-serif font-bold text-lg text-[#1B1B20] mb-3 flex items-center gap-2">
+              <Camera className="w-5 h-5 text-[#F6C51B]" /> {t("gallery")}
             </h3>
             <div className="grid grid-cols-3 gap-2">
               {galleryPhotos.slice(0, 6).map((g) => (
@@ -1069,7 +1093,7 @@ export default function CustomerMenuApp() {
                   key={g.id}
                   type="button"
                   onClick={() => setGalleryPhotoIdx(galleryPhotos.findIndex((photo) => photo.id === g.id))}
-                  className="group relative h-24 overflow-hidden rounded-xl shadow-sm bg-stone-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C9A227]"
+                  className="group relative h-24 overflow-hidden rounded-xl shadow-sm bg-stone-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F6C51B]"
                   aria-label={`${t("view_photo")}: ${menuText(g.title)}`}
                 >
                   <img src={optimizeImageUrl(g.imageUrl, 300, 200)} alt={menuText(g.title)} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" onError={(e) => { const el = e.currentTarget; if (!el.src.includes("placeholder")) el.src = FALLBACK_FOOD_IMAGE; }} />
@@ -1086,7 +1110,7 @@ export default function CustomerMenuApp() {
           const hasAdjacentPhotos = galleryPhotos.length > 1;
           return (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-3" onClick={() => setGalleryPhotoIdx(null)}>
-              <div className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-[#2C1B17] shadow-2xl" onClick={(event) => event.stopPropagation()}>
+              <div className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-[#1B1B20] shadow-2xl" onClick={(event) => event.stopPropagation()}>
                 <button
                   type="button"
                   onClick={() => setGalleryPhotoIdx(null)}
@@ -1119,7 +1143,7 @@ export default function CustomerMenuApp() {
                 <div className="px-4 py-3 text-white">
                   <p className="font-serif font-bold text-base">{menuText(photo.title)}</p>
                   {photo.caption && <p className="text-xs text-stone-300 mt-1">{menuText(photo.caption)}</p>}
-                  {hasAdjacentPhotos && <p className="text-[10px] text-amber-200 font-bold mt-2 text-center">{galleryPhotoIdx + 1} / {galleryPhotos.length}</p>}
+                  {hasAdjacentPhotos && <p className="text-[10px] text-yellow-200 font-bold mt-2 text-center">{galleryPhotoIdx + 1} / {galleryPhotos.length}</p>}
                 </div>
               </div>
             </div>
@@ -1127,11 +1151,11 @@ export default function CustomerMenuApp() {
         })()}
 
         {/* 5. SERVICES — very short */}
-        <section className="bg-[#2C1B17] rounded-2xl p-5">
-          <h3 className="font-serif font-bold text-lg text-amber-100 mb-3">{t("what_we_serve")}</h3>
+        <section className="bg-[#1B1B20] rounded-2xl p-5">
+          <h3 className="font-serif font-bold text-lg text-white mb-3">{t("what_we_serve")}</h3>
           <div className="grid grid-cols-2 gap-2 text-xs">
             {[t("premium_coffee"), t("ethiopian_meals"), t("fresh_pastries"), t("fresh_juices")].map((s) => (
-              <div key={s} className="bg-[#3D2314] text-amber-100 font-bold px-3 py-2.5 rounded-xl text-center border border-[#C9A227]/20">
+              <div key={s} className="bg-[#2A2A31] text-white font-bold px-3 py-2.5 rounded-xl text-center border border-[#F6C51B]/20">
                 {s}
               </div>
             ))}
@@ -1139,27 +1163,27 @@ export default function CustomerMenuApp() {
         </section>
 
         {/* 6. FIND US — map, address, phone, hours (customers save/share) */}
-        <section className="bg-white rounded-2xl p-5 border border-[#C9A227]/25 shadow-sm space-y-3">
-          <h3 className="font-serif font-bold text-lg text-[#2C1B17] flex items-center gap-2">
-            <MapPin className="w-5 h-5 text-[#C9A227]" /> {t("find_us")}
+        <section className="bg-white rounded-2xl p-5 border border-[#F6C51B]/25 shadow-sm space-y-3">
+          <h3 className="font-serif font-bold text-lg text-[#1B1B20] flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-[#F6C51B]" /> {t("find_us")}
           </h3>
           <iframe
-            title="Fana Location"
-            src="https://maps.google.com/maps?q=9.0148457,38.7875868&z=17&output=embed"
+            title="Amrogn Chicken 4 Kilo Location"
+            src={`https://maps.google.com/maps?q=${settings.lat || "9.0349875"},${settings.lng || "38.7587344"}&z=17&output=embed`}
             className="w-full h-44 rounded-xl border border-stone-200"
             loading="lazy"
           />
           <div className="text-xs text-stone-600 space-y-1.5">
-            <p>📍 {menuText(settings.address || "Town Square Building, 22 Square, Djibouti Street, Addis Ababa")}</p>
-            <p>📞 <a href={`tel:${String(settings.phone || "0911065022").replace(/\s+/g, "")}`} className="font-extrabold text-[#4E342E]">{settings.phone || "0911 065 022"}</a></p>
-            <p>🕒 {menuText(settings.opening_hours || "Open Daily Until 8:30 PM")}</p>
-            <p className="text-stone-400">Plus Code: {settings.plus_code || "2Q7Q+W2 Addis Ababa"}</p>
+            <p>📍 {menuText(settings.address || "Ambassador Mall, Ground Floor, 4 Kilo, Addis Ababa")}</p>
+            <p>📞 <a href={`tel:${String(settings.phone || "0978957070").replace(/\s+/g, "")}`} className="font-extrabold text-[#36363E]">{settings.phone || "097 895 7070"}</a></p>
+            <p>🕒 {menuText(settings.opening_hours || "Open Daily 10:00 AM - 10:00 PM")}</p>
+            <p className="text-stone-400">Plus Code: {settings.plus_code || "2QM5+XFX Addis Ababa"}</p>
           </div>
           <a
             href={GOOGLE_MAPS_DIRECTIONS_URL}
             target="_blank"
             rel="noreferrer"
-            className="block text-center bg-[#4E342E] text-amber-200 font-bold text-xs py-2.5 rounded-xl"
+            className="block text-center bg-[#36363E] text-yellow-200 font-bold text-xs py-2.5 rounded-xl"
           >
             {t("open_maps")}
           </a>
@@ -1170,14 +1194,14 @@ export default function CustomerMenuApp() {
             reachable the plain way: it is a section of the page itself,
             guests scroll to it (stable "guest-review" anchor). */}
         <section id="guest-review" className="space-y-3 scroll-mt-24 rounded-3xl">
-          <h3 className="font-serif font-bold text-lg text-[#2C1B17] flex items-center gap-2">
-            <Star className="w-5 h-5 text-[#C9A227] fill-[#C9A227]" /> {t("what_guests_say")}
+          <h3 className="font-serif font-bold text-lg text-[#1B1B20] flex items-center gap-2">
+            <Star className="w-5 h-5 text-[#F6C51B] fill-[#F6C51B]" /> {t("what_guests_say")}
           </h3>
           {approvedReviews.map((r) => (
             <div key={r.id} className="bg-white rounded-2xl p-4 border border-stone-200 shadow-sm">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-bold text-[#2C1B17]">{r.customerName}</p>
-                <span className="text-[#C9A227] text-xs font-bold">{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span>
+                <p className="text-xs font-bold text-[#1B1B20]">{r.customerName}</p>
+                <span className="text-[#F6C51B] text-xs font-bold">{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span>
               </div>
               <p className="text-xs text-stone-600 mt-1.5 leading-relaxed italic">"{menuText(r.reviewText)}"</p>
             </div>
@@ -1186,11 +1210,11 @@ export default function CustomerMenuApp() {
           {/* "Rate your visit" call-to-action — shown once this table has actually
               ordered, so the ask lands at the end of the visit, not on arrival. */}
           {submitted && !reviewSent && (
-            <div className="bg-gradient-to-r from-[#C9A227] to-amber-500 rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-lg">
-              <Star className="w-7 h-7 text-[#2C1B17] fill-[#2C1B17] shrink-0" />
+            <div className="bg-gradient-to-r from-[#F6C51B] to-yellow-500 rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-lg">
+              <Star className="w-7 h-7 text-[#1B1B20] fill-[#1B1B20] shrink-0" />
               <div className="min-w-0">
-                <p className="font-black text-sm text-[#2C1B17] leading-tight">{t("review_cta_title")}</p>
-                <p className="text-[11px] font-bold text-[#3D2314] leading-snug">{t("review_cta_sub")}</p>
+                <p className="font-black text-sm text-[#1B1B20] leading-tight">{t("review_cta_title")}</p>
+                <p className="text-[11px] font-bold text-[#2A2A31] leading-snug">{t("review_cta_sub")}</p>
               </div>
             </div>
           )}
@@ -1203,22 +1227,22 @@ export default function CustomerMenuApp() {
               <p className="text-xs text-emerald-800 font-semibold leading-relaxed">{t("review_thanks_sub")}</p>
             </div>
           ) : (
-          <div className="bg-[#2C1B17] rounded-2xl p-5 space-y-3">
-            <p className="font-bold text-sm text-amber-100 flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-[#C9A227]" /> {t("leave_review")}
+          <div className="bg-[#1B1B20] rounded-2xl p-5 space-y-3">
+            <p className="font-bold text-sm text-white flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-[#F6C51B]" /> {t("leave_review")}
             </p>
             <input
               value={revName}
               onChange={(e) => setRevName(e.target.value)}
               placeholder={t("your_name_ph")}
-              className="w-full bg-[#3D2314] border border-stone-700 rounded-xl px-3 py-2.5 text-xs text-white"
+              className="w-full bg-[#2A2A31] border border-stone-700 rounded-xl px-3 py-2.5 text-xs text-white"
             />
             <div className="flex gap-1.5">
               {[1, 2, 3, 4, 5].map((n) => (
                 <button
                   key={n}
                   onClick={() => setRevRating(n)}
-                  className={`text-xl transition ${n <= revRating ? "text-[#C9A227]" : "text-stone-600"}`}
+                  className={`text-xl transition ${n <= revRating ? "text-[#F6C51B]" : "text-stone-600"}`}
                   aria-label={`${n} stars`}
                 >
                   ★
@@ -1230,13 +1254,13 @@ export default function CustomerMenuApp() {
               value={revText}
               onChange={(e) => setRevText(e.target.value)}
               placeholder={t("review_q_ph")}
-              className="w-full bg-[#3D2314] border border-stone-700 rounded-xl px-3 py-2.5 text-xs text-white"
+              className="w-full bg-[#2A2A31] border border-stone-700 rounded-xl px-3 py-2.5 text-xs text-white"
             />
-            {revMsg && <p className="text-[11px] font-bold text-amber-300">{revMsg}</p>}
+            {revMsg && <p className="text-[11px] font-bold text-yellow-300">{revMsg}</p>}
             <button
               onClick={submitReview}
               disabled={revSending}
-              className="w-full bg-[#C9A227] text-[#2C1B17] font-black text-xs uppercase py-3 rounded-xl disabled:opacity-50"
+              className="w-full bg-[#F6C51B] text-[#1B1B20] font-black text-xs uppercase py-3 rounded-xl disabled:opacity-50"
             >
               {revSending ? t("sending") : t("submit_review")}
             </button>
@@ -1247,33 +1271,33 @@ export default function CustomerMenuApp() {
       </div>
 
       {/* 8. FOOTER — phone + socials + copyright */}
-      <footer className="bg-[#1C120F] text-stone-400 mt-10 pb-24 pt-8">
+      <footer className="bg-[#17171B] text-stone-400 mt-10 pb-24 pt-8">
         <div className="max-w-lg mx-auto px-4 text-center space-y-4">
-          <img src={logoUrl} alt="Fana Cafe" className="w-12 h-12 rounded-full object-contain bg-white mx-auto border-2 border-[#C9A227] p-0.5" />
-          <p className="font-serif font-bold text-amber-100 text-sm">{menuText(brandName)}</p>
-          <a href={`tel:${String(settings.phone || "0911065022").replace(/\s+/g, "")}`} className="inline-flex items-center gap-2 text-[#C9A227] font-bold text-sm">
-            <Phone className="w-4 h-4" /> {settings.phone || "0911 065 022"}
+          <img src={logoUrl} alt="Amrogn Chicken" className="w-12 h-12 rounded-full object-contain bg-white mx-auto border-2 border-[#F6C51B] p-0.5" />
+          <p className="font-serif font-black text-white text-sm uppercase tracking-wide">{menuText(brandName)} • 4 Kilo</p>
+          <a href={`tel:${String(settings.phone || "0978957070").replace(/\s+/g, "")}`} className="inline-flex items-center gap-2 text-[#F6C51B] font-bold text-sm">
+            <Phone className="w-4 h-4" /> {settings.phone || "097 895 7070"}
           </a>
-          <div className="flex flex-wrap items-center justify-center gap-2 pt-1" aria-label="Fana Cafe official links">
-            <a href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs font-bold bg-white/10 px-3.5 py-2 rounded-full hover:bg-[#1877F2] transition" aria-label="Fana Cafe on Facebook">
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-1" aria-label="Amrogn Chicken official links">
+            <a href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs font-bold bg-white/10 px-3.5 py-2 rounded-full hover:bg-[#1877F2] transition" aria-label="Amrogn Chicken on Facebook">
               <span aria-hidden="true" className="font-sans font-black text-sm leading-none">f</span> Facebook
             </a>
-            <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs font-bold bg-white/10 px-3.5 py-2 rounded-full hover:bg-[#C13584] transition" aria-label="Fana Cafe on Instagram">
-              <Camera className="w-3.5 h-3.5 text-[#C9A227]" aria-hidden="true" /> Instagram
+            <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs font-bold bg-white/10 px-3.5 py-2 rounded-full hover:bg-[#C13584] transition" aria-label="Amrogn Chicken on Instagram">
+              <Camera className="w-3.5 h-3.5 text-[#F6C51B]" aria-hidden="true" /> Instagram
             </a>
-            <a href={TIKTOK_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs font-bold bg-white/10 px-3.5 py-2 rounded-full hover:bg-white hover:text-black transition" aria-label="Fana Cafe on TikTok">
-              <Music2 className="w-3.5 h-3.5 text-[#C9A227]" aria-hidden="true" /> TikTok
+            <a href={TIKTOK_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs font-bold bg-white/10 px-3.5 py-2 rounded-full hover:bg-white hover:text-black transition" aria-label="Amrogn Chicken on TikTok">
+              <Music2 className="w-3.5 h-3.5 text-[#F6C51B]" aria-hidden="true" /> TikTok
             </a>
-            <a href={GOOGLE_MAPS_DIRECTIONS_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs font-bold bg-white/10 px-3.5 py-2 rounded-full hover:bg-emerald-600 transition" aria-label="Get directions to Fana Cafe on Google Maps">
-              <MapPin className="w-3.5 h-3.5 text-[#C9A227]" aria-hidden="true" /> Maps
+            <a href={GOOGLE_MAPS_DIRECTIONS_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs font-bold bg-white/10 px-3.5 py-2 rounded-full hover:bg-emerald-600 transition" aria-label="Get directions to Amrogn Chicken 4 Kilo on Google Maps">
+              <MapPin className="w-3.5 h-3.5 text-[#F6C51B]" aria-hidden="true" /> Maps
             </a>
           </div>
           <p className="text-[10px] text-stone-600 pt-2">
-            © {new Date().getFullYear()} {brandName} • {settings.plus_code || "2Q7Q+W2 Addis Ababa"}
+            © {new Date().getFullYear()} {brandName} • 4 Kilo Branch • {settings.plus_code || "2QM5+XFX Addis Ababa"}
           </p>
-          <div className="bg-[#C9A227]/10 border border-[#C9A227]/30 rounded-xl py-2.5 px-3">
-            <p className="text-[11px] font-black text-[#C9A227] tracking-wider uppercase">Powered by - +251919081802</p>
-            <a href="tel:+251919081802" className="text-[11px] font-bold text-stone-300 hover:text-amber-300">
+          <div className="bg-[#F6C51B]/10 border border-[#F6C51B]/30 rounded-xl py-2.5 px-3">
+            <p className="text-[11px] font-black text-[#F6C51B] tracking-wider uppercase">Powered by - +251919081802</p>
+            <a href="tel:+251919081802" className="text-[11px] font-bold text-stone-300 hover:text-yellow-300">
               📞 +251 91 908 1802
             </a>
           </div>
@@ -1282,17 +1306,17 @@ export default function CustomerMenuApp() {
 
       {/* cart bar */}
       {cart.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#2C1B17] border-t-2 border-[#C9A227] p-4">
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#1B1B20] border-t-2 border-[#F6C51B] p-4">
           <div className="max-w-lg mx-auto flex items-center gap-3">
             <div className="flex-1">
               <p className="text-[10px] text-stone-400 uppercase font-bold">{cartCount} {t("items_label")}</p>
-              <p className="font-serif font-black text-xl text-[#C9A227]">{cartTotal} ETB</p>
+              <p className="font-serif font-black text-xl text-[#F6C51B]">{cartTotal} ETB</p>
             </div>
             <button
               onClick={() => setReviewMode(true)}
-              className="flex-1 bg-gradient-to-r from-[#C9A227] to-amber-500 text-[#2C1B17] font-black text-sm uppercase py-3.5 rounded-xl flex items-center justify-center gap-2"
+              className="flex-1 bg-gradient-to-r from-[#F6C51B] to-yellow-500 text-[#1B1B20] font-black text-sm uppercase py-3.5 rounded-xl flex items-center justify-center gap-2"
             >
-              <Coffee className="w-4 h-4" /> {t("review_order")}
+              <Drumstick className="w-4 h-4" /> {t("review_order")}
             </button>
           </div>
         </div>

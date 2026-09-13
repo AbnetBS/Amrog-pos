@@ -4,7 +4,7 @@
  * A "station" is a crew that physically makes something:
  *
  *   kitchen  → foods, pastries, meals & snacks          (/kitchen)
- *   barista  → machine coffee & cold drinks              (/barista)
+ *   barista  → soft drinks & cold beverages (the DRINKS lane) (/barista)
  *   buna     → TRADITIONAL coffee (jebena buna), made at the buna makers'
  *              own place, indoors and outdoors           (/buna)
  *   juice    → fresh juices, spris & punches             (/juice)
@@ -42,18 +42,21 @@ export const STATION_NAMES: StationName[] = ["kitchen", "barista", "buna", "juic
 export const STAFF_ROLES: string[] = ["waiter", "cashier", ...STATION_NAMES, "admin"];
 
 export const STATION_LABELS: Record<StationName, string> = {
-  kitchen: "Kitchen (Chef)",
-  barista: "Barista",
-  buna: "Buna Maker",
-  juice: "Juice Maker",
+  kitchen: "Amrogn Kitchen",
+  // The 4 Kilo branch runs a single beverage crew. The cafe engine keeps two
+  // legacy keys ("barista", plus "buna" for traditional coffee) internally;
+  // every visible path names the same Amrogn station for all three.
+  barista: "Juice & Cold Drinks",
+  buna: "Juice & Cold Drinks",
+  juice: "Juice & Cold Drinks",
 };
 
-/** Short label used inside alert bodies ("for the Buna Maker"). */
+/** Short label used inside alert bodies ("for the drinks station"). */
 export const STATION_SHORT: Record<StationName, string> = {
-  kitchen: "kitchen",
-  barista: "barista",
-  buna: "buna station",
-  juice: "juice station",
+  kitchen: "the kitchen",
+  barista: "the drinks station",
+  buna: "the drinks station",
+  juice: "the drinks station",
 };
 
 /** True when `value` names one of the four crews. */
@@ -78,7 +81,7 @@ export function stationOf(value: string | null | undefined): StationName {
  *   2. the per-item station override (menu_items.station_override) — for
  *      mixed-crew categories like "Extra Things", where a coffee cup is the
  *      barista's and a take away bag is the kitchen's
- *   3. the owner's category routing (barista | kitchen | juice), defaulting
+ *   3. the owner's category routing (barista=drinks | kitchen | juice), defaulting
  *      to kitchen
  */
 export function stationForOrder(

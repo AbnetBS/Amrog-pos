@@ -167,7 +167,7 @@ function pass(name, cond) {
     !/createdAt/.test((stationsApi.split("const releasedItems = (")[1] || "").split("};")[0] || ""));
   pass("the acceptance stamp is written and self-heals on old databases", /updates\.confirmedAt = new Date\(\)/.test(tickets) && /confirmedAt: timestamp\("confirmed_at"\)/.test(schema) && /confirmed_at: \{ type: "timestamp", dropNotNull: true \}/.test(migrate));
   pass("a ticket with zero released items disappears from the station list", /\.filter\(\(t\) => t\.items\.length > 0\)/.test(stationsApi));
-  pass("accepting rings ONLY the crews with items on the bill, plus the cashier", /case "confirmed"/.test(alerts) && /t\.stations/.test(alerts) && /fana-cook-\$\{t\.id\}-\$\{station\}/.test(alerts) && /New order to cook/.test(alerts));
+  pass("accepting rings ONLY the crews with items on the bill, plus the cashier", /case "confirmed"/.test(alerts) && /t\.stations/.test(alerts) && /fana-cook-\$\{t\.id\}-\$\{station\}/.test(alerts) && /New order/.test(alerts));
   pass("the route tells the matrix which crews the bill actually involves", /stations: billStations/.test(tickets) && /crewRows\.map\(\(r\) => stationOf\(r\.stationName\)\)/.test(tickets));
   pass("the waiter's button says where the order goes", /Accept & Send → Stations & Cashier/.test(waiter));
   pass("the cashier's button says plain ✓ PRINTED (the print sends nothing — instant release)",

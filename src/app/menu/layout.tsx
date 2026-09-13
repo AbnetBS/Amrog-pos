@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 export const metadata: Metadata = {
-  title: "Digital Menu & Table Ordering",
+  title: "Menu & Table Ordering • 4 Kilo",
   description:
-    "Browse the Fana Cafe & Restaurant digital menu, check current availability, and send an order directly from your table in Addis Ababa.",
+    "Browse the Amrogn Chicken menu at Ambassador Mall, 4 Kilo: shawarma, roasted and grilled chicken, mofo, crispy fried chicken, burgers, combos and drinks. Check availability and order straight from your table.",
   alternates: {
     canonical: "/menu",
   },

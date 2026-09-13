@@ -16,7 +16,7 @@ import { sql } from "drizzle-orm";
  * once and stamps the new version. Existing DBs self-heal on the first
  * request after a deploy — no manual action needed.
  */
-const SCHEMA_VERSION = "2026-09-09-1";
+const SCHEMA_VERSION = "2026-09-13-amrogn-2";
 
 /**
  * UNIVERSAL self-healing schema manager — works on ANY Postgres database
@@ -351,7 +351,7 @@ const RMS_COLUMNS: Record<string, Record<string, ColSpec>> = {
 
 const TABLE_COLUMNS: Record<string, Record<string, ColSpec>> = {
   orders: {
-    order_number: { type: "text", def: "'FANA-ORD-000000'" },
+    order_number: { type: "text", def: "'AMROGN-ORD-000000'" },
     customer_name: { type: "text", def: "'Guest'" },
     phone: { type: "text", def: "''" },
     order_type: { type: "text", def: "'dine_in'" },
@@ -393,7 +393,7 @@ const TABLE_COLUMNS: Record<string, Record<string, ColSpec>> = {
     created_at: { type: "timestamp", def: "now()", dropNotNull: true },
   },
   reservations: {
-    reservation_number: { type: "text", def: "'FANA-RES-000000'" },
+    reservation_number: { type: "text", def: "'AMROGN-RES-000000'" },
     guest_name: { type: "text", def: "'Guest'" },
     phone: { type: "text", def: "''" },
     email: { type: "text" },
@@ -536,12 +536,15 @@ async function runFullMigrate(force: boolean) {
   }
 
   // Step 4 — Group 1 integrity constraints:
-  //  • order_number = FANA-<id> (guaranteed unique — derived from the DB serial, never random)
+  //  • order_number = AMROGN-<id> (guaranteed unique — derived from the DB serial, never random)
   //  • unique (ticket_id, idempotency_key) on ticket_items: each submission stores
   //    per-item derived keys (<key>#<index>), so a retry/double-tap of the same
   //    submission can never be inserted twice, while separate submissions of the
   //    same table bill (customer orders again) stay allowed.
-  await run(`UPDATE tickets SET order_number = 'FANA-' || id WHERE order_number IS NULL OR order_number = ''`);
+  await run(`UPDATE tickets SET order_number = 'AMROGN-' || id WHERE order_number IS NULL OR order_number = ''`);
+  // One-time rebrand: orders created on the engine's old cafe build keep their
+  // numeric id but show the Amrogn prefix to staff and guests.
+  await run(`UPDATE tickets SET order_number = 'AMROGN-' || substring(order_number from 6) WHERE order_number LIKE 'FANA-%' AND substring(order_number from 6) ~ '^[0-9]+$'`);
   await run(
     `CREATE UNIQUE INDEX IF NOT EXISTS tickets_order_number_key ON tickets (order_number) WHERE order_number IS NOT NULL AND order_number <> ''`
   );
@@ -693,33 +696,85 @@ async function runFullMigrate(force: boolean) {
     );
   }
 
-  //  • OWNER REQUEST (2026-08-25) — the cafe is in TOWN SQUARE BUILDING, not
-  //    "Golagul Building", and the business name is the full "Fana Cafe &
-  //    Restaurant". One-time idempotent heal of every historical row that still
-  //    carries the wrong building/name (re-running changes nothing afterwards).
+  //  • REBRAND (2026-09-12) — this engine now runs Amrogn Chicken, 4 Kilo
+  //    branch (Ambassador Mall), replacing its original cafe customer. Heal
+  //    every historical settings/content row that still carries the old cafe
+  //    name or address so an upgraded database shows the Amrogn brand without a
+  //    factory reset. Idempotent: re-running changes nothing afterwards.
   await run(`
-    UPDATE site_settings SET value = regexp_replace(
-      regexp_replace(
-        regexp_replace(value, 'Golagul\\s+Bldg\\.?', 'Town Square Bldg', 'gi'),
-        'Golagul\\s+Building', 'Town Square Building', 'gi'),
-      'Golagul', 'Town Square', 'gi')
-    WHERE value ~* 'golagul'
+    UPDATE site_settings SET value = regexp_replace(value, 'Fana(Queen)?(\\s+Cafe)?(\\s*&\\s*Restaurant)?', 'Amrogn Chicken', 'gi'),
+      updated_at = now()
+    WHERE value ~* 'fana(queen)?'
   `);
   await run(`
-    UPDATE gallery_items SET title = regexp_replace(title, 'Golagul\\s+Building', 'Town Square Building', 'gi')
-    WHERE title ~* 'golagul'
+    UPDATE site_settings SET value = regexp_replace(
+      regexp_replace(value, 'Town\\s+Square\\s+Building|Golagul\\s+Building|Golagul\\s+Bldg\\.?', 'Ambassador Mall', 'gi'),
+      '22\\s*Square,?\\s*(Djibouti\\s+Street,?)?\\s*Bole', '4 Kilo', 'gi'),
+      updated_at = now()
+    WHERE value ~* 'town square|golagul|22\\s*square'
+  `);
+  await run(`
+    UPDATE gallery_items SET title = regexp_replace(title, 'Fana(Queen)?(\\s+Cafe)?(\\s*&\\s*Restaurant)?', 'Amrogn Chicken', 'gi')
+    WHERE title ~* 'fana'
   `);
   await run(`
     UPDATE announcements SET
-      title = regexp_replace(title, 'Golagul\\s+Building', 'Town Square Building', 'gi'),
-      description = regexp_replace(description, 'Golagul\\s+Building', 'Town Square Building', 'gi')
-    WHERE title ~* 'golagul' OR description ~* 'golagul'
+      title = regexp_replace(title, 'Fana(Queen)?(\\s+Cafe)?(\\s*&\\s*Restaurant)?', 'Amrogn Chicken', 'gi'),
+      description = regexp_replace(description, 'Fana(Queen)?(\\s+Cafe)?(\\s*&\\s*Restaurant)?', 'Amrogn Chicken', 'gi')
+    WHERE title ~* 'fana' OR description ~* 'fana'
   `);
   await run(`
-    UPDATE site_settings SET value = 'Fana Cafe & Restaurant', updated_at = now()
-    WHERE key = 'cafe_name'
-      AND value ~* '^\\s*fana(queen)?\\s*cafe(\\s*&\\s*restaurant)?\\s*$'
-      AND value <> 'Fana Cafe & Restaurant'
+    UPDATE site_settings SET value = 'Amrogn Chicken', updated_at = now()
+    WHERE key = 'cafe_name' AND value <> 'Amrogn Chicken'
+      AND value ~* 'fana|cafe'
+  `);
+
+  //  • REBRAND MENU MAP (2026-09-12) — move items on a database built for the
+  //    old cafe menu into the Amrogn chicken categories, then drop the old
+  //    categories when they are empty. A fresh Amrogn database has none of
+  //    these slugs, so every statement is a safe no-op there and re-runnable.
+  await run(`
+    UPDATE menu_items SET category = CASE
+      WHEN category IN ('sandwich','sandwiches','snack-and-wrap','wraps','wrap') THEN 'shawarma'
+      WHEN category IN ('burger','burgers') THEN 'burgers'
+      WHEN category IN ('juices','fresh-drinks','smoothies') THEN 'fresh-juices'
+      WHEN category IN ('hot-drinks','soft-drinks','coffee','signature-coffee','hot-coffee','macchiato-coffee','cold-drinks') THEN 'drinks'
+      WHEN category IN ('soup','soups','salad','salads','snacks','pastry-and-cakes','pastries','bakery','cakes','desserts','dessert') THEN 'sides'
+      WHEN category IN ('pizza','pasta','rice','food','meals','ethiopian-meals','ethiopian-traditional-meals','traditional','main-meal') THEN 'chicken'
+      ELSE category
+    END
+    WHERE category IN ('sandwich','sandwiches','snack-and-wrap','wraps','wrap','burger','burgers','juices','fresh-drinks','smoothies','hot-drinks','soft-drinks','coffee','signature-coffee','hot-coffee','macchiato-coffee','cold-drinks','soup','soups','salad','salads','snacks','pastry-and-cakes','pastries','bakery','cakes','desserts','dessert','pizza','pasta','rice','food','meals','ethiopian-meals','ethiopian-traditional-meals','traditional','main-meal')
+  `);
+  await run(`
+    DELETE FROM categories
+    WHERE slug IN ('ethiopian-traditional-meals','sandwich','snack-and-wrap','juices','hot-drinks','soft-drinks','pastry-and-cakes','soup','pasta','pizza','salad','rice','burger','coffee','signature-coffee')
+      AND NOT EXISTS (SELECT 1 FROM menu_items WHERE menu_items.category = categories.slug)
+  `);
+
+  //  • STATION MERGE (2026-09-13, amrogn-2) — the 4 Kilo branch runs TWO making
+  //    crews only: the KITCHEN and one JUICE & COLD DRINKS station (engine key
+  //    "juice"). The cafe engine's separate barista lane (machine coffee) and
+  //    buna lane (traditional coffee) do not exist here. Collapse every stored
+  //    reference to those lanes so old rows, routes and staff land on the right
+  //    Amrogn crew. Idempotent and a no-op on a fresh Amrogn database.
+  //    1. Owner category routing JSON: any "barista" destination becomes "juice".
+  await run(`
+    UPDATE site_settings
+    SET value = replace(value, '"barista"', '"juice"'), updated_at = now()
+    WHERE key = 'category_routing' AND value LIKE '%"barista"%'
+  `);
+  // 2. Per-item station overrides.
+  await run(`
+    UPDATE menu_items SET station_override = 'juice', updated_at = now()
+    WHERE station_override = 'barista'
+  `);
+  // 3. Staff logins: the barista crew joins the juice & drinks station; the
+  //    buna makers (who also waited tables) become waiters.
+  await run(`
+    UPDATE staff_users SET role = 'juice' WHERE role = 'barista'
+  `);
+  await run(`
+    UPDATE staff_users SET role = 'waiter' WHERE role = 'buna'
   `);
 
   if (errors.length > 0) {
@@ -785,10 +840,10 @@ export async function insertSmokeTest() {
 
   let err = await run(
     `INSERT INTO orders (order_number, customer_name, phone, order_type, address, items, total_amount, status, notes)
-     VALUES ('FANA-TEST-000001','Setup Test','0911065022','dine_in','Test Address','[]',1,'pending','smoke test')`
+     VALUES ('AMROGN-TEST-000001','Setup Test','0978957070','dine_in','Test Address','[]',1,'pending','smoke test')`
   );
   if (!err) {
-    await run(`DELETE FROM orders WHERE order_number = 'FANA-TEST-000001'`);
+    await run(`DELETE FROM orders WHERE order_number = 'AMROGN-TEST-000001'`);
     results.orders = "INSERT OK";
   } else {
     results.orders = `INSERT FAILED: ${err}`;
@@ -807,10 +862,10 @@ export async function insertSmokeTest() {
 
   err = await run(
     `INSERT INTO reservations (reservation_number, guest_name, phone, date, time, party_size, table_preference, status)
-     VALUES ('FANA-TEST-000002','Setup Test','0911065022','2026-01-01','12:00 PM',2,'Indoor','confirmed')`
+     VALUES ('AMROGN-TEST-000002','Setup Test','0978957070','2026-01-01','12:00 PM',2,'Indoor','confirmed')`
   );
   if (!err) {
-    await run(`DELETE FROM reservations WHERE reservation_number = 'FANA-TEST-000002'`);
+    await run(`DELETE FROM reservations WHERE reservation_number = 'AMROGN-TEST-000002'`);
     results.reservations = "INSERT OK";
   } else {
     results.reservations = `INSERT FAILED: ${err}`;

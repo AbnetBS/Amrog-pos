@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { TrendingUp, ShoppingBag, RefreshCw, ImageIcon, PieChart, Coffee, CookingPot, Printer, XCircle } from "lucide-react";
+import { TrendingUp, ShoppingBag, RefreshCw, ImageIcon, PieChart, CupSoda, Drumstick, Printer, XCircle } from "lucide-react";
 import { ReportData, Ticket } from "@/types";
 import { formatClock, formatDateTime } from "@/lib/order-lines";
 
@@ -76,10 +76,13 @@ export default function ReportsTab() {
   const fmt = (n: number) => n.toLocaleString("en-US") + " ETB";
 
   const stationMeta: Record<string, { label: string; icon: React.ReactNode; cls: string }> = {
-    barista: { label: "Barista", icon: <Coffee className="w-5 h-5 text-amber-300" />, cls: "border-amber-700/60" },
-    kitchen: { label: "Kitchen (Chef)", icon: <CookingPot className="w-5 h-5 text-emerald-300" />, cls: "border-emerald-700/60" },
-    buna: { label: "Buna Makers", icon: <span className="text-xl leading-none">🫖</span>, cls: "border-orange-700/60" },
-    juice: { label: "Juice Maker", icon: <span className="text-xl leading-none">🧃</span>, cls: "border-lime-700/60" },
+    // Amrogn 4 Kilo runs two making crews: the kitchen, and one Juice & Cold
+    // Drinks station. The engine keeps the legacy "barista" and "buna" keys
+    // for old branches — here both display as the single Amrogn drinks crew.
+    barista: { label: "Juice & Cold Drinks", icon: <CupSoda className="w-5 h-5 text-yellow-300" />, cls: "border-neutral-700/60" },
+    kitchen: { label: "Amrogn Kitchen", icon: <Drumstick className="w-5 h-5 text-emerald-300" />, cls: "border-emerald-700/60" },
+    buna: { label: "Juice & Cold Drinks", icon: <span className="text-xl leading-none">🥤</span>, cls: "border-orange-700/60" },
+    juice: { label: "Juice & Cold Drinks", icon: <span className="text-xl leading-none">🥤</span>, cls: "border-lime-700/60" },
   };
 
   const label = data?.periodLabel || PERIOD_LABELS[period];
@@ -131,9 +134,9 @@ export default function ReportsTab() {
           fills in their own name, phone and address by hand. */}
       <div className="print-only" style={{ borderBottom: "3px double #000", paddingBottom: 10, marginBottom: 12 }}>
         <div style={{ textAlign: "center" }}>
-          <img src={brand.logo_url || "/logo.png"} alt="Fana Cafe and Restaurant logo" style={{ height: 60, margin: "0 auto 6px" }} />
-          <h1 style={{ fontSize: "22px", fontWeight: 900 }}>Fana Cafe and Restaurant PLC</h1>
-          <p style={{ fontSize: "15px", fontWeight: 700 }}>ፋና ካፌ እና ሬስቶራንት ኃ.የተ.የ.ግ.ማ.</p>
+          <img src={brand.logo_url || "/logo.png"} alt="Amrogn Chicken logo" style={{ height: 60, margin: "0 auto 6px" }} />
+          <h1 style={{ fontSize: "22px", fontWeight: 900 }}>Amrogn Chicken • 4 Kilo Branch PLC</h1>
+          <p style={{ fontSize: "15px", fontWeight: 700 }}>አምሮኝ ቺክን • 4 ኪሎ ቅርንጫፍ ኃ.የተ.የ.ግ.ማ.</p>
         </div>
         <div style={{ fontSize: "12px", marginTop: 8, lineHeight: 2.2 }}>
           <p>Prepared by (name): ................................................................</p>
@@ -156,20 +159,20 @@ export default function ReportsTab() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-serif font-bold text-amber-100">Sales Reports &amp; Analytics</h2>
+          <h2 className="text-xl font-serif font-bold text-white">Sales Reports &amp; Analytics</h2>
           <p className="text-xs text-stone-400">
-            Showing <strong className="text-amber-200">{label}</strong> • every bill keyed into the EFD (printed) or marked paid. Tap a period card below to switch.
+            Showing <strong className="text-yellow-200">{label}</strong> • every bill keyed into the EFD (printed) or marked paid. Tap a period card below to switch.
           </p>
         </div>
         <div className="flex items-center gap-2 no-print">
           <button
             onClick={() => window.print()}
-            className="bg-[#C9A227] hover:bg-amber-400 text-[#2C1B17] font-black text-xs uppercase px-4 py-2.5 rounded-xl flex items-center gap-2"
+            className="bg-[#F6C51B] hover:bg-yellow-400 text-[#1B1B20] font-black text-xs uppercase px-4 py-2.5 rounded-xl flex items-center gap-2"
             title={`Print the ${label} report on this computer (EFD office PC)`}
           >
             <Printer className="w-4 h-4" /> Print Report
           </button>
-          <button onClick={() => load(period)} className="p-2.5 bg-white/10 hover:bg-white/20 text-amber-200 rounded-xl" title="Refresh">
+          <button onClick={() => load(period)} className="p-2.5 bg-white/10 hover:bg-white/20 text-yellow-200 rounded-xl" title="Refresh">
             <RefreshCw className="w-4 h-4" />
           </button>
         </div>
@@ -197,8 +200,8 @@ export default function ReportsTab() {
                 title={`Show every section below for ${p.label}`}
                 className={`rounded-2xl p-4 text-left transition active:scale-[0.98] ${
                   period === p.key
-                    ? "bg-gradient-to-br from-[#C9A227] to-[#8C6D18] text-[#2C1B17]"
-                    : "bg-[#2C1B17] border border-stone-800 text-white hover:border-[#C9A227]/60"
+                    ? "bg-gradient-to-br from-[#F6C51B] to-[#A87E0A] text-[#1B1B20]"
+                    : "bg-[#1B1B20] border border-stone-800 text-white hover:border-[#F6C51B]/60"
                 }`}
               >
                 <p className={`text-[10px] font-extrabold uppercase tracking-wider ${period === p.key ? "opacity-80" : "text-stone-400"}`}>
@@ -216,17 +219,17 @@ export default function ReportsTab() {
               each pile and compared the total with the cashier's EFD receipts.
               These four cards ARE those piles: the period's sales split by who
               prepared them. */}
-          <div className="bg-[#2C1B17] rounded-2xl border border-[#C9A227]/40 p-5 space-y-4">
+          <div className="bg-[#1B1B20] rounded-2xl border border-[#F6C51B]/40 p-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h3 className="text-sm font-bold text-amber-200 uppercase tracking-wider">📋 Cross-Check by Station ({label})</h3>
+                <h3 className="text-sm font-bold text-yellow-200 uppercase tracking-wider">📋 Cross-Check by Station ({label})</h3>
                 <p className="text-[11px] text-stone-400 mt-0.5">
                   Each crew&rsquo;s pile of the period&rsquo;s sales, split per item. Add the four totals and compare with the EFD receipt pile below.
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-extrabold uppercase text-stone-400">Barista + Kitchen + Buna + Juice</p>
-                <p className="font-serif font-black text-xl text-[#C9A227]">
+                <p className="text-[10px] font-extrabold uppercase text-stone-400">Kitchen + Juice &amp; Cold Drinks</p>
+                <p className="font-serif font-black text-xl text-[#F6C51B]">
                   {fmt((data.stationSales || []).reduce((s, x) => s + (x.revenue || 0), 0))}
                 </p>
               </div>
@@ -236,9 +239,9 @@ export default function ReportsTab() {
                 const meta = stationMeta[s.station] || stationMeta.kitchen;
                 const items = (data.stationItems || []).filter((i) => i.station === s.station);
                 return (
-                  <div key={s.station} className={`bg-[#3D2314] rounded-2xl border ${meta.cls} p-4 space-y-3`}>
+                  <div key={s.station} className={`bg-[#2A2A31] rounded-2xl border ${meta.cls} p-4 space-y-3`}>
                     <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-2 text-sm font-black text-amber-100">
+                      <span className="flex items-center gap-2 text-sm font-black text-white">
                         {meta.icon} {meta.label}
                       </span>
                       <span className="text-[10px] font-bold text-stone-400">{s.orders} bill(s)</span>
@@ -250,7 +253,7 @@ export default function ReportsTab() {
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] uppercase font-extrabold text-stone-400">Total sell</p>
-                        <p className="font-serif font-black text-2xl text-[#C9A227]">{fmt(s.revenue)}</p>
+                        <p className="font-serif font-black text-2xl text-[#F6C51B]">{fmt(s.revenue)}</p>
                       </div>
                     </div>
                     <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1 print-scroll">
@@ -259,9 +262,9 @@ export default function ReportsTab() {
                       ) : (
                         items.map((i) => (
                           <div key={`${i.station}-${i.name}`} className="flex items-center justify-between gap-2 text-xs bg-black/25 rounded-lg px-2.5 py-1.5">
-                            <span className="font-bold text-amber-100 truncate">{i.name}</span>
+                            <span className="font-bold text-white truncate">{i.name}</span>
                             <span className="shrink-0 text-stone-400 font-bold">x{i.quantity}</span>
-                            <span className="shrink-0 font-extrabold text-[#C9A227]">{i.revenue.toLocaleString("en-US")}</span>
+                            <span className="shrink-0 font-extrabold text-[#F6C51B]">{i.revenue.toLocaleString("en-US")}</span>
                           </div>
                         ))
                       )}
@@ -276,18 +279,18 @@ export default function ReportsTab() {
               owner — the EFD is the money system of record, so the third card
               counts item units sold instead. */}
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="bg-[#2C1B17] rounded-2xl p-5 border border-stone-800">
-              <ShoppingBag className="w-5 h-5 mb-2 text-[#C9A227]" />
+            <div className="bg-[#1B1B20] rounded-2xl p-5 border border-stone-800">
+              <ShoppingBag className="w-5 h-5 mb-2 text-[#F6C51B]" />
               <p className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">Orders ({label})</p>
               <p className="font-serif font-black text-2xl text-white">{kpiOrders}</p>
             </div>
-            <div className="bg-[#2C1B17] rounded-2xl p-5 border border-stone-800">
-              <PieChart className="w-5 h-5 mb-2 text-[#C9A227]" />
+            <div className="bg-[#1B1B20] rounded-2xl p-5 border border-stone-800">
+              <PieChart className="w-5 h-5 mb-2 text-[#F6C51B]" />
               <p className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">Avg. Order Value</p>
               <p className="font-serif font-black text-2xl text-white">{fmt(kpiAvg)}</p>
             </div>
-            <div className="bg-[#2C1B17] rounded-2xl p-5 border border-stone-800">
-              <TrendingUp className="w-5 h-5 mb-2 text-[#C9A227]" />
+            <div className="bg-[#1B1B20] rounded-2xl p-5 border border-stone-800">
+              <TrendingUp className="w-5 h-5 mb-2 text-[#F6C51B]" />
               <p className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">Items Sold ({label})</p>
               <p className="font-serif font-black text-2xl text-white">{(data.totalItems || 0).toLocaleString("en-US")}</p>
             </div>
@@ -295,8 +298,8 @@ export default function ReportsTab() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Peak selling hours */}
-            <div className="bg-[#2C1B17] rounded-2xl border border-stone-800 p-5">
-              <h3 className="text-sm font-bold text-amber-200 uppercase tracking-wider mb-1">⏰ Peak Selling Hours ({label})</h3>
+            <div className="bg-[#1B1B20] rounded-2xl border border-stone-800 p-5">
+              <h3 className="text-sm font-bold text-yellow-200 uppercase tracking-wider mb-1">⏰ Peak Selling Hours ({label})</h3>
               {data.peakHour ? (
                 <>
                   <p className="text-[11px] text-emerald-400 font-bold mb-3">
@@ -312,11 +315,11 @@ export default function ReportsTab() {
                             <span className="w-14 font-bold text-stone-400">{h.hour}:00</span>
                             <div className="flex-1 h-3 bg-black/40 rounded-full overflow-hidden">
                               <div
-                                className={`h-full rounded-full print-bar ${h.hour === data.peakHour?.hour ? "bg-gradient-to-r from-rose-500 to-[#C9A227]" : "bg-[#C9A227]/60"}`}
+                                className={`h-full rounded-full print-bar ${h.hour === data.peakHour?.hour ? "bg-gradient-to-r from-rose-500 to-[#F6C51B]" : "bg-[#F6C51B]/60"}`}
                                 style={{ width: `${(h.revenue / max) * 100}%` }}
                               />
                             </div>
-                            <span className="w-16 text-right font-bold text-[#C9A227]">{h.orders} ord</span>
+                            <span className="w-16 text-right font-bold text-[#F6C51B]">{h.orders} ord</span>
                           </div>
                         );
                       })}
@@ -328,20 +331,20 @@ export default function ReportsTab() {
             </div>
 
             {/* Popular items */}
-            <div className="bg-[#2C1B17] rounded-2xl border border-stone-800 p-5">
-              <h3 className="text-sm font-bold text-amber-200 uppercase tracking-wider mb-4">🏆 Highest-Selling Foods ({label})</h3>
+            <div className="bg-[#1B1B20] rounded-2xl border border-stone-800 p-5">
+              <h3 className="text-sm font-bold text-yellow-200 uppercase tracking-wider mb-4">🏆 Highest-Selling Foods ({label})</h3>
               {data.popularItems.length === 0 ? (
                 <p className="text-xs text-stone-500">No sales {emptySuffix}.</p>
               ) : (
                 <div className="space-y-2">
                   {data.popularItems.map((it, idx) => (
                     <div key={it.name} className="flex items-center gap-3 text-xs">
-                      <span className="w-6 h-6 rounded-full bg-[#C9A227]/20 text-[#C9A227] font-black flex items-center justify-center text-[10px]">
+                      <span className="w-6 h-6 rounded-full bg-[#F6C51B]/20 text-[#F6C51B] font-black flex items-center justify-center text-[10px]">
                         {idx + 1}
                       </span>
-                      <span className="flex-1 font-bold text-amber-100 truncate">{it.name}</span>
+                      <span className="flex-1 font-bold text-white truncate">{it.name}</span>
                       <span className="text-stone-400">x{it.quantity}</span>
-                      <span className="font-extrabold text-[#C9A227]">{fmt(it.revenue)}</span>
+                      <span className="font-extrabold text-[#F6C51B]">{fmt(it.revenue)}</span>
                     </div>
                   ))}
                 </div>
@@ -349,8 +352,8 @@ export default function ReportsTab() {
             </div>
 
             {/* Category sales */}
-            <div className="bg-[#2C1B17] rounded-2xl border border-stone-800 p-5">
-              <h3 className="text-sm font-bold text-amber-200 uppercase tracking-wider mb-4">Sales by Category ({label})</h3>
+            <div className="bg-[#1B1B20] rounded-2xl border border-stone-800 p-5">
+              <h3 className="text-sm font-bold text-yellow-200 uppercase tracking-wider mb-4">Sales by Category ({label})</h3>
               {data.categorySales.length === 0 ? (
                 <p className="text-xs text-stone-500">No sales {emptySuffix}.</p>
               ) : (
@@ -360,12 +363,12 @@ export default function ReportsTab() {
                     return (
                       <div key={c.category}>
                         <div className="flex justify-between text-xs mb-1">
-                          <span className="font-bold text-amber-100 capitalize">{c.category}</span>
+                          <span className="font-bold text-white capitalize">{c.category}</span>
                           <span className="font-bold text-stone-400">{(c.quantity || 0).toLocaleString("en-US")} sold</span>
-                          <span className="font-extrabold text-[#C9A227]">{fmt(c.revenue)}</span>
+                          <span className="font-extrabold text-[#F6C51B]">{fmt(c.revenue)}</span>
                         </div>
                         <div className="h-2 bg-black/40 rounded-full overflow-hidden">
-                          <div className="h-full bg-gradient-to-r from-[#C9A227] to-amber-500 rounded-full print-bar" style={{ width: `${(c.revenue / maxRev) * 100}%` }} />
+                          <div className="h-full bg-gradient-to-r from-[#F6C51B] to-yellow-500 rounded-full print-bar" style={{ width: `${(c.revenue / maxRev) * 100}%` }} />
                         </div>
                       </div>
                     );
@@ -382,10 +385,10 @@ export default function ReportsTab() {
               piles above. Tap any card to open the whole bill. Screen only: the
               printed paper carries just the one-line EFD total below instead of
               this whole archive of bills. */}
-          <div className="bg-[#2C1B17] rounded-2xl border border-stone-800 p-5 no-print">
+          <div className="bg-[#1B1B20] rounded-2xl border border-stone-800 p-5 no-print">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-              <h3 className="text-sm font-bold text-amber-200 uppercase tracking-wider flex items-center gap-2">
-                <Printer className="w-4 h-4 text-[#C9A227]" /> Printed Bills ({label}) • {(data.printedToday || []).length}
+              <h3 className="text-sm font-bold text-yellow-200 uppercase tracking-wider flex items-center gap-2">
+                <Printer className="w-4 h-4 text-[#F6C51B]" /> Printed Bills ({label}) • {(data.printedToday || []).length}
                 {data.archiveCapped ? ` of ${data.archiveTotal}` : ""}
               </h3>
               <div className="text-right">
@@ -394,7 +397,7 @@ export default function ReportsTab() {
               </div>
             </div>
             {data.archiveCapped && (
-              <p className="text-[11px] font-bold text-amber-300 bg-amber-950/40 border border-amber-700/40 rounded-xl px-3 py-2 mb-4">
+              <p className="text-[11px] font-bold text-yellow-300 bg-neutral-900/40 border border-neutral-700/40 rounded-xl px-3 py-2 mb-4">
                 Showing the newest {(data.printedToday || []).length} of {data.archiveTotal} bills • the total above covers the whole period.
               </p>
             )}
@@ -410,18 +413,18 @@ export default function ReportsTab() {
                     <button
                       key={t.id}
                       onClick={() => setBillModal(t)}
-                      className={`text-left bg-[#241714] rounded-xl p-3 flex items-center justify-between gap-2 transition hover:bg-[#2e1d18] active:scale-[0.98] border ${
+                      className={`text-left bg-[#1D1D22] rounded-xl p-3 flex items-center justify-between gap-2 transition hover:bg-[#202026] active:scale-[0.98] border ${
                         cleared ? "border-stone-700" : "border-stone-800"
                       }`}
                       title="Tap to see the full bill"
                     >
                       <div className="min-w-0 space-y-0.5">
-                        <p className="text-sm font-black text-amber-100">{t.tableName}</p>
+                        <p className="text-sm font-black text-white">{t.tableName}</p>
                         <p className="text-[11px] font-bold text-stone-300 truncate flex items-center gap-1">
-                          <Printer className="w-3 h-3 text-[#C9A227] shrink-0" /> printed {formatClock(t.printedAt)} • {t.printedBy || "cashier"}
+                          <Printer className="w-3 h-3 text-[#F6C51B] shrink-0" /> printed {formatClock(t.printedAt)} • {t.printedBy || "cashier"}
                         </p>
                         <p className="text-[11px] font-bold text-stone-300 truncate">🕒 {formatDateTime(t.printedAt || t.createdAt)}</p>
-                        <p className="text-[11px] font-bold text-[#D8B93E] truncate">👤 {t.confirmedBy || t.createdBy || "staff"}</p>
+                        <p className="text-[11px] font-bold text-[#F6C51B] truncate">👤 {t.confirmedBy || t.createdBy || "staff"}</p>
                         {cleared && (
                           <p className="text-[10px] font-black text-stone-400 uppercase">✓ cleared {t.closedAt ? formatClock(t.closedAt) : ""}</p>
                         )}
@@ -451,9 +454,9 @@ export default function ReportsTab() {
           </div>
 
           {/* Receipt photos */}
-          <div className="bg-[#2C1B17] rounded-2xl border border-stone-800 p-5">
-            <h3 className="text-sm font-bold text-amber-200 uppercase tracking-wider mb-4 flex items-center gap-2">
-              <ImageIcon className="w-4 h-4 text-[#C9A227]" /> Receipt Photos ({label})
+          <div className="bg-[#1B1B20] rounded-2xl border border-stone-800 p-5">
+            <h3 className="text-sm font-bold text-yellow-200 uppercase tracking-wider mb-4 flex items-center gap-2">
+              <ImageIcon className="w-4 h-4 text-[#F6C51B]" /> Receipt Photos ({label})
             </h3>
             {data.receipts.length === 0 ? (
               <p className="text-xs text-stone-500">No receipt photos {emptySuffix}.</p>
@@ -468,9 +471,9 @@ export default function ReportsTab() {
                       const d = await resp.json();
                       if (d.receiptImage) setReceiptModal(d.receiptImage);
                     }}
-                    className="group text-left bg-black/30 border border-stone-700 rounded-xl p-3 hover:border-[#C9A227] transition"
+                    className="group text-left bg-black/30 border border-stone-700 rounded-xl p-3 hover:border-[#F6C51B] transition"
                   >
-                    <p className="text-[11px] font-bold text-amber-100 truncate">{r.tableName}</p>
+                    <p className="text-[11px] font-bold text-white truncate">{r.tableName}</p>
                     <p className="text-[10px] text-stone-500">{r.totalAmount} ETB</p>
                     <span className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-extrabold text-sky-300 no-print">
                       📷 View Receipt
@@ -512,12 +515,12 @@ export default function ReportsTab() {
           onClick={() => setBillModal(null)}
         >
           <div
-            className="bg-[#2C1B17] border-2 border-[#C9A227]/50 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto"
+            className="bg-[#1B1B20] border-2 border-[#F6C51B]/50 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="sticky top-0 bg-[#2C1B17] border-b border-stone-800 px-5 py-4 flex items-start justify-between gap-3">
+            <div className="sticky top-0 bg-[#1B1B20] border-b border-stone-800 px-5 py-4 flex items-start justify-between gap-3">
               <div>
-                <h3 className="font-serif font-black text-xl text-amber-100">{billModal.tableName}</h3>
+                <h3 className="font-serif font-black text-xl text-white">{billModal.tableName}</h3>
                 <p className="text-xs font-bold text-stone-300 mt-0.5">
                   {billModal.orderNumber ? `#${billModal.orderNumber} • ` : ""}
                   printed {billModal.printedAt ? formatDateTime(billModal.printedAt) : "?"} • by {billModal.printedBy || "cashier"}
@@ -533,24 +536,24 @@ export default function ReportsTab() {
               </button>
             </div>
             <div className="px-5 py-4 space-y-3">
-              <div className="bg-[#3D2314] rounded-xl divide-y divide-stone-800">
+              <div className="bg-[#2A2A31] rounded-xl divide-y divide-stone-800">
                 {(billModal.items || []).filter((i) => !i.removed).map((i) => (
                   <div key={i.id} className="p-3 flex items-center justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-amber-100 truncate">{i.name}</p>
+                      <p className="text-sm font-bold text-white truncate">{i.name}</p>
                       <p className="text-xs font-semibold text-stone-300">{i.quantity} × {i.price} ETB</p>
-                      {i.notes && <p className="text-[11px] font-semibold text-amber-300 italic mt-0.5">📝 {i.notes}</p>}
+                      {i.notes && <p className="text-[11px] font-semibold text-yellow-300 italic mt-0.5">📝 {i.notes}</p>}
                     </div>
-                    <span className="text-sm font-black text-[#C9A227] shrink-0">{i.price * i.quantity} ETB</span>
+                    <span className="text-sm font-black text-[#F6C51B] shrink-0">{i.price * i.quantity} ETB</span>
                   </div>
                 ))}
                 {(billModal.items || []).filter((i) => !i.removed).length === 0 && (
                   <p className="p-3 text-center text-xs text-stone-500">No items.</p>
                 )}
               </div>
-              <div className="bg-[#3D2314] border border-[#C9A227]/40 rounded-xl px-4 py-3 flex items-center justify-between">
+              <div className="bg-[#2A2A31] border border-[#F6C51B]/40 rounded-xl px-4 py-3 flex items-center justify-between">
                 <span className="text-sm font-black text-stone-200">Bill total</span>
-                <span className="font-serif font-black text-2xl text-[#C9A227]">{billModal.totalAmount} ETB</span>
+                <span className="font-serif font-black text-2xl text-[#F6C51B]">{billModal.totalAmount} ETB</span>
               </div>
               <button
                 onClick={() => setBillModal(null)}
@@ -565,7 +568,7 @@ export default function ReportsTab() {
 
       {receiptModal && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 no-print" onClick={() => setReceiptModal(null)}>
-          <img src={receiptModal} alt="Receipt" className="max-h-[85vh] max-w-full rounded-2xl border border-[#C9A227]" />
+          <img src={receiptModal} alt="Receipt" className="max-h-[85vh] max-w-full rounded-2xl border border-[#F6C51B]" />
         </div>
       )}
     </div>

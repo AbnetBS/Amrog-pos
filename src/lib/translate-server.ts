@@ -91,7 +91,7 @@ async function googleTranslateChunk(lang: string, texts: string[]): Promise<stri
   for (const text of texts) params.append("q", text);
   try {
     const res = await fetch(`${ENDPOINT}?${params.toString()}`, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; FanaMenu/1.0)" },
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; AmrognMenu/1.0)" },
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       cache: "no-store",
     });

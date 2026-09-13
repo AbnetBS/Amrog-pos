@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import AdminPanel from "@/components/AdminPanel";
 import { MenuItem, Category, SiteSettings, Review, GalleryItem } from "@/types";
 import { DEFAULT_SETTINGS, DEFAULT_CATEGORIES, DEFAULT_MENU_ITEMS, DEFAULT_REVIEWS, DEFAULT_GALLERY } from "@/lib/initial-data";
-import { Lock, ShieldAlert, ArrowLeft } from "lucide-react";
+import { ShieldAlert, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 export default function DedicatedAdminPage() {
@@ -83,7 +83,7 @@ export default function DedicatedAdminPage() {
 
   if (isAuthenticated === null) {
     return (
-      <div className="min-h-screen bg-[#1C120F] flex items-center justify-center text-amber-200 text-sm">
+      <div className="min-h-screen bg-[#17171B] flex items-center justify-center text-yellow-200 text-sm">
         Verifying admin access...
       </div>
     );
@@ -91,20 +91,19 @@ export default function DedicatedAdminPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#1C120F] flex flex-col items-center justify-center p-4 text-white">
+      <div className="min-h-screen bg-[#17171B] flex flex-col items-center justify-center p-4 text-white">
         <div className="mb-6">
-          <Link href="/" className="inline-flex items-center gap-2 text-xs text-[#C9A227] hover:underline bg-white/10 px-4 py-2 rounded-full">
+          <Link href="/" className="inline-flex items-center gap-2 text-xs text-[#F6C51B] hover:underline bg-white/10 px-4 py-2 rounded-full">
             <ArrowLeft className="w-4 h-4" />
-            <span>Back to Fana Cafe Website</span>
+            <span>Back to Amrogn Chicken Website</span>
           </Link>
         </div>
 
-        <div className="bg-[#2C1B17] p-8 rounded-3xl border border-[#C9A227] max-w-md w-full shadow-2xl space-y-6">
+        <div className="bg-[#1B1B20] p-8 rounded-3xl border border-[#F6C51B] max-w-md w-full shadow-2xl space-y-6">
           <div className="text-center space-y-2">
-            <div className="w-14 h-14 rounded-2xl bg-[#C9A227] text-[#2C1B17] flex items-center justify-center mx-auto shadow-lg font-bold">
-              <Lock className="w-7 h-7" />
-            </div>
-            <h1 className="text-2xl font-serif font-bold text-amber-100">Owner Dashboard • Fana Cafe</h1>
+            <img src="/logo.png" alt="Amrogn Chicken" className="w-16 h-16 rounded-2xl object-contain bg-white p-1 mx-auto shadow-lg" />
+            <h1 className="text-xl sm:text-2xl font-serif font-black text-white uppercase tracking-wide">Amrogn Chicken <span className="text-[#F6C51B]">• 4 Kilo Branch</span></h1>
+            <p className="text-xs font-bold uppercase tracking-widest text-[#F6C51B]">Owner Dashboard</p>
             <p className="text-xs text-stone-300">Enter your security credentials to access the management dashboard.</p>
           </div>
 
@@ -117,7 +116,7 @@ export default function DedicatedAdminPage() {
 
           <form onSubmit={handleLoginSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-amber-200 mb-1">Owner Password</label>
+              <label className="block text-xs font-bold text-yellow-200 mb-1">Owner Password</label>
               <input
                 type="password"
                 required
@@ -125,13 +124,13 @@ export default function DedicatedAdminPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter password..."
-                className="w-full bg-[#3D2314] border border-stone-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#C9A227]"
+                className="w-full bg-[#2A2A31] border border-stone-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#F6C51B]"
               />
             </div>
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-gradient-to-r from-[#C9A227] to-[#B8921F] hover:from-[#d6ad2a] hover:to-[#c29b21] text-[#2C1B17] font-black text-xs uppercase tracking-wider py-4 rounded-xl shadow-xl transition"
+              className="w-full bg-gradient-to-r from-[#F6C51B] to-[#D9A409] hover:from-[#F9D34A] hover:to-[#E5B110] text-[#1B1B20] font-black text-xs uppercase tracking-wider py-4 rounded-xl shadow-xl transition"
             >
               {isLoading ? "Unlocking..." : "Login To Dashboard"}
             </button>

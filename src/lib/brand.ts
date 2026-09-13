@@ -1,37 +1,44 @@
 /**
- * Brand guard — the business is "Fana Cafe & Restaurant".
- * Repairs every historical caching layer (bad seed defaults, wrong admin edits,
- * earlier naive regex that produced "Fana Cafe Cafe") to one correct name.
+ * Brand guard — the business is "Amrogn Chicken".
+ * This deployment was built on the engine originally made for a cafe, so old
+ * seeds, old admin edits and cached DB rows may still carry that cafe's name.
+ * Every display path runs through this so customers and staff only ever see
+ * the Amrogn Chicken brand.
  */
-export const BRAND_NAME = "Fana Cafe & Restaurant";
+export const BRAND_NAME = "Amrogn Chicken";
+
+/** The single branch this deployment is configured for. */
+export const BRANCH_NAME = "4 Kilo Branch";
+export const BRANCH_LOCATION = "Ambassador Mall, Ground Floor, 4 Kilo";
 
 export function fixBrandText(v: unknown): string {
   if (typeof v !== "string" || !v) return v as string;
   let out = v
-    .replace(/FanaQueen(\s+Cafe)?/gi, "Fana Cafe") // FanaQueen / FanaQueen Cafe → Fana Cafe
-    .replace(/\bCafe\s+Cafe(\s+Cafe)?\b/gi, "Cafe") // Cafe Cafe (Cafe) → Cafe
+    // Legacy engine names -> Amrogn Chicken
+    .replace(/FanaQueen(\s+Cafe)?/gi, BRAND_NAME)
+    .replace(/Fana\s+Cafe(\s*&\s*Restaurant)?/gi, BRAND_NAME)
+    .replace(/\bCafe\s+Cafe(\s+Cafe)?\b/gi, "Cafe")
     .replace(/\s{2,}/g, " ")
     .trim();
-  // When the WHOLE value is just the cafe name (e.g. DB cafe_name = "Fana Cafe"
-  // or "FANA CAFE"), upgrade it to the full legal name "Fana Cafe & Restaurant".
-  if (/^fana\s+cafe$/i.test(out)) out = BRAND_NAME;
-  // Already-complete name, possibly with different casing/spacing → normalize once.
-  if (/^fana\s+cafe\s*&\s+restaurant$/i.test(out)) out = BRAND_NAME;
+  // Normalize the common Amrogn spellings to the official one.
+  if (/^amrog(n|ne|gn)?\s*chicken$/i.test(out)) out = BRAND_NAME;
   return out;
 }
 
 /**
- * Address guard — the cafe is located in TOWN SQUARE BUILDING (22 Square,
- * Bole), not "Golagul Building". Old seeds, old admin edits and cached DB rows
- * may still carry the wrong building name; every display path runs through
- * this so the address is always correct.
+ * Address guard — Amrogn Chicken's 4 Kilo branch is on the ground floor of
+ * Ambassador Mall (in front of the Parliament), not at the old cafe address.
+ * Old seeds, admin edits and cached rows may still carry the old building name.
  */
 export function fixAddressText(v: unknown): string {
   if (typeof v !== "string" || !v) return v as string;
   return v
-    .replace(/golagul\s+building/gi, "Town Square Building")
-    .replace(/golagul\s+bldg\.?/gi, "Town Square Bldg")
-    .replace(/golagul/gi, "Town Square") // any remaining bare mention
+    .replace(/town\s+square\s+building/gi, "Ambassador Mall")
+    .replace(/town\s+square\s+bldg\.?/gi, "Ambassador Mall")
+    .replace(/golagul\s+building/gi, "Ambassador Mall")
+    .replace(/golagul\s+bldg\.?/gi, "Ambassador Mall")
+    .replace(/22\s*square,?\s*(djibouti\s+street,?)?\s*bole/gi, "4 Kilo")
+    .replace(/golagul/gi, "Ambassador Mall")
     .replace(/\s{2,}/g, " ")
     .trim();
 }

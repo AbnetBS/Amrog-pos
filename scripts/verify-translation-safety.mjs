@@ -90,8 +90,9 @@ const pass = (name, value) => {
       .replace(/([^:"'`])\/\/.*$/gm, "$1"); // trailing // comments (not URLs — those are in strings)
   for (const file of walk(srcDir)) {
     const rel = file.replace(root, "");
-    // brand.ts intentionally contains these strings (it is the guard that fixes them)
-    if (rel.endsWith("brand.ts") || rel.endsWith("migrate.ts")) continue;
+    // brand.ts, migrate.ts and the setup normalizer intentionally contain the
+    // old strings (they are the guards that rewrite them)
+    if (rel.endsWith("brand.ts") || rel.endsWith("migrate.ts") || rel.endsWith("setup/route.ts")) continue;
     const src = stripComments(readFileSync(file, "utf8"));
     if (/Abnet\s+Gobezay/i.test(src)) offenders.push(`${rel}: Abnet Gobezay`);
     if (/Golagul/i.test(src)) offenders.push(`${rel}: Golagul`);
@@ -100,8 +101,8 @@ const pass = (name, value) => {
   if (offenders.length) console.log("   offenders:", offenders.join(", "));
 
   const brand = read("src/lib/brand.ts");
-  pass("brand guard upgrades bare 'Fana Cafe' to 'Fana Cafe & Restaurant'", /BRAND_NAME = "Fana Cafe & Restaurant"/.test(brand));
-  pass("address guard rewrites Golagul → Town Square", /Town Square Building/.test(brand));
+  pass("brand guard upgrades legacy cafe names to 'Amrogn Chicken'", /BRAND_NAME = "Amrogn Chicken"/.test(brand) && brand.includes("Fana\\s+Cafe"));
+  pass("address guard rewrites the old cafe address to Ambassador Mall", /Ambassador Mall/.test(brand) && /golagul/.test(brand));
 
   const footer = read("src/components/Footer.tsx");
   const menu = read("src/components/rms/CustomerMenuApp.tsx");
