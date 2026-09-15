@@ -18,7 +18,14 @@ export async function POST(request: Request) {
   // a separate deployment secret instead; requests without either credential
   // remain rejected. Keep the normal admin path for the dashboard button.
   const cronSecret = process.env.RECEIPT_CLEANUP_SECRET?.trim();
-  const bearer = request.headers.get("authorization")?.replace(/^Bearer\\s+/i, "").trim();
+  // Accept both `Authorization: Bearer <secret>` and the bare secret.
+  // (The regex here used to be /^Bearer\\s+/i — an escaped backslash that
+  // matched a literal "\s" instead of whitespace, so the Bearer prefix was
+  // never stripped and Coolify's scheduled task always got a 401.)
+  const bearer = request.headers
+    .get("authorization")
+    ?.replace(/^Bearer\s+/i, "")
+    .trim();
   const cronAuthorized = Boolean(cronSecret && bearer && bearer === cronSecret);
 
   if (!cronAuthorized) {

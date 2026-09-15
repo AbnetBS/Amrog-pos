@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { FACEBOOK_URL, GOOGLE_MAPS_DIRECTIONS_URL, INSTAGRAM_URL, TIKTOK_URL } from "@/lib/business-links";
 import { getSiteUrl } from "@/lib/site-url";
@@ -53,6 +53,11 @@ export const metadata: Metadata = {
   },
   // PWA manifest — lets staff "Add to Home Screen" so pocket alerts work on iPhone.
   manifest: "/manifest.webmanifest",
+};
+
+// Next.js 16 requires themeColor in the `viewport` export, not `metadata`
+// (otherwise every page logs "Unsupported metadata themeColor" at build time).
+export const viewport: Viewport = {
   themeColor: "#1B1B20",
 };
 

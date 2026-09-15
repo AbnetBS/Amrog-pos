@@ -125,3 +125,63 @@ WHY IT BROKE ON YOUR LAPTOP (and never will again)
 - Old downloaded files mixed with new code; Railway always builds fresh from GitHub.
 - Cookie showed the admin dashboard at "/"; now "/" is ALWAYS the public site.
 - Raw SQL errors shown to customers; now replaced with friendly phone-number messages.
+
+════════════════════════════════════════════════════════════════════
+COOLIFY ON A VPS — the exact settings this app needs
+════════════════════════════════════════════════════════════════════
+Coolify works, but it is NOT Railway: there is no `railway.json`, and this repo
+deliberately ships NO Dockerfile. So:
+
+1) APPLICATION SETTINGS → BUILD
+   • Build pack: Railpack or Nixpacks (both detect `next` on their own).
+     Do NOT pick "Dockerfile" — the file does not exist and the build aborts.
+   • Build command: `npm run build`   Start command: `npm run start`   Port: 3000
+   • Node version: 22 (Next.js 16 requires >= 20.9).
+
+2) THE "SIGABRT" BUILD CRASH — what it meant and how it is fixed
+   A build log like:
+
+     Warning: Failed to load CA certificates off thread: resource temporarily unavailable
+     ⨯ Next.js build worker exited with code: null and signal: SIGABRT
+     ERROR: process "npm run build" did not complete successfully: exit code: 1
+
+   is NOT a code error. "Collecting page data / Generating static pages" ran with
+   one Node worker per CPU core of the HOST, because Next.js sizes that pool from
+   `os.cpus().length` and `docker buildx` inside Coolify sees every core of the
+   VPS. 31 workers ≈ 10 GB of RAM; the container's memory/pid limit aborts them.
+   `next.config.ts` now caps the pool (2 workers ≈ ~1 minute for this site) and
+   you can raise it per deploy WITHOUT a code change by adding a build variable:
+
+     NEXT_BUILD_WORKERS = 4      (only if the box has 4+ GB free during builds)
+
+   If a build is still killed, the VPS simply has no headroom — add 2 GB of swap
+   (swapfile on the host, then reboot Coolify's docker) or raise the service's
+   memory limit under Settings → Resource Limit.
+
+3) VARIABLES → add all four, and tick "Build variable" so they also exist at build time
+     DATABASE_URL              postgresql://…      (your Coolify Postgres service or Neon/Supabase)
+     ADMIN_PASSWORD            your owner password
+     SESSION_SECRET            `openssl rand -base64 32`
+     RECEIPT_CLEANUP_SECRET    `openssl rand -base64 32`   (used by the cron task below)
+     NEXT_PUBLIC_SITE_URL      https://your-domain   (sitemap/robots)
+   ⚠️ Without SESSION_SECRET the admin/staff logins refuse to sign in (by design).
+
+4) HEALTH CHECK — use `/api/health` only after the database is migrated
+   `/api/health` answers `{"ok":true}` only when Postgres is reachable, and
+   `/` is a static page that answers even with the database down. If Coolify
+   marks the deploy "unhealthy" and restart-loops it, that is the DB (not the
+   app): run the one-time setup in step 6, or point the check at `/`.
+
+5) SCHEDULED TASK (receipt-photo retention; the app does not self-schedule)
+   Coolify → Scheduled → new task, every 24 hours, type "HTTP":
+     POST https://your-domain/api/tickets/cleanup
+     Header:  Authorization: Bearer <RECEIPT_CLEANUP_SECRET>
+   (The bare secret also works.) `?days=60` changes the 30-day retention.
+
+6) AFTER THE FIRST SUCCESSFUL DEPLOY — one-time database setup, IN THIS ORDER
+   a. Open  https://your-domain/admin  and log in with ADMIN_PASSWORD.
+   b. Then open  https://your-domain/api/setup  once → "Database is fully initialized".
+      These are admin-only on purpose, so strangers cannot reset your data.
+
+7) UPLOADS LIVE IN POSTGRES, NOT ON DISK — so Coolify volume/storage settings
+   cannot lose menu photos, and you may freely delete old build images.
